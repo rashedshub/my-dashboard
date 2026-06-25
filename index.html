@@ -51,22 +51,22 @@
 
     // 🔴 REPLACE WITH YOUR FIREBASE CONFIG
     // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB-ECqcB2CYmZ4NH2ikmMvfA2CxJ6d7uKA",
-  authDomain: "my-dashboard-aeb7f.firebaseapp.com",
-  projectId: "my-dashboard-aeb7f",
-  storageBucket: "my-dashboard-aeb7f.firebasestorage.app",
-  messagingSenderId: "374310408419",
-  appId: "1:374310408419:web:05381fafc5e0c4e77bb5d6"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+    import { initializeApp } from "firebase/app";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+    
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB-ECqcB2CYmZ4NH2ikmMvfA2CxJ6d7uKA",
+      authDomain: "my-dashboard-aeb7f.firebaseapp.com",
+      projectId: "my-dashboard-aeb7f",
+      storageBucket: "my-dashboard-aeb7f.firebasestorage.app",
+      messagingSenderId: "374310408419",
+      appId: "1:374310408419:web:05381fafc5e0c4e77bb5d6"
+    };
+    
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
 
     // Redirect if already logged in
