@@ -1,112 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Dashboard — Sign In</title>
-  <link rel="stylesheet" href="style.css">
+<title>Employee Management System</title>
 </head>
 <body>
-  <div class="card">
-    <h1>My Dashboard</h1>
-    <p class="subtitle">Sign in or create an account to continue</p>
 
-    <div class="tab-group">
-      <button class="tab active" onclick="switchTab('login')">Log In</button>
-      <button class="tab" onclick="switchTab('signup')">Sign Up</button>
-    </div>
+<h1>Welcome</h1>
 
-    <div id="login-form">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="you@example.com">
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="••••••••">
-      </div>
-      <button class="btn" onclick="login()">Log In</button>
-      <p class="error" id="login-error"></p>
-    </div>
+<a href="login.html">Login</a>
+<br>
+<a href="signup.html">Sign Up</a>
 
-    <div id="signup-form" style="display:none">
-      <div class="form-group">
-        <label>Email</label>
-        <input type="email" id="signup-email" placeholder="you@example.com">
-      </div>
-      <div class="form-group">
-        <label>Password</label>
-        <input type="password" id="signup-password" placeholder="Min. 6 characters">
-      </div>
-      <button class="btn" onclick="signup()">Create Account</button>
-      <p class="error" id="signup-error"></p>
-    </div>
-  </div>
-
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    // 🔴 REPLACE WITH YOUR FIREBASE CONFIG
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "firebase/app";
-    // TODO: Add SDKs for Firebase products that you want to use
-    // https://firebase.google.com/docs/web/setup#available-libraries
-    
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyB-ECqcB2CYmZ4NH2ikmMvfA2CxJ6d7uKA",
-      authDomain: "my-dashboard-aeb7f.firebaseapp.com",
-      projectId: "my-dashboard-aeb7f",
-      storageBucket: "my-dashboard-aeb7f.firebasestorage.app",
-      messagingSenderId: "374310408419",
-      appId: "1:374310408419:web:05381fafc5e0c4e77bb5d6"
-    };
-    
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // Redirect if already logged in
-    onAuthStateChanged(auth, user => {
-      if (user) window.location.href = "dashboard.html";
-    });
-
-    window.switchTab = (tab) => {
-      document.getElementById('login-form').style.display = tab === 'login' ? 'block' : 'none';
-      document.getElementById('signup-form').style.display = tab === 'signup' ? 'block' : 'none';
-      document.querySelectorAll('.tab').forEach((t, i) => {
-        t.classList.toggle('active', (i === 0 && tab === 'login') || (i === 1 && tab === 'signup'));
-      });
-    };
-
-    window.login = async () => {
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      const errEl = document.getElementById('login-error');
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        window.location.href = "dashboard.html";
-      } catch (e) {
-        errEl.textContent = "Invalid email or password.";
-        errEl.style.display = 'block';
-      }
-    };
-
-    window.signup = async () => {
-      const email = document.getElementById('signup-email').value;
-      const password = document.getElementById('signup-password').value;
-      const errEl = document.getElementById('signup-error');
-      try {
-        await createUserWithEmailAndPassword(auth, email, password);
-        window.location.href = "dashboard.html";
-      } catch (e) {
-        errEl.textContent = e.message.replace('Firebase: ', '');
-        errEl.style.display = 'block';
-      }
-    };
-  </script>
 </body>
 </html>
