@@ -50,24 +50,17 @@
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     // 🔴 REPLACE WITH YOUR FIREBASE CONFIG
-    // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB-ECqcB2CYmZ4NH2ikmMvfA2CxJ6d7uKA",
-  authDomain: "my-dashboard-aeb7f.firebaseapp.com",
-  projectId: "my-dashboard-aeb7f",
-  storageBucket: "my-dashboard-aeb7f.firebasestorage.app",
-  messagingSenderId: "374310408419",
-  appId: "1:374310408419:web:9c0bf3d04abafb437bb5d6"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
 
     // Redirect if already logged in
     onAuthStateChanged(auth, user => {
