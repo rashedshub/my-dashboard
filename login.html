@@ -1,93 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-
-    <style>
-
-        body{
-            font-family: Arial, sans-serif;
-            background:#f4f4f4;
-            display:flex;
-            justify-content:center;
-            align-items:center;
-            height:100vh;
-        }
-
-        .login-box{
-
-            width:350px;
-            background:white;
-            padding:30px;
-            border-radius:10px;
-            box-shadow:0 0 10px rgba(0,0,0,.2);
-
-        }
-
-        input{
-
-            width:100%;
-            padding:10px;
-            margin:10px 0;
-
-        }
-
-        button{
-
-            width:100%;
-            padding:12px;
-            cursor:pointer;
-
-        }
-
-        #message{
-
-            margin-top:15px;
-            color:red;
-
-        }
-
-    </style>
-
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Log in — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
+<body class="auth-body">
 
-<body>
+  <div class="card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
 
-<div class="login-box">
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to your account to continue.</p>
 
-<h2 align="center">Employee Login</h2>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email"/>
+    </div>
 
-<input
-type="email"
-id="email"
-placeholder="Enter Email">
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') login()"/>
+    </div>
 
-<input
-type="password"
-id="password"
-placeholder="Enter Password">
+    <button class="btn" id="loginBtn" onclick="login()">
+      <span class="btn-label">Log in</span>
+      <span class="spinner"></span>
+    </button>
 
-<button onclick="login()">
-Login
-</button>
+    <p class="message" id="message"></p>
 
-<p align="center">
+    <div class="switch">
+      No account? <a href="signup.html">Sign up</a>
+    </div>
+  </div>
 
-Don't have an account?
+  <script type="module">
+    import { app } from "./firebase.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 
-<a href="signup.html">
-Register
-</a>
+    const auth = getAuth(app);
+    const btn  = document.getElementById("loginBtn");
+    const msg  = document.getElementById("message");
 
-</p>
+    function setLoading(on) {
+      btn.disabled = on;
+      btn.classList.toggle("loading", on);
+    }
 
-<p id="message"></p>
+    window.login = async function () {
+      const email    = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      msg.className  = "message";
+      msg.textContent = "";
 
-</div>
+      if (!email || !password) {
+        msg.textContent = "Please enter your email and password.";
+        return;
+      }
 
-<script type="module" src="js/login.js"></script>
+      setLoading(true);
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+        msg.className   = "message success";
+        msg.textContent = "Signed in — redirecting…";
+        setTimeout(() => window.location.href = "dashboard.html", 600);
+      } catch (error) {
+        msg.textContent = friendlyError(error.code);
+        setLoading(false);
+      }
+    };
 
+    function friendlyError(code) {
+      const map = {
+        "auth/invalid-email":          "That email address isn't valid.",
+        "auth/user-not-found":         "No account found with that email.",
+        "auth/wrong-password":         "Incorrect password. Try again.",
+        "auth/too-many-requests":      "Too many attempts. Please wait a moment.",
+        "auth/network-request-failed": "Network error. Check your connection.",
+      };
+      return map[code] || "Something went wrong. Please try again.";
+    }
+  </script>
 </body>
 </html>
