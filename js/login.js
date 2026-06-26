@@ -3,8 +3,14 @@ import {
   getAuth,
   signInWithEmailAndPassword
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
+const db   = getFirestore(app);
 const btn  = document.getElementById("loginBtn");
 const msg  = document.getElementById("message");
 
@@ -39,10 +45,23 @@ async function login() {
 
   setLoading(true);
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    msg.className   = "message success";
-    msg.textContent = "Signed in — redirecting…";
-    setTimeout(() => window.location.href = "dashboard.html", 600);
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
+
+    // Check role in Firestore and redirect accordingly
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (snap.exists()) {
+      const role = snap.data().role;
+      msg.className   = "message success";
+      msg.textContent = "Signed in — redirecting…";
+      setTimeout(() => {
+        window.location.href = role === "admin" ? "admin.html" : "dashboard.html";
+      }, 600);
+    } else {
+      msg.className   = "message success";
+      msg.textContent = "Signed in — redirecting…";
+      setTimeout(() => window.location.href = "dashboard.html", 600);
+    }
 
   } catch (error) {
     msg.textContent = friendlyError(error.code);
