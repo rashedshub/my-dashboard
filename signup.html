@@ -1,30 +1,133 @@
 <!DOCTYPE html>
-<html>
-<body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign up — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body class="auth-body">
 
-<h2>Sign Up</h2>
+  <div class="card">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
 
-<input type="text" id="name" placeholder="Full Name">
+    <h1>Create account</h1>
+    <p class="subtitle">Fill in your details to get started.</p>
 
-<br><br>
+    <div class="field">
+      <label for="name">Full name</label>
+      <input type="text" id="name" placeholder="Jane Smith" autocomplete="name"/>
+    </div>
 
-<input type="text" id="employeeId" placeholder="Employee ID">
+    <div class="field">
+      <label for="employeeId">Employee ID</label>
+      <input type="text" id="employeeId" placeholder="EMP-0001"/>
+    </div>
 
-<br><br>
+    <div class="field">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email"/>
+    </div>
 
-<input type="email" id="email" placeholder="Email">
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Min. 8 characters" autocomplete="new-password"/>
+    </div>
 
-<br><br>
+    <button class="btn" id="signupBtn" onclick="signup()">
+      <span class="btn-label">Create account</span>
+      <span class="spinner"></span>
+    </button>
 
-<input type="password" id="password" placeholder="Password">
+    <p class="message" id="message"></p>
 
-<br><br>
+    <div class="switch">
+      Already have an account? <a href="login.html">Log in</a>
+    </div>
+  </div>
 
-<button onclick="signup()">
-Register
-</button>
+  <script type="module">
+    import { app } from "./firebase.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+    import {
+      getFirestore,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-<script type="module" src="js/signup.js"></script>
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    const btn  = document.getElementById("signupBtn");
+    const msg  = document.getElementById("message");
 
+    function setLoading(on) {
+      btn.disabled = on;
+      btn.classList.toggle("loading", on);
+    }
+
+    window.signup = async function () {
+      const name       = document.getElementById("name").value.trim();
+      const employeeId = document.getElementById("employeeId").value.trim();
+      const email      = document.getElementById("email").value.trim();
+      const password   = document.getElementById("password").value;
+      msg.className    = "message";
+      msg.textContent  = "";
+
+      if (!name || !employeeId || !email || !password) {
+        msg.textContent = "Please fill in all fields.";
+        return;
+      }
+      if (password.length < 8) {
+        msg.textContent = "Password must be at least 8 characters.";
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+          uid:       user.uid,
+          name,
+          employeeId,
+          email,
+          role:      "user",
+          status:    "pending",
+          createdAt: new Date().toISOString()
+        });
+
+        msg.className   = "message success";
+        msg.textContent = "Account created! Redirecting to login…";
+        setTimeout(() => window.location.href = "login.html", 1000);
+      } catch (error) {
+        msg.textContent = friendlyError(error.code);
+        setLoading(false);
+      }
+    };
+
+    function friendlyError(code) {
+      const map = {
+        "auth/email-already-in-use":   "An account with this email already exists.",
+        "auth/invalid-email":          "That email address isn't valid.",
+        "auth/weak-password":          "Password is too weak. Use at least 8 characters.",
+        "auth/network-request-failed": "Network error. Check your connection.",
+      };
+      return map[code] || "Something went wrong. Please try again.";
+    }
+  </script>
 </body>
 </html>
