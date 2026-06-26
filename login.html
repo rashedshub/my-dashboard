@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body class="auth-body">
-
   <div class="card">
     <div class="brand">
       <div class="brand-icon">
@@ -28,14 +27,12 @@
       <label for="email">Email</label>
       <input type="email" id="email" placeholder="you@company.com" autocomplete="email"/>
     </div>
-
     <div class="field">
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"
-             onkeydown="if(event.key==='Enter') login()"/>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
     </div>
 
-    <button class="btn" id="loginBtn" onclick="login()">
+    <button class="btn" id="loginBtn">
       <span class="btn-label">Log in</span>
       <span class="spinner"></span>
     </button>
@@ -47,55 +44,6 @@
     </div>
   </div>
 
-  <script type="module">
-    import { app } from "./firebase.js";
-    import {
-      getAuth,
-      signInWithEmailAndPassword
-    } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-
-    const auth = getAuth(app);
-    const btn  = document.getElementById("loginBtn");
-    const msg  = document.getElementById("message");
-
-    function setLoading(on) {
-      btn.disabled = on;
-      btn.classList.toggle("loading", on);
-    }
-
-    window.login = async function () {
-      const email    = document.getElementById("email").value.trim();
-      const password = document.getElementById("password").value;
-      msg.className  = "message";
-      msg.textContent = "";
-
-      if (!email || !password) {
-        msg.textContent = "Please enter your email and password.";
-        return;
-      }
-
-      setLoading(true);
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        msg.className   = "message success";
-        msg.textContent = "Signed in — redirecting…";
-        setTimeout(() => window.location.href = "dashboard.html", 600);
-      } catch (error) {
-        msg.textContent = friendlyError(error.code);
-        setLoading(false);
-      }
-    };
-
-    function friendlyError(code) {
-      const map = {
-        "auth/invalid-email":          "That email address isn't valid.",
-        "auth/user-not-found":         "No account found with that email.",
-        "auth/wrong-password":         "Incorrect password. Try again.",
-        "auth/too-many-requests":      "Too many attempts. Please wait a moment.",
-        "auth/network-request-failed": "Network error. Check your connection.",
-      };
-      return map[code] || "Something went wrong. Please try again.";
-    }
-  </script>
+  <script type="module" src="js/login.js"></script>
 </body>
 </html>
