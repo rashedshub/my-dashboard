@@ -32,6 +32,23 @@ async function() {
 
  } catch(error){
 
+  import { app } from "./firebase.js";
+
+import {
+ getAuth,
+ createUserWithEmailAndPassword
+}
+from
+"https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
+import {
+ getFirestore,
+ doc,
+ setDoc
+}
+from
+"https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
  alert(error.message);
 
  }
