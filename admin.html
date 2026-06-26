@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body class="admin-body">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS — Admin</span>
+    </div>
+    <div class="topbar-right">
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="page-header">
+      <div>
+        <h1>Admin Panel</h1>
+        <p>Manage employees and their access.</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <nav class="tab-nav">
+      <button class="active" data-tab="pending"   onclick="switchTab('pending')">Pending Approval</button>
+      <button              data-tab="all"       onclick="switchTab('all')">All Employees</button>
+      <button              data-tab="admins"    onclick="switchTab('admins')">Admins</button>
+    </nav>
+
+    <!-- Pending tab -->
+    <div id="tab-pending">
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="Search by name or email…" oninput="filterTable('pending-table', this.value)"/>
+        <span class="count-badge" id="pending-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="pending-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Employee ID</th>
+              <th>Registered</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pending-body">
+            <tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⏳</div>Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- All employees tab -->
+    <div id="tab-all" style="display:none;">
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="Search by name or email…" oninput="filterTable('all-table', this.value)"/>
+        <span class="count-badge" id="all-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="all-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Employee ID</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="all-body">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div>Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Admins tab -->
+    <div id="tab-admins" style="display:none;">
+      <div class="toolbar">
+        <input class="search-input" type="text" placeholder="Search by name or email…" oninput="filterTable('admins-table', this.value)"/>
+        <span class="count-badge" id="admins-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="admins-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Employee ID</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admins-body">
+            <tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🛡️</div>Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
