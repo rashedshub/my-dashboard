@@ -72,5 +72,4 @@ async function signup() {
   }
 }
 
-// Attach event listener (works correctly with ES modules)
 btn.addEventListener("click", signup);
