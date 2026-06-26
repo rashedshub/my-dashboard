@@ -13,12 +13,8 @@ import {
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// Guard: redirect to login if not signed in
 onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
+  if (!user) { window.location.href = "login.html"; return; }
 
   document.getElementById("topbarEmail").textContent = user.email;
 
@@ -26,6 +22,9 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, "users", user.uid));
     if (snap.exists()) {
       const d = snap.data();
+
+      // Redirect admin away from user dashboard
+      if (d.role === "admin") { window.location.href = "admin.html"; return; }
 
       document.getElementById("userName").textContent  = d.name?.split(" ")[0] || "there";
       document.getElementById("statRole").textContent  = capitalize(d.role || "—");
