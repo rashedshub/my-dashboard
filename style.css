@@ -305,3 +305,118 @@ input:focus {
   display: inline-flex; align-items: center;
 }
 .btn-solid:hover { background: var(--accent-hover); }
+
+/* ── Admin panel ── */
+.admin-body { background: var(--bg); }
+
+.admin-main {
+  max-width: 1100px; margin: 0 auto; padding: 40px 24px;
+  animation: fadeUp 400ms 80ms var(--ease) both;
+}
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 32px;
+}
+.page-header h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
+.page-header p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+
+/* ── Tabs ── */
+.tab-nav {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+.tab-nav button {
+  background: none; border: none; font-family: inherit;
+  font-size: 0.875rem; font-weight: 500; color: var(--muted);
+  padding: 10px 20px 10px 0; cursor: pointer;
+  position: relative; transition: color 200ms;
+  margin-right: 8px;
+}
+.tab-nav button::after {
+  content: ''; position: absolute; bottom: -1px; left: 0; right: 0;
+  height: 2px; background: var(--accent);
+  transform: scaleX(0); transition: transform 260ms var(--ease);
+  border-radius: 2px;
+}
+.tab-nav button.active { color: var(--text); }
+.tab-nav button.active::after { transform: scaleX(1); }
+
+/* ── Table ── */
+.table-wrap {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); overflow: hidden;
+}
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 0.875rem;
+}
+.data-table th {
+  text-align: left; padding: 12px 16px;
+  font-size: 0.75rem; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  background: #fafaf9; border-bottom: 1px solid var(--border);
+}
+.data-table td {
+  padding: 13px 16px; border-bottom: 1px solid #f0f0ee;
+  color: var(--text); vertical-align: middle;
+}
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { background: #fafaf9; }
+
+/* ── Action buttons ── */
+.action-btn {
+  padding: 5px 12px; border-radius: 6px; font-family: inherit;
+  font-size: 0.8rem; font-weight: 500; cursor: pointer;
+  border: 1.5px solid transparent; transition: all 160ms;
+  margin-right: 4px;
+}
+.btn-approve { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.btn-approve:hover { background: #166534; color: #fff; }
+.btn-reject  { background: #fef9c3; color: #854d0e; border-color: #fef08a; }
+.btn-reject:hover  { background: #854d0e; color: #fff; }
+.btn-promote { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+.btn-promote:hover { background: #3730a3; color: #fff; }
+.btn-delete  { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.btn-delete:hover  { background: #991b1b; color: #fff; }
+.btn-demote  { background: #f3f4f6; color: #374151; border-color: #e5e7eb; }
+.btn-demote:hover  { background: #374151; color: #fff; }
+
+/* ── Empty state ── */
+.empty-state {
+  text-align: center; padding: 60px 24px; color: var(--muted);
+  font-size: 0.9rem;
+}
+.empty-state .empty-icon { font-size: 2rem; margin-bottom: 12px; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: var(--accent); color: #fff;
+  padding: 12px 20px; border-radius: 8px;
+  font-size: 0.875rem; font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  transform: translateY(80px); opacity: 0;
+  transition: all 300ms var(--ease);
+  z-index: 100;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: var(--danger); }
+
+/* ── Search bar ── */
+.toolbar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
+}
+.search-input {
+  padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 0.875rem; color: var(--text);
+  background: var(--surface); outline: none; width: 260px;
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+}
+.count-badge {
+  font-size: 0.8rem; color: var(--muted); margin-left: auto;
+}
