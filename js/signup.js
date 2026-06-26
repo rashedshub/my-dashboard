@@ -54,3 +54,5 @@ from
  }
 
 }
+const auth = getAuth(app);
+const db = getFirestore(app);
