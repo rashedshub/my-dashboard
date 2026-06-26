@@ -1,76 +1,81 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
 </head>
-<body class="dashboard-body" style="display:block; padding:0">
+<body class="dash-body">
 
-  <div class="topbar">
-    <h2>📊 My Dashboard</h2>
-    <span id="user-email" style="color:#94a3b8; font-size:0.85rem"></span>
-    <button onclick="logout()">Sign Out</button>
-  </div>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
 
-  <div class="main" style="padding: 1rem">
-    <p class="welcome">Welcome back 👋</p>
-    <div class="cards">
+  <main class="dash-main">
+    <div class="welcome-block">
+      <h1>Hello, <span id="userName">there</span> 👋</h1>
+      <p>Here's a summary of your account.</p>
+    </div>
+
+    <div class="stats">
       <div class="stat-card">
-        <div class="label">Total Users</div>
-        <div class="value">1,284</div>
+        <div class="stat-label">Role</div>
+        <div class="stat-value" id="statRole">—</div>
       </div>
       <div class="stat-card">
-        <div class="label">Revenue</div>
-        <div class="value">$9,430</div>
+        <div class="stat-label">Status</div>
+        <div class="stat-value" id="statStatus">—</div>
       </div>
       <div class="stat-card">
-        <div class="label">Active Sessions</div>
-        <div class="value">42</div>
-      </div>
-      <div class="stat-card">
-        <div class="label">Uptime</div>
-        <div class="value">99.9%</div>
+        <div class="stat-label">Employee ID</div>
+        <div class="stat-value" id="statEmpId">—</div>
       </div>
     </div>
-  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signOut }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    <div class="info-card">
+      <h2>Account details</h2>
+      <div class="info-row">
+        <span class="key">Full name</span>
+        <span class="val" id="infoName">—</span>
+      </div>
+      <div class="info-row">
+        <span class="key">Email</span>
+        <span class="val" id="infoEmail">—</span>
+      </div>
+      <div class="info-row">
+        <span class="key">Employee ID</span>
+        <span class="val" id="infoEmpId">—</span>
+      </div>
+      <div class="info-row">
+        <span class="key">Role</span>
+        <span class="val" id="infoRole">—</span>
+      </div>
+      <div class="info-row">
+        <span class="key">Status</span>
+        <span class="val" id="infoStatus">—</span>
+      </div>
+      <div class="info-row">
+        <span class="key">Member since</span>
+        <span class="val" id="infoCreated">—</span>
+      </div>
+    </div>
+  </main>
 
-    // 🔴 SAME CONFIG AS index.html
-    // Import the functions you need from the SDKs you need
-    import { initializeApp } from "firebase/app";
-    // TODO: Add SDKs for Firebase products that you want to use
-    // https://firebase.google.com/docs/web/setup#available-libraries
-    
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyB-ECqcB2CYmZ4NH2ikmMvfA2CxJ6d7uKA",
-      authDomain: "my-dashboard-aeb7f.firebaseapp.com",
-      projectId: "my-dashboard-aeb7f",
-      storageBucket: "my-dashboard-aeb7f.firebasestorage.app",
-      messagingSenderId: "374310408419",
-      appId: "1:374310408419:web:05381fafc5e0c4e77bb5d6"
-    };
-    
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
-    // Guard: redirect to login if not authenticated
-    onAuthStateChanged(auth, user => {
-      if (!user) {
-        window.location.href = "index.html";
-      } else {
-        document.getElementById('user-email').textContent = user.email;
-      }
-    });
-
-    window.logout = () => signOut(auth).then(() => window.location.href = "index.html");
-  </script>
+  <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>
