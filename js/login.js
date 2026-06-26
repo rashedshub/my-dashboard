@@ -1,23 +1,33 @@
-try {
-  const userCredential = await createUserWithEmailAndPassword(
-    auth,
-    email,
-    password
-  );
-  const user = userCredential.user;
+import { app } from "./firebase.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 
-  await setDoc(doc(db, "users", user.uid), {
-    uid: user.uid,
-    name: name,
-    employeeId: employeeId,
-    email: email,
-    role: "user",
-    status: "pending",
-    createdAt: new Date().toISOString()
-  });
+const auth = getAuth(app);
 
-  alert("Registration Successful!");
-  window.location.href = "login.html"; // ← add this
-} catch (error) {
-  alert(error.message);
-}
+window.login = async function () {
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const message  = document.getElementById("message");
+
+  message.innerHTML = "";
+
+  if (email === "" || password === "") {
+    message.innerHTML = "Please enter email and password.";
+    return;
+  }
+
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+    const user = userCredential.user;
+    alert("Login Successful!");
+    window.location.href = "dashboard.html";
+  } catch (error) {
+    message.innerHTML = error.message;
+  }
+};
