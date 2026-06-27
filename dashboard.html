@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Dashboard — EMS</title>
   <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="dash-body">
 
@@ -21,6 +22,7 @@
       <span class="brand-name">EMS</span>
     </div>
     <div class="topbar-right">
+      <a href="survey.html" style="font-size:0.875rem;font-weight:500;color:var(--text);text-decoration:none;margin-right:16px;">📋 Surveys</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
@@ -45,9 +47,13 @@
         <div class="stat-label">Employee ID</div>
         <div class="stat-value" id="statEmpId">—</div>
       </div>
+      <div class="stat-card">
+        <div class="stat-label">Surveys Completed</div>
+        <div class="stat-value" id="statSurveys">—</div>
+      </div>
     </div>
 
-    <div class="info-card">
+    <div class="info-card" style="margin-bottom:28px;">
       <h2>Account details</h2>
       <div class="info-row">
         <span class="key">Full name</span>
@@ -72,6 +78,14 @@
       <div class="info-row">
         <span class="key">Member since</span>
         <span class="val" id="infoCreated">—</span>
+      </div>
+    </div>
+
+    <!-- Survey activity chart -->
+    <div class="chart-section">
+      <h2>My Survey Activity</h2>
+      <div id="myChartsArea">
+        <div class="empty-state" style="padding:32px;">No survey responses yet. <a href="survey.html" style="color:var(--text);font-weight:600;">Take a survey →</a></div>
       </div>
     </div>
   </main>
