@@ -6,147 +6,278 @@
   <title>Dashboard — EMS</title>
   <link rel="stylesheet" href="style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .dash-body { background: var(--bg); min-height: 100vh; }
+    .topbar { position: sticky; top: 0; z-index: 20; }
+    .dash-wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    /* Welcome */
+    .welcome { margin-bottom: 28px; animation: fadeUp 350ms var(--ease) both; }
+    .welcome h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
+    .welcome p  { font-size: 0.875rem; color: var(--muted); }
+
+    /* Slide nav */
+    .slide-nav {
+      display: flex; border-bottom: 1.5px solid var(--border);
+      margin-bottom: 24px; overflow-x: auto; scrollbar-width: none;
+      animation: fadeUp 350ms 60ms var(--ease) both;
+    }
+    .slide-nav::-webkit-scrollbar { display: none; }
+    .slide-tab {
+      background: none; border: none; font-family: inherit;
+      font-size: 0.875rem; font-weight: 500; color: var(--muted);
+      padding: 10px 18px 10px 0; cursor: pointer;
+      position: relative; transition: color 200ms;
+      white-space: nowrap; margin-right: 8px; flex-shrink: 0;
+    }
+    .slide-tab::after {
+      content: ''; position: absolute; bottom: -1.5px; left: 0; right: 0;
+      height: 2px; background: var(--accent); border-radius: 2px;
+      transform: scaleX(0);
+      transition: transform 320ms cubic-bezier(0.65,0,0.35,1);
+    }
+    .slide-tab.active { color: var(--text); }
+    .slide-tab.active::after { transform: scaleX(1); }
+    .tab-icon { margin-right: 6px; }
+
+    /* Slide track */
+    .slide-viewport { overflow: hidden; animation: fadeUp 350ms 100ms var(--ease) both; }
+    .slide-track {
+      display: flex;
+      transition: transform 420ms cubic-bezier(0.65,0,0.35,1);
+      will-change: transform;
+    }
+    .slide-panel { width: 100%; flex-shrink: 0; }
+
+    /* Stat pills */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    .stat-pill {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 18px 16px;
+    }
+    .stat-pill .sp-label {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+    }
+    .stat-pill .sp-value { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.03em; }
+
+    /* Profile card */
+    .profile-card {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); overflow: hidden;
+    }
+    .profile-banner { height: 60px; background: #111; }
+    .profile-body { padding: 0 20px 20px; }
+    .profile-avatar {
+      width: 50px; height: 50px; border-radius: 50%;
+      background: #444; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 700;
+      margin-top: -25px; margin-bottom: 10px;
+      border: 3px solid var(--surface);
+    }
+    .profile-name  { font-size: 1rem; font-weight: 700; }
+    .profile-sub   { font-size: 0.8rem; color: var(--muted); margin-top: 2px; margin-bottom: 14px; }
+    .profile-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 0.875rem;
+    }
+    .profile-row:last-child { border-bottom: none; }
+    .profile-row .pk { color: var(--muted); font-size: 0.8rem; }
+    .profile-row .pv { font-weight: 500; }
+
+    /* Quick links */
+    .quick-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    }
+    .quick-card {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 20px;
+      text-decoration: none; color: var(--text);
+      display: flex; flex-direction: column; gap: 8px;
+      transition: border-color 180ms, transform 150ms, box-shadow 180ms;
+    }
+    .quick-card:hover {
+      border-color: var(--accent); transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,.07);
+    }
+    .quick-card:active { transform: scale(0.98); }
+    .quick-icon  { font-size: 1.4rem; }
+    .quick-title { font-size: 0.9rem; font-weight: 600; }
+    .quick-desc  { font-size: 0.78rem; color: var(--muted); line-height: 1.4; flex: 1; }
+    .quick-arrow { font-size: 0.8rem; color: var(--muted); }
+    .quick-card:hover .quick-arrow { color: var(--text); }
+
+    /* Survey panel */
+    .panel-empty {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 48px 24px;
+      text-align: center; color: var(--muted); font-size: 0.875rem;
+    }
+    .panel-empty .pe-icon { font-size: 2rem; margin-bottom: 12px; }
+    .panel-empty a {
+      display: inline-block; margin-top: 14px;
+      padding: 9px 20px; background: var(--accent); color: #fff;
+      border-radius: 8px; font-size: 0.875rem; font-weight: 500;
+      text-decoration: none; transition: background 180ms;
+    }
+    .panel-empty a:hover { background: #333; }
+
+    .survey-chart-card {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 20px; margin-bottom: 12px;
+    }
+    .survey-chart-card h3  { font-size: 0.875rem; font-weight: 600; margin-bottom: 3px; }
+    .survey-chart-card .sc-meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 180px; }
+
+    /* Leave panel */
+    .leave-summary-card {
+      background: var(--surface); border-radius: 12px;
+      border: 1px solid var(--border); padding: 20px; margin-bottom: 12px;
+    }
+    .leave-summary-card h3 { font-size: 0.875rem; font-weight: 600; margin-bottom: 16px; }
+    .leave-bar-row { margin-bottom: 14px; }
+    .leave-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; margin-bottom: 6px;
+    }
+    .leave-bar-label .lbl-name { color: var(--muted); }
+    .leave-bar-label .lbl-pct  { font-weight: 600; color: var(--text); }
+    .leave-track { height: 7px; background: #f0f0ee; border-radius: 99px; overflow: hidden; }
+    .leave-fill  {
+      height: 100%; border-radius: 99px;
+      transition: width 700ms cubic-bezier(0.65,0,0.35,1);
+    }
+    .leave-fill.ok   { background: #111; }
+    .leave-fill.over { background: #991b1b; }
+    .leave-cta {
+      display: inline-block; margin-top: 8px;
+      font-size: 0.8rem; font-weight: 600; color: var(--text);
+      text-decoration: none; border-bottom: 1.5px solid var(--text);
+      line-height: 1.1; transition: opacity 160ms;
+    }
+    .leave-cta:hover { opacity: 0.5; }
+  </style>
 </head>
 <body class="dash-body">
 
-  <div class="app-shell">
-
-    <!-- ── Sidebar ── -->
-    <nav class="sidebar" id="sidebar">
-      <div class="sb-top">
-        <div class="sb-brand">
-          <div class="brand-icon">
-            <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-              <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
-              <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-              <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-              <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
-            </svg>
-          </div>
-          <span class="sb-brand-name">EMS</span>
-        </div>
-
-        <nav class="sb-nav">
-
-          <!-- Dashboard -->
-          <a href="index.html" class="sb-item active">
-            <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-              <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-            </svg>
-            <span class="sb-label">Dashboard</span>
-          </a>
-
-          <!-- Surveys -->
-          <a href="survey.html" class="sb-item">
-            <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
-              <rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/>
-            </svg>
-            <span class="sb-label">Surveys</span>
-          </a>
-
-          <!-- Data Entry (collapsible group) -->
-          <div class="sb-group">
-            <button class="sb-group-toggle" id="dataEntryToggle" aria-expanded="false">
-              <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              <span class="sb-label">Data Entry</span>
-              <svg class="sb-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </button>
-            <div class="sb-sub" id="dataEntrySub">
-              <a href="leave.html" class="sb-sub-item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14">
-                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                Leave planning
-              </a>
-            </div>
-          </div>
-
-        </nav>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
       </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
 
-      <div class="sb-bottom">
-        <div class="sb-user">
-          <div class="sb-avatar" id="sbAvatar">—</div>
-          <div class="sb-user-info">
-            <span class="sb-user-name" id="sbName">—</span>
-            <span class="sb-user-email" id="sbEmail">—</span>
-          </div>
-        </div>
-        <button class="sb-toggle" id="sbToggle" aria-label="Collapse sidebar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-            <path d="M15 18l-6-6 6-6"/>
-          </svg>
-          <span class="sb-label">Collapse</span>
-        </button>
-        <button class="sb-logout" id="logoutBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          <span class="sb-label">Log out</span>
-        </button>
-      </div>
+  <main class="dash-wrap">
+
+    <div class="welcome">
+      <h1>Hello, <span id="userName">there</span> 👋</h1>
+      <p id="welcomeSub">Loading your profile…</p>
+    </div>
+
+    <!-- Tab bar -->
+    <nav class="slide-nav">
+      <button class="slide-tab active" data-panel="0"><span class="tab-icon">👤</span>Profile</button>
+      <button class="slide-tab"        data-panel="1"><span class="tab-icon">⚡</span>Quick Links</button>
+      <button class="slide-tab"        data-panel="2"><span class="tab-icon">📋</span>Surveys</button>
+      <button class="slide-tab"        data-panel="3"><span class="tab-icon">📅</span>Leave</button>
     </nav>
 
-    <!-- ── Main content ── -->
-    <main class="dash-main">
+    <!-- Panels -->
+    <div class="slide-viewport">
+      <div class="slide-track" id="slideTrack">
 
-      <div class="dash-header">
-        <div>
-          <h1>Hello, <span id="userName">there</span> 👋</h1>
-          <p class="dash-sub">Here's a summary of your account.</p>
-        </div>
-        <span class="user-badge" id="topbarEmail"></span>
-      </div>
-
-      <!-- Stats row -->
-      <div class="stats">
-        <div class="stat-card">
-          <div class="stat-label">Role</div>
-          <div class="stat-value" id="statRole">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Status</div>
-          <div class="stat-value" id="statStatus">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Employee ID</div>
-          <div class="stat-value" id="statEmpId">—</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Surveys done</div>
-          <div class="stat-value" id="statSurveys">—</div>
-        </div>
-      </div>
-
-      <!-- Account details only -->
-      <div class="info-card" style="margin-bottom:28px;">
-        <h2>Account details</h2>
-        <div class="info-row"><span class="key">Full name</span><span class="val" id="infoName">—</span></div>
-        <div class="info-row"><span class="key">Email</span><span class="val" id="infoEmail">—</span></div>
-        <div class="info-row"><span class="key">Employee ID</span><span class="val" id="infoEmpId">—</span></div>
-        <div class="info-row"><span class="key">Role</span><span class="val" id="infoRole">—</span></div>
-        <div class="info-row"><span class="key">Status</span><span class="val" id="infoStatus">—</span></div>
-        <div class="info-row"><span class="key">Member since</span><span class="val" id="infoCreated">—</span></div>
-      </div>
-
-      <!-- Survey activity chart -->
-      <div class="chart-section">
-        <h2>My survey activity</h2>
-        <div id="myChartsArea">
-          <div class="empty-state" style="padding:32px;">
-            No survey responses yet. <a href="survey.html" style="color:var(--text);font-weight:600;">Take a survey →</a>
+        <!-- 0 · Profile -->
+        <div class="slide-panel">
+          <div class="stat-row">
+            <div class="stat-pill"><div class="sp-label">Role</div><div class="sp-value" id="statRole">—</div></div>
+            <div class="stat-pill"><div class="sp-label">Status</div><div class="sp-value" id="statStatus">—</div></div>
+            <div class="stat-pill"><div class="sp-label">Employee ID</div><div class="sp-value" id="statEmpId">—</div></div>
+            <div class="stat-pill"><div class="sp-label">Surveys Done</div><div class="sp-value" id="statSurveys">—</div></div>
+          </div>
+          <div class="profile-card">
+            <div class="profile-banner"></div>
+            <div class="profile-body">
+              <div class="profile-avatar" id="profileAvatar">?</div>
+              <div class="profile-name" id="profileName">—</div>
+              <div class="profile-sub"  id="profileSub">—</div>
+              <div class="profile-row"><span class="pk">Email</span><span class="pv" id="infoEmail">—</span></div>
+              <div class="profile-row"><span class="pk">Employee ID</span><span class="pv" id="infoEmpId">—</span></div>
+              <div class="profile-row"><span class="pk">Status</span><span class="pv" id="infoStatus">—</span></div>
+              <div class="profile-row"><span class="pk">Member since</span><span class="pv" id="infoCreated">—</span></div>
+            </div>
           </div>
         </div>
-      </div>
 
-    </main>
-  </div>
+        <!-- 1 · Quick links -->
+        <div class="slide-panel">
+          <div class="quick-grid">
+            <a href="survey.html" class="quick-card">
+              <div class="quick-icon">📋</div>
+              <div class="quick-title">Surveys</div>
+              <div class="quick-desc">Answer active surveys assigned to you</div>
+              <div class="quick-arrow">→</div>
+            </a>
+            <a href="leave.html" class="quick-card">
+              <div class="quick-icon">📅</div>
+              <div class="quick-title">Leave Planning</div>
+              <div class="quick-desc">Enter your plan vs actual leave hours</div>
+              <div class="quick-arrow">→</div>
+            </a>
+            <a href="hr-dashboard.html" class="quick-card">
+              <div class="quick-icon">📊</div>
+              <div class="quick-title">HR Dashboard</div>
+              <div class="quick-desc">View leave charts for all employees</div>
+              <div class="quick-arrow">→</div>
+            </a>
+            <a href="admin.html" class="quick-card" id="adminLink" style="display:none;">
+              <div class="quick-icon">🛡️</div>
+              <div class="quick-title">Admin Panel</div>
+              <div class="quick-desc">Manage employees and approvals</div>
+              <div class="quick-arrow">→</div>
+            </a>
+          </div>
+        </div>
+
+        <!-- 2 · Surveys -->
+        <div class="slide-panel">
+          <div class="panel-empty" id="surveyEmpty">
+            <div class="pe-icon">📋</div>
+            No survey responses yet.
+            <br><a href="survey.html">Take a survey →</a>
+          </div>
+          <div id="surveyChartsArea" style="display:none;"></div>
+        </div>
+
+        <!-- 3 · Leave -->
+        <div class="slide-panel">
+          <div class="panel-empty" id="leaveEmpty">
+            <div class="pe-icon">📅</div>
+            No leave data for this year yet.
+            <br><a href="leave.html">Enter leave data →</a>
+          </div>
+          <div id="leaveSummaryArea" style="display:none;"></div>
+        </div>
+
+      </div>
+    </div>
+  </main>
 
   <script type="module" src="js/dashboard.js"></script>
 </body>
