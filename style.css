@@ -420,3 +420,115 @@ input:focus {
 .count-badge {
   font-size: 0.8rem; color: var(--muted); margin-left: auto;
 }
+
+/* ── Survey admin ── */
+.survey-form-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 28px;
+  margin-bottom: 28px;
+}
+.survey-form-card h2 {
+  font-size: 1rem; font-weight: 600; margin-bottom: 20px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;
+}
+.form-row.full { grid-template-columns: 1fr; }
+select {
+  width: 100%; padding: 11px 14px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 0.9375rem; color: var(--text);
+  background: #fafaf9; outline: none;
+  transition: border-color 200ms, box-shadow 200ms;
+}
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+}
+
+/* Questions builder */
+.questions-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.question-row {
+  display: flex; gap: 10px; align-items: center;
+}
+.question-row input { flex: 1; }
+.question-row select { width: 150px; flex-shrink: 0; }
+.btn-icon {
+  width: 36px; height: 36px; border-radius: 7px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-size: 1rem; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+  transition: all 160ms; flex-shrink: 0;
+}
+.btn-icon:hover { border-color: var(--danger); background: #fee2e2; }
+.btn-add {
+  background: none; border: 1.5px dashed var(--border);
+  border-radius: 8px; padding: 10px; width: 100%;
+  font-family: inherit; font-size: 0.875rem; color: var(--muted);
+  cursor: pointer; transition: all 160ms;
+}
+.btn-add:hover { border-color: var(--accent); color: var(--text); }
+
+/* Survey cards on dashboard */
+.survey-card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 24px; margin-bottom: 16px;
+}
+.survey-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.survey-card .meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; }
+.question-block { margin-bottom: 18px; }
+.question-block .q-text {
+  font-size: 0.9rem; font-weight: 500; margin-bottom: 8px;
+}
+.rating-row { display: flex; gap: 8px; }
+.rating-btn {
+  width: 38px; height: 38px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-family: inherit; font-size: 0.875rem; font-weight: 500;
+  cursor: pointer; transition: all 160ms;
+}
+.rating-btn:hover, .rating-btn.selected {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.text-answer {
+  width: 100%; padding: 10px 14px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-family: inherit; font-size: 0.9rem; resize: vertical;
+  min-height: 80px; outline: none;
+  transition: border-color 200ms, box-shadow 200ms;
+}
+.text-answer:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+}
+.yesno-row { display: flex; gap: 10px; }
+.yesno-btn {
+  padding: 8px 20px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-family: inherit; font-size: 0.875rem; font-weight: 500;
+  cursor: pointer; transition: all 160ms;
+}
+.yesno-btn:hover, .yesno-btn.selected {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+
+/* Charts section */
+.chart-section { margin-top: 28px; }
+.chart-section h2 {
+  font-size: 1rem; font-weight: 600; margin-bottom: 16px;
+}
+.chart-card {
+  background: var(--surface); border-radius: var(--radius);
+  border: 1px solid var(--border); padding: 24px; margin-bottom: 16px;
+}
+.chart-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 16px; color: var(--muted); }
+.chart-wrap { position: relative; height: 220px; }
+
+/* Submitted state */
+.survey-submitted {
+  text-align: center; padding: 24px; color: var(--muted); font-size: 0.9rem;
+}
+.survey-submitted .check { font-size: 2rem; margin-bottom: 8px; }
