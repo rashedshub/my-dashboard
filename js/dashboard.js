@@ -10,6 +10,31 @@ import {
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// ── Sidebar toggle ────────────────────────────────────────────────────────────
+const sidebar   = document.getElementById("sidebar");
+const sbToggle  = document.getElementById("sbToggle");
+const COLLAPSED = "sb-collapsed";
+
+const savedState = localStorage.getItem("ems-sidebar");
+if (savedState === "collapsed") sidebar.classList.add(COLLAPSED);
+
+sbToggle.addEventListener("click", () => {
+  sidebar.classList.toggle(COLLAPSED);
+  localStorage.setItem("ems-sidebar", sidebar.classList.contains(COLLAPSED) ? "collapsed" : "open");
+});
+
+// Mark active nav item based on current page
+const currentPage = location.pathname.split("/").pop() || "index.html";
+document.querySelectorAll(".sb-item").forEach(link => {
+  const href = link.getAttribute("href");
+  if (href === currentPage || (currentPage === "" && href === "index.html")) {
+    link.classList.add("active");
+  } else {
+    link.classList.remove("active");
+  }
+});
+
+// ── Auth & data ───────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "login.html"; return; }
 
@@ -20,29 +45,39 @@ onAuthStateChanged(auth, async (user) => {
     if (!snap.exists()) return;
     const d = snap.data();
 
-    // Redirect admin
+    // Redirect admin to admin panel
     if (d.role === "admin") { window.location.href = "admin.html"; return; }
 
-    // Profile
+    // Sidebar user info
+    const initials = (d.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
+    document.getElementById("sbAvatar").textContent  = initials;
+    document.getElementById("sbName").textContent    = d.name  || "—";
+    document.getElementById("sbEmail").textContent   = d.email || "—";
+
+    // Header
     document.getElementById("userName").textContent  = d.name?.split(" ")[0] || "there";
+
+    // Stats
     document.getElementById("statRole").textContent  = capitalize(d.role || "—");
     document.getElementById("statEmpId").textContent = d.employeeId || "—";
     document.getElementById("statStatus").innerHTML  = badgeHTML(d.status);
+
+    // Account details
     document.getElementById("infoName").textContent    = d.name       || "—";
     document.getElementById("infoEmail").textContent   = d.email      || "—";
     document.getElementById("infoEmpId").textContent   = d.employeeId || "—";
     document.getElementById("infoRole").textContent    = capitalize(d.role || "—");
     document.getElementById("infoStatus").innerHTML    = badgeHTML(d.status);
     document.getElementById("infoCreated").textContent = d.createdAt
-      ? new Date(d.createdAt).toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" })
+      ? new Date(d.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
       : "—";
 
-    // Load my survey responses
+    // Survey responses
     const respSnap = await getDocs(query(
       collection(db, "responses"),
       where("userId", "==", user.uid)
     ));
-    const responses = respSnap.docs.map(d => d.data());
+    const responses = respSnap.docs.map(r => r.data());
     document.getElementById("statSurveys").textContent = responses.length;
 
     renderMyCharts(responses);
@@ -51,19 +86,19 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-// ── Render per-survey charts for the user ─────────────────────────────────────
+// ── Survey trend charts ───────────────────────────────────────────────────────
 async function renderMyCharts(responses) {
   const area = document.getElementById("myChartsArea");
   if (responses.length === 0) return;
 
-  // Group by survey
   const bySurvey = {};
   responses.forEach(r => {
-    if (!bySurvey[r.surveyId]) bySurvey[r.surveyId] = { title: r.surveyTitle, frequency: r.frequency, responses: [] };
+    if (!bySurvey[r.surveyId]) {
+      bySurvey[r.surveyId] = { title: r.surveyTitle, frequency: r.frequency, responses: [] };
+    }
     bySurvey[r.surveyId].responses.push(r);
   });
 
-  // Load survey question definitions
   const surveyIds = Object.keys(bySurvey);
   const surveyDefs = {};
   await Promise.all(surveyIds.map(async id => {
@@ -77,22 +112,21 @@ async function renderMyCharts(responses) {
     const def = surveyDefs[surveyId];
     if (!def) continue;
 
-    // Sort responses by period
-    const sorted = group.responses.sort((a, b) => a.period.localeCompare(b.period));
+    const sorted  = group.responses.sort((a, b) => a.period.localeCompare(b.period));
     const periods = sorted.map(r => r.period);
 
     const card = document.createElement("div");
     card.className = "chart-card";
     card.innerHTML = `<h3>${group.title} <span style="font-weight:400;color:var(--muted)">(${capitalize(group.frequency)})</span></h3>`;
 
-    // For each rating question, plot trend over time
     def.questions.forEach((q, i) => {
       if (q.type !== "rating") return;
       const dataPoints = sorted.map(r => Number(r.answers?.[i]) || null);
 
       const wrap = document.createElement("div");
       wrap.style.marginBottom = "20px";
-      wrap.innerHTML = `<p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Q${i+1}: ${q.text}</p>
+      wrap.innerHTML = `
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Q${i + 1}: ${q.text}</p>
         <div class="chart-wrap"><canvas id="dc-${surveyId}-${i}"></canvas></div>`;
       card.appendChild(wrap);
 
@@ -114,11 +148,10 @@ async function renderMyCharts(responses) {
             }]
           },
           options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: {
-              y: { min: 1, max: 5, ticks: { stepSize: 1 } }
-            }
+            scales: { y: { min: 1, max: 5, ticks: { stepSize: 1 } } }
           }
         });
       }, 0);
@@ -139,6 +172,7 @@ function badgeHTML(status) {
   return `<span class="badge ${cls}">${capitalize(status || "pending")}</span>`;
 }
 
+// ── Logout ────────────────────────────────────────────────────────────────────
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "login.html";
