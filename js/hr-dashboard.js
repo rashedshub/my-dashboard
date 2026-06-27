@@ -102,8 +102,13 @@ async function loadData() {
     const ytdPlanVal   = ytdPlan[currentMonthIdx]   || 0;
     const ytdActualVal = ytdActual[currentMonthIdx]  || 0;
     const ytdDiff      = ytdActualVal - ytdPlanVal;
-    const pct          = ytdPlanVal > 0 ? (ytdActualVal / ytdPlanVal * 100) : 0;
-    const pctCls       = pct > 100 ? "over" : pct < 100 ? "under" : "exact";
+
+    // Card: use FULL year totals (all entered data, not capped to current month)
+    const totalPlan   = planByMonth.reduce((a, b) => a + b, 0);
+    const totalActual = actualByMonth.reduce((a, b) => a + b, 0);
+    const totalDiff   = totalActual - totalPlan;
+    const pct         = totalPlan > 0 ? (totalActual / totalPlan * 100) : 0;
+    const pctCls      = pct > 100 ? "over" : pct < 100 ? "under" : "exact";
 
     // Show content before writing into it
     if (ls) ls.style.display = "none";
@@ -117,12 +122,12 @@ async function loadData() {
     if (pctEl) { pctEl.textContent = pct.toFixed(1) + "%"; pctEl.className = "pct-value " + pctCls; }
     const barEl = el("pctBar");
     if (barEl) { barEl.style.width = Math.min(pct, 100) + "%"; barEl.className = "pct-bar-fill " + pctCls; }
-    setText("pctPlan",   fmt(ytdPlanVal));
-    setText("pctActual", fmt(ytdActualVal));
+    setText("pctPlan",   fmt(totalPlan));
+    setText("pctActual", fmt(totalActual));
     const diffEl = el("pctDiff");
     if (diffEl) {
-      diffEl.textContent = (ytdDiff >= 0 ? "+" : "") + fmt(ytdDiff);
-      diffEl.className   = "s-val " + (ytdDiff > 0 ? "pos" : ytdDiff < 0 ? "neg" : "");
+      diffEl.textContent = (totalDiff >= 0 ? "+" : "") + fmt(totalDiff);
+      diffEl.className   = "s-val " + (totalDiff > 0 ? "pos" : totalDiff < 0 ? "neg" : "");
     }
 
     // ② Bar chart
