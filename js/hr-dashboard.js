@@ -3,7 +3,7 @@ import {
   getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, collection, getDocs, doc, getDoc
+  getFirestore, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
@@ -15,17 +15,53 @@ const MONTHS_FULL  = ["January","February","March","April","May","June","July","
 let currentYear = new Date().getFullYear();
 let chartBar, chartYTD;
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+
+function fmt(n) {
+  if (n === null || n === undefined) return "—";
+  const num = parseFloat(n);
+  return Number.isInteger(num)
+    ? num.toLocaleString()
+    : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function fmtShort(n) {
+  if (n === null || n === undefined) return "";
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + "k";
+  return n;
+}
+
+function diffHTML(diff) {
+  if (diff === 0) return `<span class="diff-z">0</span>`;
+  const cls = diff > 0 ? "diff-p" : "diff-n";
+  return `<span class="${cls}">${diff > 0 ? "+" : ""}${fmt(diff)}</span>`;
+}
+
+function destroyCharts() {
+  if (chartBar) { chartBar.destroy(); chartBar = null; }
+  if (chartYTD) { chartYTD.destroy(); chartYTD = null; }
+}
+
+function showError(msg) {
+  el("loadingState").style.display = "block";
+  el("mainContent").style.display  = "none";
+  el("loadingState").innerHTML = `<div class="icon">⚠️</div>${msg}`;
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "login.html"; return; }
-  document.getElementById("topbarEmail").textContent = user.email;
+  const emailEl = el("topbarEmail");
+  if (emailEl) emailEl.textContent = user.email;
   buildYearSelector();
   loadData();
 });
 
 // ── Year selector ─────────────────────────────────────────────────────────────
 function buildYearSelector() {
-  const sel  = document.getElementById("yearSelect");
+  const sel  = el("yearSelect");
+  if (!sel) return;
   const base = new Date().getFullYear();
   for (let y = base - 2; y <= base + 5; y++) {
     const opt = document.createElement("option");
@@ -41,30 +77,30 @@ function buildYearSelector() {
 
 // ── Load & aggregate ──────────────────────────────────────────────────────────
 async function loadData() {
-  document.getElementById("loadingState").style.display = "block";
-  document.getElementById("mainContent").style.display  = "none";
+  el("loadingState").style.display = "block";
+  el("mainContent").style.display  = "none";
   destroyCharts();
 
   try {
-    const snap = await getDocs(collection(db, "leave_data"));
-    const docs = snap.docs.map(d => d.data()).filter(d => d.year === currentYear);
+    const [leaveSnap, usersSnap] = await Promise.all([
+      getDocs(collection(db, "leave_data")),
+      getDocs(collection(db, "users"))
+    ]);
 
-    // Fetch user names
-    const usersSnap = await getDocs(collection(db, "users"));
-    const usersMap  = {};
+    const docs = leaveSnap.docs.map(d => d.data()).filter(d => d.year === currentYear);
+
+    const usersMap = {};
     usersSnap.docs.forEach(d => { usersMap[d.id] = d.data(); });
 
     if (docs.length === 0) {
-      document.getElementById("loadingState").innerHTML =
-        `<div class="icon">📭</div>No leave data found for ${currentYear}.`;
+      showError(`No leave data found for ${currentYear}.`);
       return;
     }
 
-    // Aggregate per month across all employees
+    // Aggregate per month
     const planByMonth   = Array(12).fill(0);
     const actualByMonth = Array(12).fill(0);
 
-    // Per-employee totals for pct cards
     const empData = docs.map(d => {
       let totalPlan = 0, totalActual = 0;
       for (let i = 0; i < 12; i++) {
@@ -80,10 +116,9 @@ async function loadData() {
     });
 
     // YTD up to current month
-    const today = new Date();
+    const today         = new Date();
     const currentMonthIdx = currentYear === today.getFullYear() ? today.getMonth() : 11;
 
-    // Build YTD cumulative arrays
     const ytdPlan = [], ytdActual = [];
     let cumP = 0, cumA = 0;
     for (let i = 0; i < 12; i++) {
@@ -93,34 +128,35 @@ async function loadData() {
       ytdActual.push(i <= currentMonthIdx ? cumA : null);
     }
 
-    const grandPlan   = planByMonth.reduce((a,b) => a+b, 0);
-    const grandActual = actualByMonth.slice(0, currentMonthIdx + 1).reduce((a,b) => a+b, 0);
-    const ytdDiff     = grandActual - (ytdPlan[currentMonthIdx] || 0);
+    const grandPlan     = planByMonth.reduce((a,b) => a+b, 0);
+    const grandActual   = actualByMonth.slice(0, currentMonthIdx + 1).reduce((a,b) => a+b, 0);
+    const ytdPlanVal    = ytdPlan[currentMonthIdx]  || 0;
+    const ytdDiff       = grandActual - ytdPlanVal;
 
-    // Render everything
+    // Show content first, then render into visible elements
+    el("loadingState").style.display = "none";
+    el("mainContent").style.display  = "block";
+
     renderPctCards(grandPlan, grandActual, empData);
     renderBarChart(planByMonth, actualByMonth);
     renderMonthTable(planByMonth, actualByMonth);
-    renderYTDChart(ytdPlan, ytdActual, currentMonthIdx, ytdPlan[currentMonthIdx], grandActual, ytdDiff);
-
-    document.getElementById("loadingState").style.display = "none";
-    document.getElementById("mainContent").style.display  = "block";
+    renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, grandActual, ytdDiff);
 
   } catch (e) {
-    document.getElementById("loadingState").innerHTML =
-      `<div class="icon">⚠️</div>Failed to load data: ${e.message}`;
     console.error(e);
+    showError("Failed to load data: " + e.message);
   }
 }
 
 // ── ① Percent cards ───────────────────────────────────────────────────────────
 function renderPctCards(grandPlan, grandActual, empData) {
-  const grid = document.getElementById("pctGrid");
+  const grid = el("pctGrid");
+  if (!grid) return;
 
-  // Overall card
   const overallPct = grandPlan > 0 ? (grandActual / grandPlan * 100) : 0;
   const overallCls = overallPct > 100 ? "over" : overallPct < 100 ? "under" : "exact";
   const overallBar = Math.min(overallPct, 100);
+  const overallDiff = grandActual - grandPlan;
 
   let html = `
     <div class="pct-card">
@@ -132,15 +168,14 @@ function renderPctCards(grandPlan, grandActual, empData) {
       <div class="c-detail">
         <strong>${fmt(grandActual)}</strong> actual &nbsp;/&nbsp; <strong>${fmt(grandPlan)}</strong> planned (YTD)
         <br>${overallCls === "over"
-          ? `<span style="color:#991b1b">▲ ${fmt(grandActual - grandPlan)} over plan</span>`
+          ? `<span style="color:#991b1b">▲ ${fmt(overallDiff)} over plan</span>`
           : overallCls === "under"
-          ? `<span style="color:#166534">▼ ${fmt(grandPlan - grandActual)} under plan</span>`
+          ? `<span style="color:#166534">▼ ${fmt(Math.abs(overallDiff))} under plan</span>`
           : "On target"}
       </div>
     </div>
   `;
 
-  // Per-employee cards
   empData.forEach(e => {
     const pct    = e.totalPlan > 0 ? (e.totalActual / e.totalPlan * 100) : 0;
     const cls    = pct > 100 ? "over" : pct < 100 ? "under" : "exact";
@@ -171,7 +206,10 @@ function renderPctCards(grandPlan, grandActual, empData) {
 
 // ── ② Column chart ────────────────────────────────────────────────────────────
 function renderBarChart(plan, actual) {
-  const ctx = document.getElementById("barChart").getContext("2d");
+  const canvas = el("barChart");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
   chartBar = new Chart(ctx, {
     type: "bar",
     data: {
@@ -203,37 +241,25 @@ function renderBarChart(plan, actual) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}`
-          }
-        },
-        // Data labels — show values on top of each bar
-        datalabels: false
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}` }
+        }
       },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 12 } }
-        },
+        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
         y: {
           beginAtZero: true,
           grid: { color: "#f0f0ee" },
-          ticks: {
-            callback: v => fmtShort(v),
-            font: { size: 11 }
-          }
+          ticks: { callback: v => fmtShort(v), font: { size: 11 } }
         }
       },
       animation: {
         onComplete: function() {
-          // Draw value labels on top of bars
           const chart = this;
           const ctx   = chart.ctx;
           ctx.save();
           ctx.font         = "600 11px Inter, system-ui, sans-serif";
           ctx.textAlign    = "center";
           ctx.textBaseline = "bottom";
-
           chart.data.datasets.forEach((dataset, dsIdx) => {
             const meta = chart.getDatasetMeta(dsIdx);
             meta.data.forEach((bar, idx) => {
@@ -252,16 +278,16 @@ function renderBarChart(plan, actual) {
 
 // ── Monthly data table ────────────────────────────────────────────────────────
 function renderMonthTable(plan, actual) {
-  const tbody = document.getElementById("monthTableBody");
-  let totalP = 0, totalA = 0;
+  const tbody = el("monthTableBody");
+  if (!tbody) return;
 
+  let totalP = 0, totalA = 0;
   let rows = MONTHS_FULL.map((m, i) => {
     const p    = plan[i]   || 0;
     const a    = actual[i] || 0;
     const diff = a - p;
     const pct  = p > 0 ? (a / p * 100).toFixed(1) + "%" : "—";
     totalP += p; totalA += a;
-
     return `
       <tr>
         <td>${m}</td>
@@ -275,7 +301,6 @@ function renderMonthTable(plan, actual) {
 
   const totalDiff = totalA - totalP;
   const totalPct  = totalP > 0 ? (totalA / totalP * 100).toFixed(1) + "%" : "—";
-
   rows += `
     <tr class="total-row">
       <td>Total</td>
@@ -285,21 +310,26 @@ function renderMonthTable(plan, actual) {
       <td>${totalPct}</td>
     </tr>
   `;
-
   tbody.innerHTML = rows;
 }
 
 // ── ③ YTD cumulative line chart ───────────────────────────────────────────────
-function renderYTDChart(ytdPlan, ytdActual, currentMonthIdx, ytdPlanVal, ytdActualVal, ytdDiff) {
-  // Update stat chips
-  document.getElementById("ytdPlanVal").textContent   = fmt(ytdPlanVal);
-  document.getElementById("ytdActualVal").textContent = fmt(ytdActualVal);
+function renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff) {
+  const planEl   = el("ytdPlanVal");
+  const actualEl = el("ytdActualVal");
+  const diffEl   = el("ytdDiffVal");
+  const canvas   = el("ytdChart");
 
-  const diffEl = document.getElementById("ytdDiffVal");
-  diffEl.textContent = (ytdDiff >= 0 ? "+" : "") + fmt(ytdDiff);
-  diffEl.className   = "ys-val " + (ytdDiff > 0 ? "pos" : ytdDiff < 0 ? "neg" : "");
+  if (planEl)   planEl.textContent   = fmt(ytdPlanVal);
+  if (actualEl) actualEl.textContent = fmt(ytdActualVal);
+  if (diffEl) {
+    diffEl.textContent = (ytdDiff >= 0 ? "+" : "") + fmt(ytdDiff);
+    diffEl.className   = "ys-val " + (ytdDiff > 0 ? "pos" : ytdDiff < 0 ? "neg" : "");
+  }
 
-  const ctx = document.getElementById("ytdChart").getContext("2d");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+
   chartYTD = new Chart(ctx, {
     type: "line",
     data: {
@@ -336,64 +366,29 @@ function renderYTDChart(ytdPlan, ytdActual, currentMonthIdx, ytdPlanVal, ytdActu
       plugins: {
         legend: {
           position: "top",
-          labels: {
-            usePointStyle: true,
-            pointStyle: "circle",
-            padding: 20,
-            font: { size: 12 }
-          }
+          labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } }
         },
         tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}`
-          }
+          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}` }
         }
       },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: { font: { size: 12 } }
-        },
+        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
         y: {
           beginAtZero: true,
           grid: { color: "#f0f0ee" },
-          ticks: {
-            callback: v => fmtShort(v),
-            font: { size: 11 }
-          }
+          ticks: { callback: v => fmtShort(v), font: { size: 11 } }
         }
       }
     }
   });
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function fmt(n) {
-  if (n === null || n === undefined) return "—";
-  const num = parseFloat(n);
-  return Number.isInteger(num)
-    ? num.toLocaleString()
-    : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// ── Logout ────────────────────────────────────────────────────────────────────
+const logoutBtn = el("logoutBtn");
+if (logoutBtn) {
+  logoutBtn.addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.href = "login.html";
+  });
 }
-
-function fmtShort(n) {
-  if (n === null || n === undefined) return "";
-  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + "k";
-  return n;
-}
-
-function diffHTML(diff) {
-  if (diff === 0) return `<span class="diff-z">0</span>`;
-  const cls = diff > 0 ? "diff-p" : "diff-n";
-  return `<span class="${cls}">${diff > 0 ? "+" : ""}${fmt(diff)}</span>`;
-}
-
-function destroyCharts() {
-  if (chartBar) { chartBar.destroy(); chartBar = null; }
-  if (chartYTD) { chartYTD.destroy(); chartYTD = null; }
-}
-
-document.getElementById("logoutBtn").addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "login.html";
-});
