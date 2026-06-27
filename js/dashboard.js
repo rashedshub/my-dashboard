@@ -10,61 +10,50 @@ import {
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── Sidebar collapse ──────────────────────────────────────────────────────────
-const sidebar  = document.getElementById("sidebar");
-const sbToggle = document.getElementById("sbToggle");
+const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-if (localStorage.getItem("ems-sidebar") === "collapsed") {
-  sidebar.classList.add("sb-collapsed");
+function el(id)           { return document.getElementById(id); }
+function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
+
+// ── Slide logic ───────────────────────────────────────────────────────────────
+let currentPanel = 0;
+const track = el("slideTrack");
+const tabs   = document.querySelectorAll(".slide-tab");
+
+function goTo(idx) {
+  currentPanel = idx;
+  track.style.transform = `translateX(-${idx * 100}%)`;
+  tabs.forEach((t, i) => t.classList.toggle("active", i === idx));
 }
 
-sbToggle.addEventListener("click", () => {
-  const collapsed = sidebar.classList.toggle("sb-collapsed");
-  localStorage.setItem("ems-sidebar", collapsed ? "collapsed" : "open");
-  // Close Data Entry submenu when collapsing
-  if (collapsed) closeDataEntry();
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => goTo(Number(tab.dataset.panel)));
 });
 
-// ── Data Entry submenu toggle ─────────────────────────────────────────────────
-const dataEntryToggle = document.getElementById("dataEntryToggle");
-const dataEntrySub    = document.getElementById("dataEntrySub");
-
-dataEntryToggle.addEventListener("click", () => {
-  // If sidebar is collapsed, expand it first
-  if (sidebar.classList.contains("sb-collapsed")) {
-    sidebar.classList.remove("sb-collapsed");
-    localStorage.setItem("ems-sidebar", "open");
+// Touch / swipe support
+let touchStartX = 0;
+track.addEventListener("touchstart", e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+track.addEventListener("touchend", e => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) {
+    const next = diff > 0
+      ? Math.min(currentPanel + 1, tabs.length - 1)
+      : Math.max(currentPanel - 1, 0);
+    goTo(next);
   }
-  const isOpen = dataEntrySub.classList.toggle("open");
-  dataEntryToggle.setAttribute("aria-expanded", isOpen);
 });
 
-function closeDataEntry() {
-  dataEntrySub.classList.remove("open");
-  dataEntryToggle.setAttribute("aria-expanded", "false");
-}
-
-// Restore submenu state
-if (localStorage.getItem("ems-data-entry") === "open") {
-  dataEntrySub.classList.add("open");
-  dataEntryToggle.setAttribute("aria-expanded", "true");
-}
-dataEntrySub.addEventListener("transitionend", () => {
-  localStorage.setItem("ems-data-entry", dataEntrySub.classList.contains("open") ? "open" : "closed");
-});
-
-// Mark active nav item
-const currentPage = location.pathname.split("/").pop() || "index.html";
-document.querySelectorAll(".sb-item, .sb-sub-item").forEach(link => {
-  if (link.getAttribute("href") === currentPage) link.classList.add("active");
-});
-
-// ── Auth & data ───────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "login.html"; return; }
+  setText("topbarEmail", user.email);
+  loadProfile(user);
+  loadSurveys(user);
+  loadLeave(user);
+});
 
-  document.getElementById("topbarEmail").textContent = user.email;
-
+// ── Profile ───────────────────────────────────────────────────────────────────
+async function loadProfile(user) {
   try {
     const snap = await getDoc(doc(db, "users", user.uid));
     if (!snap.exists()) return;
@@ -72,117 +61,190 @@ onAuthStateChanged(auth, async (user) => {
 
     if (d.role === "admin") { window.location.href = "admin.html"; return; }
 
-    // Sidebar user info
-    const initials = (d.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-    document.getElementById("sbAvatar").textContent = initials;
-    document.getElementById("sbName").textContent   = d.name  || "—";
-    document.getElementById("sbEmail").textContent  = d.email || "—";
+    const firstName = d.name?.split(" ")[0] || "there";
+    setText("userName",    firstName);
+    setText("welcomeSub",  `${d.employeeId || ""} · ${capitalize(d.status || "pending")}`);
 
-    // Header greeting
-    document.getElementById("userName").textContent = d.name?.split(" ")[0] || "there";
+    // Avatar initials
+    const initials = (d.name || "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+    const avatarEl = el("profileAvatar");
+    if (avatarEl) avatarEl.textContent = initials;
 
-    // Stats
-    document.getElementById("statRole").textContent  = capitalize(d.role || "—");
-    document.getElementById("statEmpId").textContent = d.employeeId || "—";
-    document.getElementById("statStatus").innerHTML  = badgeHTML(d.status);
-
-    // Account details
-    document.getElementById("infoName").textContent    = d.name       || "—";
-    document.getElementById("infoEmail").textContent   = d.email      || "—";
-    document.getElementById("infoEmpId").textContent   = d.employeeId || "—";
-    document.getElementById("infoRole").textContent    = capitalize(d.role || "—");
-    document.getElementById("infoStatus").innerHTML    = badgeHTML(d.status);
-    document.getElementById("infoCreated").textContent = d.createdAt
+    setText("profileName",  d.name || "—");
+    setText("profileSub",   `${capitalize(d.role || "user")} · ${d.employeeId || ""}`);
+    setText("statRole",     capitalize(d.role || "—"));
+    setText("statEmpId",    d.employeeId || "—");
+    setText("infoEmail",    d.email || "—");
+    setText("infoEmpId",    d.employeeId || "—");
+    setText("infoCreated",  d.createdAt
       ? new Date(d.createdAt).toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" })
-      : "—";
+      : "—");
 
-    // Survey count
+    const statusEl = el("statStatus");
+    if (statusEl) statusEl.innerHTML = badgeHTML(d.status);
+    const infoStatusEl = el("infoStatus");
+    if (infoStatusEl) infoStatusEl.innerHTML = badgeHTML(d.status);
+
+    // Show admin quick link if admin
+    if (d.role === "admin") {
+      const adminLink = el("adminLink");
+      if (adminLink) adminLink.style.display = "flex";
+    }
+
+  } catch(e) { console.error("Profile error:", e); }
+}
+
+// ── Survey activity ───────────────────────────────────────────────────────────
+async function loadSurveys(user) {
+  try {
     const respSnap = await getDocs(query(
       collection(db, "responses"),
       where("userId", "==", user.uid)
     ));
-    const responses = respSnap.docs.map(r => r.data());
-    document.getElementById("statSurveys").textContent = responses.length;
+    const responses = respSnap.docs.map(d => d.data());
 
-    renderMyCharts(responses);
-  } catch (e) {
-    console.error("Dashboard error:", e);
-  }
-});
+    setText("statSurveys", responses.length);
 
-// ── Survey trend charts ───────────────────────────────────────────────────────
-async function renderMyCharts(responses) {
-  const area = document.getElementById("myChartsArea");
-  if (responses.length === 0) return;
+    if (responses.length === 0) return;
 
-  const bySurvey = {};
-  responses.forEach(r => {
-    if (!bySurvey[r.surveyId]) {
-      bySurvey[r.surveyId] = { title: r.surveyTitle, frequency: r.frequency, responses: [] };
-    }
-    bySurvey[r.surveyId].responses.push(r);
-  });
+    el("surveyEmpty").style.display       = "none";
+    el("surveyChartsArea").style.display  = "block";
 
-  const surveyIds  = Object.keys(bySurvey);
-  const surveyDefs = {};
-  await Promise.all(surveyIds.map(async id => {
-    const s = await getDoc(doc(db, "surveys", id));
-    if (s.exists()) surveyDefs[id] = s.data();
-  }));
+    // Group by survey
+    const bySurvey = {};
+    responses.forEach(r => {
+      if (!bySurvey[r.surveyId]) bySurvey[r.surveyId] = { title: r.surveyTitle, frequency: r.frequency, responses: [] };
+      bySurvey[r.surveyId].responses.push(r);
+    });
 
-  area.innerHTML = "";
+    // Load question defs
+    const surveyDefs = {};
+    await Promise.all(Object.keys(bySurvey).map(async id => {
+      const s = await getDoc(doc(db, "surveys", id));
+      if (s.exists()) surveyDefs[id] = s.data();
+    }));
 
-  for (const [surveyId, group] of Object.entries(bySurvey)) {
-    const def = surveyDefs[surveyId];
-    if (!def) continue;
+    const area = el("surveyChartsArea");
+    area.innerHTML = "";
 
-    const sorted  = group.responses.sort((a, b) => a.period.localeCompare(b.period));
-    const periods = sorted.map(r => r.period);
+    for (const [surveyId, group] of Object.entries(bySurvey)) {
+      const def = surveyDefs[surveyId];
+      if (!def) continue;
 
-    const card = document.createElement("div");
-    card.className = "chart-card";
-    card.innerHTML = `<h3>${group.title} <span style="font-weight:400;color:var(--muted)">(${capitalize(group.frequency)})</span></h3>`;
+      const sorted  = group.responses.sort((a,b) => a.period.localeCompare(b.period));
+      const periods = sorted.map(r => r.period);
 
-    def.questions.forEach((q, i) => {
-      if (q.type !== "rating") return;
-      const dataPoints = sorted.map(r => Number(r.answers?.[i]) || null);
+      // Only render rating questions as line charts
+      const ratingQs = def.questions
+        .map((q, i) => ({ q, i }))
+        .filter(({ q }) => q.type === "rating");
 
-      const wrap = document.createElement("div");
-      wrap.style.marginBottom = "20px";
-      wrap.innerHTML = `
-        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Q${i+1}: ${q.text}</p>
-        <div class="chart-wrap"><canvas id="dc-${surveyId}-${i}"></canvas></div>`;
-      card.appendChild(wrap);
+      if (ratingQs.length === 0) continue;
 
-      setTimeout(() => {
-        const ctx = document.getElementById(`dc-${surveyId}-${i}`).getContext("2d");
+      const card = document.createElement("div");
+      card.className = "survey-chart-card";
+      card.innerHTML = `
+        <h3>${group.title}</h3>
+        <p class="sc-meta">${capitalize(group.frequency)} · ${sorted.length} response${sorted.length !== 1 ? "s" : ""}</p>
+        ${ratingQs.map(({ q, i }) => `
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:6px;">Q${i+1}: ${q.text}</p>
+          <div class="chart-wrap" style="margin-bottom:16px;"><canvas id="sc-${surveyId}-${i}"></canvas></div>
+        `).join("")}
+      `;
+      area.appendChild(card);
+
+      ratingQs.forEach(({ q, i }) => {
+        const data = sorted.map(r => Number(r.answers?.[i]) || null);
+        const ctx  = document.getElementById(`sc-${surveyId}-${i}`)?.getContext("2d");
+        if (!ctx) return;
         new Chart(ctx, {
           type: "line",
           data: {
             labels: periods,
             datasets: [{
-              label: "Your rating",
-              data: dataPoints,
+              data,
               borderColor: "#111",
-              backgroundColor: "rgba(17,17,17,0.06)",
+              backgroundColor: "rgba(17,17,17,0.05)",
               borderWidth: 2,
               pointRadius: 5,
+              pointBackgroundColor: "#111",
               tension: 0.3,
-              fill: true
+              fill: true,
             }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { y: { min: 1, max: 5, ticks: { stepSize: 1 } } }
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              y: { min: 1, max: 5, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: "#f0f0ee" } }
+            }
           }
         });
-      }, 0);
+      });
+    }
+
+  } catch(e) { console.error("Survey error:", e); }
+}
+
+// ── Leave summary ─────────────────────────────────────────────────────────────
+async function loadLeave(user) {
+  try {
+    const year = new Date().getFullYear();
+    const snap = await getDoc(doc(db, "leave_data", `${user.uid}_${year}`));
+    if (!snap.exists()) return;
+
+    const months = snap.data().months || {};
+    const planByMonth   = Array(12).fill(0).map((_,i) => Number(months[i]?.plan)   || 0);
+    const actualByMonth = Array(12).fill(0).map((_,i) => Number(months[i]?.actual) || 0);
+
+    const totalPlan   = planByMonth.reduce((a,b)=>a+b,0);
+    const totalActual = actualByMonth.reduce((a,b)=>a+b,0);
+
+    if (totalPlan === 0 && totalActual === 0) return;
+
+    el("leaveEmpty").style.display      = "none";
+    el("leaveSummaryArea").style.display = "block";
+
+    const area = el("leaveSummaryArea");
+
+    // Overall bar
+    const overallPct = totalPlan > 0 ? (totalActual / totalPlan * 100) : 0;
+    const overallCls = overallPct > 100 ? "over" : "ok";
+
+    let barsHTML = `
+      <div class="leave-summary-card">
+        <h3>Leave Usage ${year}</h3>
+        <div class="leave-bar-row">
+          <div class="leave-bar-label">
+            <span class="lbl-name">Overall (Actual / Plan)</span>
+            <span class="lbl-pct">${overallPct.toFixed(1)}% &nbsp;·&nbsp; ${fmt(totalActual)} / ${fmt(totalPlan)}</span>
+          </div>
+          <div class="leave-track"><div class="leave-fill ${overallCls}" style="width:${Math.min(overallPct,100)}%"></div></div>
+        </div>
+    `;
+
+    // Per-month bars (only months with data)
+    planByMonth.forEach((p, i) => {
+      const a   = actualByMonth[i];
+      if (p === 0 && a === 0) return;
+      const pct = p > 0 ? (a / p * 100) : 0;
+      const cls = pct > 100 ? "over" : "ok";
+      barsHTML += `
+        <div class="leave-bar-row">
+          <div class="leave-bar-label">
+            <span class="lbl-name">${MONTHS_SHORT[i]}</span>
+            <span class="lbl-pct">${pct.toFixed(0)}% &nbsp;·&nbsp; ${fmt(a)} / ${fmt(p)}</span>
+          </div>
+          <div class="leave-track"><div class="leave-fill ${cls}" style="width:${Math.min(pct,100)}%"></div></div>
+        </div>
+      `;
     });
 
-    area.appendChild(card);
-  }
+    barsHTML += `<a href="leave.html" class="leave-cta">Edit leave data →</a></div>`;
+    area.innerHTML = barsHTML;
+
+  } catch(e) { console.error("Leave error:", e); }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -196,7 +258,15 @@ function badgeHTML(status) {
   return `<span class="badge ${cls}">${capitalize(status || "pending")}</span>`;
 }
 
-document.getElementById("logoutBtn").addEventListener("click", async () => {
+function fmt(n) {
+  if (!n && n !== 0) return "—";
+  return Number.isInteger(n) ? n.toLocaleString()
+    : parseFloat(n).toLocaleString(undefined, { minimumFractionDigits:1, maximumFractionDigits:1 });
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+const logoutBtn = el("logoutBtn");
+if (logoutBtn) logoutBtn.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "login.html";
 });
