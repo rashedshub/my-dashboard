@@ -8,23 +8,17 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     .hr-body { background: var(--bg); }
-
     .hr-main {
       max-width: 1000px; margin: 0 auto; padding: 40px 24px;
       animation: fadeUp 400ms 80ms var(--ease) both;
     }
-
-    /* ── Header ── */
     .hr-top {
       display: flex; align-items: flex-end; justify-content: space-between;
       margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
     }
     .hr-top h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
     .hr-top p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
-
-    .year-pick {
-      display: flex; align-items: center; gap: 10px;
-    }
+    .year-pick { display: flex; align-items: center; gap: 10px; }
     .year-pick label { font-size: 0.875rem; font-weight: 500; color: var(--muted); }
     .year-pick select {
       padding: 8px 14px; border: 1.5px solid var(--border);
@@ -34,123 +28,75 @@
       transition: border-color 200ms, box-shadow 200ms;
     }
     .year-pick select:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
-
-    /* ── Loading ── */
     .loading-state {
       text-align: center; padding: 80px; color: var(--muted); font-size: 0.9rem;
     }
     .loading-state .icon { font-size: 2.5rem; margin-bottom: 14px; }
+    .section { margin-bottom: 24px; }
 
-    /* ── Section spacing ── */
-    .section { margin-bottom: 28px; }
-
-    /* ══ 1. PERCENT CARDS ══ */
-    .pct-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-    }
+    /* ── Overall pct card ── */
     .pct-card {
       background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); padding: 24px 20px;
-      display: flex; flex-direction: column; gap: 14px;
+      border: 1px solid var(--border); padding: 28px 24px;
+      display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
     }
-    .pct-card .c-label {
+    .pct-left { flex: 0 0 auto; }
+    .pct-label {
       font-size: 0.75rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.07em;
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
     }
-    .pct-card .c-pct {
-      font-size: 2.25rem; font-weight: 700; letter-spacing: -0.04em;
-      line-height: 1;
+    .pct-value {
+      font-size: 3rem; font-weight: 700; letter-spacing: -0.05em; line-height: 1;
     }
-    .pct-card .c-pct.over   { color: #991b1b; }
-    .pct-card .c-pct.under  { color: #166534; }
-    .pct-card .c-pct.exact  { color: var(--text); }
-    .pct-card .c-detail {
-      font-size: 0.8rem; color: var(--muted); line-height: 1.5;
-    }
-    .pct-card .c-detail strong { color: var(--text); font-weight: 600; }
-
-    /* Progress bar */
+    .pct-value.over  { color: #991b1b; }
+    .pct-value.under { color: #166534; }
+    .pct-value.exact { color: var(--text); }
+    .pct-right { flex: 1; min-width: 200px; }
     .pct-bar-track {
-      height: 6px; background: #f0f0ee; border-radius: 99px; overflow: hidden;
+      height: 8px; background: #f0f0ee; border-radius: 99px;
+      overflow: hidden; margin-bottom: 14px;
     }
     .pct-bar-fill {
       height: 100%; border-radius: 99px;
-      transition: width 600ms cubic-bezier(0.65,0,0.35,1);
+      transition: width 700ms cubic-bezier(0.65,0,0.35,1);
     }
     .pct-bar-fill.over  { background: #991b1b; }
     .pct-bar-fill.under { background: #166534; }
     .pct-bar-fill.exact { background: var(--accent); }
+    .pct-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+    .pct-stat .s-label {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+    }
+    .pct-stat .s-val { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .pct-stat .s-val.pos { color: #991b1b; }
+    .pct-stat .s-val.neg { color: #166534; }
 
-    /* ══ 2. COLUMN CHART CARD ══ */
+    /* ── Chart cards ── */
     .chart-card {
       background: var(--surface); border-radius: var(--radius);
       border: 1px solid var(--border); padding: 28px 24px;
     }
-    .chart-card-header {
+    .chart-header {
       display: flex; align-items: flex-start; justify-content: space-between;
-      margin-bottom: 8px; flex-wrap: wrap; gap: 12px;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
     }
-    .chart-card-header h2 { font-size: 1rem; font-weight: 600; }
-    .chart-card-header p  { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
-
-    .legend {
-      display: flex; gap: 16px; align-items: center; flex-shrink: 0;
-    }
-    .legend-item {
-      display: flex; align-items: center; gap: 6px;
-      font-size: 0.8rem; font-weight: 500; color: var(--muted);
-    }
-    .legend-dot {
-      width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0;
-    }
+    .chart-header h2 { font-size: 1rem; font-weight: 600; }
+    .chart-header p  { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+    .legend { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
     .dot-plan   { background: #d0d0cc; }
     .dot-actual { background: #111; }
+    .chart-wrap      { position: relative; height: 300px; }
+    .chart-wrap-ytd  { position: relative; height: 260px; }
 
-    .chart-wrap { position: relative; height: 300px; margin-top: 20px; }
-    .chart-wrap-ytd { position: relative; height: 260px; margin-top: 20px; }
-
-    /* Monthly data table below chart */
-    .month-table {
-      width: 100%; border-collapse: collapse;
-      font-size: 0.8rem; margin-top: 20px;
-    }
-    .month-table th {
-      text-align: center; padding: 8px 6px;
-      font-size: 0.7rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.05em;
-      border-bottom: 1px solid var(--border); background: #fafaf9;
-    }
-    .month-table th:first-child { text-align: left; }
-    .month-table td {
-      text-align: center; padding: 9px 6px;
-      border-bottom: 1px solid #f0f0ee;
-      font-variant-numeric: tabular-nums;
-    }
-    .month-table td:first-child { text-align: left; font-weight: 500; color: var(--text); }
-    .month-table tr:last-child td { border-bottom: none; }
-    .month-table tr:hover td { background: #fafaf9; }
-    .month-table .diff-p { color: #991b1b; font-weight: 600; }
-    .month-table .diff-n { color: #166534; font-weight: 600; }
-    .month-table .diff-z { color: var(--muted); }
-    .month-table .total-row td {
-      font-weight: 700; background: #fafaf9;
-      border-top: 1.5px solid var(--border);
-      border-bottom: none;
-    }
-    .month-table .total-row td:first-child { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
-
-    /* ══ 3. YTD CARD ══ */
-    .ytd-stats {
-      display: flex; gap: 28px; margin-bottom: 0;
-      flex-wrap: wrap;
-    }
+    /* YTD stat chips */
+    .ytd-stats { display: flex; gap: 28px; flex-wrap: wrap; }
     .ytd-stat .ys-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
-    .ytd-stat .ys-val   { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+    .ytd-stat .ys-val   { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
     .ytd-stat .ys-val.pos { color: #991b1b; }
     .ytd-stat .ys-val.neg { color: #166534; }
   </style>
@@ -177,7 +123,6 @@
   </header>
 
   <main class="hr-main">
-
     <div class="hr-top">
       <div>
         <h1>HR Dashboard</h1>
@@ -190,21 +135,44 @@
     </div>
 
     <div id="loadingState" class="loading-state">
-      <div class="icon">📊</div>
-      Loading data…
+      <div class="icon">📊</div>Loading data…
     </div>
 
     <div id="mainContent" style="display:none;">
 
-      <!-- ① % of Actual over Plan cards -->
+      <!-- ① Overall % card -->
       <div class="section">
-        <div class="pct-grid" id="pctGrid"></div>
+        <div class="pct-card">
+          <div class="pct-left">
+            <div class="pct-label">Actual vs Plan (YTD)</div>
+            <div class="pct-value" id="pctValue">—</div>
+          </div>
+          <div class="pct-right">
+            <div class="pct-bar-track">
+              <div class="pct-bar-fill" id="pctBar" style="width:0%"></div>
+            </div>
+            <div class="pct-stats">
+              <div class="pct-stat">
+                <div class="s-label">YTD Plan</div>
+                <div class="s-val" id="pctPlan">—</div>
+              </div>
+              <div class="pct-stat">
+                <div class="s-label">YTD Actual</div>
+                <div class="s-val" id="pctActual">—</div>
+              </div>
+              <div class="pct-stat">
+                <div class="s-label">Difference</div>
+                <div class="s-val" id="pctDiff">—</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- ② Monthly Plan vs Actual column chart + table -->
+      <!-- ② Monthly column chart -->
       <div class="section">
         <div class="chart-card">
-          <div class="chart-card-header">
+          <div class="chart-header">
             <div>
               <h2>Monthly Plan vs Actual</h2>
               <p>Leave hours per month — all employees combined</p>
@@ -217,26 +185,13 @@
           <div class="chart-wrap">
             <canvas id="barChart"></canvas>
           </div>
-          <!-- Data table below chart -->
-          <table class="month-table" id="monthTable">
-            <thead>
-              <tr>
-                <th>Month</th>
-                <th>Plan</th>
-                <th>Actual</th>
-                <th>Diff</th>
-                <th>% Used</th>
-              </tr>
-            </thead>
-            <tbody id="monthTableBody"></tbody>
-          </table>
         </div>
       </div>
 
-      <!-- ③ YTD Cumulative -->
+      <!-- ③ YTD cumulative -->
       <div class="section">
         <div class="chart-card">
-          <div class="chart-card-header">
+          <div class="chart-header">
             <div>
               <h2>YTD Cumulative</h2>
               <p>Running total of plan vs actual through the year</p>
