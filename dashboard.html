@@ -23,7 +23,39 @@
     </div>
     <div class="topbar-right">
       <a href="survey.html" style="font-size:0.875rem;font-weight:500;color:var(--text);text-decoration:none;margin-right:16px;">📋 Surveys</a>
-      <a href="leave.html" style="font-size:0.875rem;font-weight:500;color:var(--text);text-decoration:none;margin-right:16px;">📅 Leave Planning</a>
+      <div style="display:inline-block;margin-right:16px;">
+
+    <label for="dataEntry" style="font-size:0.875rem;font-weight:600;color:var(--text);margin-right:8px;">
+        📝 Data Entry
+    </label>
+
+    <select id="dataEntry"
+            onchange="goToPage(this.value)"
+            style="padding:6px 10px;
+                   font-size:0.875rem;
+                   border:1px solid #ccc;
+                   border-radius:6px;
+                   cursor:pointer;">
+
+        <option value="">Select Module</option>
+
+        <option value="leave.html">
+            📅 Leave Planning
+        </option>
+
+    </select>
+
+</div>
+
+<script>
+function goToPage(page){
+
+    if(page){
+        window.location.href = page;
+    }
+
+}
+</script>
       <a href="hr-dashboard.html" style="font-size:0.875rem;font-weight:500;color:var(--text);text-decoration:none;margin-right:16px;">📈 HR Dashboard</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
