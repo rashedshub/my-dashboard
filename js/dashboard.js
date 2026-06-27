@@ -214,7 +214,7 @@ async function loadLeave(user) {
 
     let barsHTML = `
       <div class="leave-summary-card">
-        <h3>Leave Usage ${year}</h3>
+        <h3>Data Entry — Leave Usage ${year}</h3>
         <div class="leave-bar-row">
           <div class="leave-bar-label">
             <span class="lbl-name">Overall (Actual / Plan)</span>
@@ -241,7 +241,7 @@ async function loadLeave(user) {
       `;
     });
 
-    barsHTML += `<a href="leave.html" class="leave-cta">Edit leave data →</a></div>`;
+    barsHTML += `<a href="leave.html" class="leave-cta">Go to Data Entry →</a></div>`;
     area.innerHTML = barsHTML;
 
   } catch(e) { console.error("Leave error:", e); }
