@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Surveys — EMS Admin</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="admin-body">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS — Surveys</span>
+    </div>
+    <div class="topbar-right">
+      <a href="admin.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:8px;">← Back to Admin</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <div class="page-header">
+      <div>
+        <h1>Survey Management</h1>
+        <p>Create surveys and view employee responses.</p>
+      </div>
+    </div>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav">
+      <button class="active" data-tab="create" onclick="switchTab('create')">Create Survey</button>
+      <button data-tab="results" onclick="switchTab('results')">Results & Charts</button>
+    </nav>
+
+    <!-- Create Survey tab -->
+    <div id="tab-create">
+      <div class="survey-form-card">
+        <h2>New Survey</h2>
+
+        <div class="form-row">
+          <div class="field">
+            <label>Survey Title</label>
+            <input type="text" id="surveyTitle" placeholder="e.g. Monthly Wellness Check"/>
+          </div>
+          <div class="field">
+            <label>Frequency</label>
+            <select id="surveyFrequency">
+              <option value="weekly">Weekly</option>
+              <option value="monthly" selected>Monthly</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row full">
+          <div class="field">
+            <label>Description (optional)</label>
+            <input type="text" id="surveyDesc" placeholder="Short description for employees"/>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:8px;">
+          <label>Questions</label>
+          <div class="questions-list" id="questionsList"></div>
+          <button class="btn-add" onclick="addQuestion()">+ Add question</button>
+        </div>
+
+        <button class="btn" id="createBtn" style="margin-top:18px;">
+          <span class="btn-label">Publish Survey</span>
+          <span class="spinner"></span>
+        </button>
+        <p class="message" id="createMsg"></p>
+      </div>
+
+      <!-- Existing surveys list -->
+      <div class="table-wrap">
+        <table class="data-table" id="surveys-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Frequency</th>
+              <th>Questions</th>
+              <th>Created</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="surveys-body">
+            <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">📋</div>Loading…</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Results tab -->
+    <div id="tab-results" style="display:none;">
+      <div class="field" style="margin-bottom:20px;max-width:340px;">
+        <label>Select Survey</label>
+        <select id="resultsSurveyPicker" onchange="loadResults()">
+          <option value="">— choose a survey —</option>
+        </select>
+      </div>
+      <div id="resultsArea">
+        <div class="empty-state"><div class="empty-icon">📊</div>Select a survey to see results.</div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/survey-admin.js"></script>
+</body>
+</html>
