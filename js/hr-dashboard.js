@@ -1,384 +1,226 @@
-import { app } from "./firebase.js";
-import {
-  getAuth, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-import {
-  getFirestore, collection, getDocs
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
-
-const auth = getAuth(app);
-const db   = getFirestore(app);
-
-const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const MONTHS_FULL  = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-
-let currentYear = new Date().getFullYear();
-let chartBar, chartYTD;
-
-// safe element getter — never throws
-function el(id) {
-  const node = document.getElementById(id);
-  if (!node) console.warn("Missing element:", id);
-  return node;
-}
-
-// safe text setter
-function setText(id, value) {
-  const node = el(id);
-  if (node) node.textContent = value;
-}
-
-// safe html setter
-function setHTML(id, value) {
-  const node = el(id);
-  if (node) node.innerHTML = value;
-}
-
-function fmt(n) {
-  if (n === null || n === undefined) return "—";
-  const num = parseFloat(n);
-  if (isNaN(num)) return "—";
-  return Number.isInteger(num)
-    ? num.toLocaleString()
-    : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
-}
-
-function fmtShort(n) {
-  if (n === null || n === undefined || isNaN(n)) return "";
-  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + "k";
-  return n;
-}
-
-function diffHTML(diff) {
-  if (!diff || diff === 0) return `<span class="diff-z">0</span>`;
-  const cls = diff > 0 ? "diff-p" : "diff-n";
-  return `<span class="${cls}">${diff > 0 ? "+" : ""}${fmt(diff)}</span>`;
-}
-
-function destroyCharts() {
-  try { if (chartBar) { chartBar.destroy(); chartBar = null; } } catch(e) {}
-  try { if (chartYTD) { chartYTD.destroy(); chartYTD = null; } } catch(e) {}
-}
-
-function showLoading(msg) {
-  const ls = el("loadingState");
-  const mc = el("mainContent");
-  if (ls) { ls.style.display = "block"; ls.innerHTML = msg; }
-  if (mc) mc.style.display = "none";
-}
-
-function showContent() {
-  const ls = el("loadingState");
-  const mc = el("mainContent");
-  if (ls) ls.style.display = "none";
-  if (mc) mc.style.display = "block";
-}
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "login.html"; return; }
-  setText("topbarEmail", user.email);
-  buildYearSelector();
-  loadData();
-});
-
-// ── Year selector ─────────────────────────────────────────────────────────────
-function buildYearSelector() {
-  const sel = el("yearSelect");
-  if (!sel) return;
-  const base = new Date().getFullYear();
-  for (let y = base - 2; y <= base + 5; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    if (y === base) opt.selected = true;
-    sel.appendChild(opt);
-  }
-  sel.addEventListener("change", () => {
-    currentYear = Number(sel.value);
-    loadData();
-  });
-}
-
-// ── Load & aggregate ──────────────────────────────────────────────────────────
-async function loadData() {
-  showLoading(`<div class="icon">📊</div>Loading ${currentYear} data…`);
-  destroyCharts();
-
-  try {
-    const [leaveSnap, usersSnap] = await Promise.all([
-      getDocs(collection(db, "leave_data")),
-      getDocs(collection(db, "users"))
-    ]);
-
-    const docs = leaveSnap.docs
-      .map(d => d.data())
-      .filter(d => Number(d.year) === Number(currentYear));
-
-    const usersMap = {};
-    usersSnap.docs.forEach(d => { usersMap[d.id] = d.data(); });
-
-    if (docs.length === 0) {
-      showLoading(`<div class="icon">📭</div>No leave data found for ${currentYear}.`);
-      return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HR Dashboard — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .hr-body { background: var(--bg); }
+    .hr-main {
+      max-width: 1000px; margin: 0 auto; padding: 40px 24px;
+      animation: fadeUp 400ms 80ms var(--ease) both;
     }
-
-    const planByMonth   = Array(12).fill(0);
-    const actualByMonth = Array(12).fill(0);
-
-    const empData = docs.map(d => {
-      let totalPlan = 0, totalActual = 0;
-      for (let i = 0; i < 12; i++) {
-        const p = Number(d.months?.[i]?.plan)   || 0;
-        const a = Number(d.months?.[i]?.actual) || 0;
-        planByMonth[i]   += p;
-        actualByMonth[i] += a;
-        totalPlan        += p;
-        totalActual      += a;
-      }
-      const user = usersMap[d.uid] || {};
-      return { name: user.name || "Employee", totalPlan, totalActual };
-    });
-
-    const today           = new Date();
-    const currentMonthIdx = currentYear === today.getFullYear() ? today.getMonth() : 11;
-
-    const ytdPlan = [], ytdActual = [];
-    let cumP = 0, cumA = 0;
-    for (let i = 0; i < 12; i++) {
-      cumP += planByMonth[i];
-      cumA += actualByMonth[i];
-      ytdPlan.push(cumP);
-      ytdActual.push(i <= currentMonthIdx ? cumA : null);
+    .hr-top {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
     }
+    .hr-top h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
+    .hr-top p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+    .year-pick { display: flex; align-items: center; gap: 10px; }
+    .year-pick label { font-size: 0.875rem; font-weight: 500; color: var(--muted); }
+    .year-pick select {
+      padding: 8px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: inherit; font-size: 0.9375rem;
+      font-weight: 600; color: var(--text); background: var(--surface);
+      outline: none; cursor: pointer; width: auto;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .year-pick select:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+    }
+    .loading-state {
+      text-align: center; padding: 80px; color: var(--muted); font-size: 0.9rem;
+    }
+    .loading-state .icon { font-size: 2.5rem; margin-bottom: 14px; }
+    .section { margin-bottom: 24px; }
 
-    const ytdPlanVal   = ytdPlan[currentMonthIdx]  || 0;
-    const ytdActualVal = cumA;
-    const ytdDiff      = ytdActualVal - ytdPlanVal;
+    /* ── Overall pct card ── */
+    .pct-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 28px 24px;
+      display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+    }
+    .pct-left { flex: 0 0 auto; }
+    .pct-label {
+      font-size: 0.75rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+    }
+    .pct-value {
+      font-size: 3rem; font-weight: 700; letter-spacing: -0.05em; line-height: 1;
+    }
+    .pct-value.over  { color: #991b1b; }
+    .pct-value.under { color: #166534; }
+    .pct-value.exact { color: var(--text); }
+    .pct-right { flex: 1; min-width: 200px; }
+    .pct-bar-track {
+      height: 8px; background: #f0f0ee; border-radius: 99px;
+      overflow: hidden; margin-bottom: 14px;
+    }
+    .pct-bar-fill {
+      height: 100%; border-radius: 99px;
+      transition: width 700ms cubic-bezier(0.65,0,0.35,1);
+    }
+    .pct-bar-fill.over  { background: #991b1b; }
+    .pct-bar-fill.under { background: #166534; }
+    .pct-bar-fill.exact { background: var(--accent); }
+    .pct-stats { display: flex; gap: 24px; flex-wrap: wrap; }
+    .pct-stat .s-label {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
+    }
+    .pct-stat .s-val { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .pct-stat .s-val.pos { color: #991b1b; }
+    .pct-stat .s-val.neg { color: #166534; }
 
-    // Show content FIRST before writing into child elements
-    showContent();
+    /* ── Chart cards ── */
+    .chart-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 28px 24px;
+    }
+    .chart-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .chart-header h2 { font-size: 1rem; font-weight: 600; }
+    .chart-header p  { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
+    .legend { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .dot-plan   { background: #d0d0cc; }
+    .dot-actual { background: #111; }
+    .chart-wrap      { position: relative; height: 300px; }
+    .chart-wrap-ytd  { position: relative; height: 260px; }
 
-    // Small timeout ensures DOM is visible before Chart.js measures canvas
-    setTimeout(() => {
-      renderPctCards(planByMonth.reduce((a,b)=>a+b,0),
-                     actualByMonth.slice(0,currentMonthIdx+1).reduce((a,b)=>a+b,0),
-                     empData);
-      renderBarChart(planByMonth, actualByMonth);
-      renderMonthTable(planByMonth, actualByMonth);
-      renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff);
-    }, 50);
+    /* YTD stat chips */
+    .ytd-stats { display: flex; gap: 28px; flex-wrap: wrap; }
+    .ytd-stat .ys-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+    .ytd-stat .ys-val   { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+    .ytd-stat .ys-val.pos { color: #991b1b; }
+    .ytd-stat .ys-val.neg { color: #166534; }
+  </style>
+</head>
+<body class="hr-body">
 
-  } catch (e) {
-    console.error("HR Dashboard error:", e);
-    showLoading(`<div class="icon">⚠️</div>Failed to load data: ${e.message}`);
-  }
-}
-
-// ── ① Percent cards ───────────────────────────────────────────────────────────
-function renderPctCards(grandPlan, grandActual, empData) {
-  const grid = el("pctGrid");
-  if (!grid) return;
-
-  const overallPct  = grandPlan > 0 ? (grandActual / grandPlan * 100) : 0;
-  const overallCls  = overallPct > 100 ? "over" : overallPct < 100 ? "under" : "exact";
-  const overallBar  = Math.min(overallPct, 100);
-  const overallDiff = grandActual - grandPlan;
-
-  let html = `
-    <div class="pct-card">
-      <div class="c-label">Overall — Actual vs Plan</div>
-      <div class="c-pct ${overallCls}">${overallPct.toFixed(1)}%</div>
-      <div class="pct-bar-track">
-        <div class="pct-bar-fill ${overallCls}" style="width:${overallBar}%"></div>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
       </div>
-      <div class="c-detail">
-        <strong>${fmt(grandActual)}</strong> actual &nbsp;/&nbsp; <strong>${fmt(grandPlan)}</strong> planned (YTD)
-        <br>${overallCls === "over"
-          ? `<span style="color:#991b1b">▲ ${fmt(overallDiff)} over plan</span>`
-          : overallCls === "under"
-          ? `<span style="color:#166534">▼ ${fmt(Math.abs(overallDiff))} under plan</span>`
-          : "On target"}
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="hr-main">
+    <div class="hr-top">
+      <div>
+        <h1>HR Dashboard</h1>
+        <p>Leave plan vs actual — all employees combined.</p>
       </div>
-    </div>`;
+      <div class="year-pick">
+        <label for="yearSelect">Year</label>
+        <select id="yearSelect"></select>
+      </div>
+    </div>
 
-  empData.forEach(e => {
-    const pct    = e.totalPlan > 0 ? (e.totalActual / e.totalPlan * 100) : 0;
-    const cls    = pct > 100 ? "over" : pct < 100 ? "under" : "exact";
-    const barPct = Math.min(pct, 100);
-    const diff   = e.totalActual - e.totalPlan;
-    html += `
-      <div class="pct-card">
-        <div class="c-label">${e.name}</div>
-        <div class="c-pct ${cls}">${pct.toFixed(1)}%</div>
-        <div class="pct-bar-track">
-          <div class="pct-bar-fill ${cls}" style="width:${barPct}%"></div>
+    <div id="loadingState" class="loading-state">
+      <div class="icon">📊</div>Loading data…
+    </div>
+
+    <div id="mainContent" style="display:none;">
+
+      <!-- ① Overall % card -->
+      <div class="section">
+        <div class="pct-card">
+          <div class="pct-left">
+            <div class="pct-label">Actual vs Plan (YTD)</div>
+            <div class="pct-value" id="pctValue">—</div>
+          </div>
+          <div class="pct-right">
+            <div class="pct-bar-track">
+              <div class="pct-bar-fill" id="pctBar" style="width:0%"></div>
+            </div>
+            <div class="pct-stats">
+              <div class="pct-stat">
+                <div class="s-label">YTD Plan</div>
+                <div class="s-val" id="pctPlan">—</div>
+              </div>
+              <div class="pct-stat">
+                <div class="s-label">YTD Actual</div>
+                <div class="s-val" id="pctActual">—</div>
+              </div>
+              <div class="pct-stat">
+                <div class="s-label">Difference</div>
+                <div class="s-val" id="pctDiff">—</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="c-detail">
-          <strong>${fmt(e.totalActual)}</strong> actual &nbsp;/&nbsp; <strong>${fmt(e.totalPlan)}</strong> planned
-          <br>${cls === "over"
-            ? `<span style="color:#991b1b">▲ ${fmt(diff)} over plan</span>`
-            : cls === "under"
-            ? `<span style="color:#166534">▼ ${fmt(Math.abs(diff))} under plan</span>`
-            : "On target"}
+      </div>
+
+      <!-- ② Monthly column chart -->
+      <div class="section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2>Monthly Plan vs Actual</h2>
+              <p>Leave hours per month — all employees combined</p>
+            </div>
+            <div class="legend">
+              <div class="legend-item"><div class="legend-dot dot-plan"></div>Plan</div>
+              <div class="legend-item"><div class="legend-dot dot-actual"></div>Actual</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="barChart"></canvas>
+          </div>
         </div>
-      </div>`;
-  });
+      </div>
 
-  grid.innerHTML = html;
-}
+      <!-- ③ YTD cumulative -->
+      <div class="section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div>
+              <h2>YTD Cumulative</h2>
+              <p>Running total of plan vs actual through the year</p>
+            </div>
+            <div class="ytd-stats">
+              <div class="ytd-stat">
+                <div class="ys-label">YTD Plan</div>
+                <div class="ys-val" id="ytdPlanVal">—</div>
+              </div>
+              <div class="ytd-stat">
+                <div class="ys-label">YTD Actual</div>
+                <div class="ys-val" id="ytdActualVal">—</div>
+              </div>
+              <div class="ytd-stat">
+                <div class="ys-label">YTD Diff</div>
+                <div class="ys-val" id="ytdDiffVal">—</div>
+              </div>
+            </div>
+          </div>
+          <div class="chart-wrap-ytd">
+            <canvas id="ytdChart"></canvas>
+          </div>
+        </div>
+      </div>
 
-// ── ② Column chart ────────────────────────────────────────────────────────────
-function renderBarChart(plan, actual) {
-  const canvas = el("barChart");
-  if (!canvas) return;
+    </div><!-- /mainContent -->
+  </main>
 
-  chartBar = new Chart(canvas.getContext("2d"), {
-    type: "bar",
-    data: {
-      labels: MONTHS_SHORT,
-      datasets: [
-        {
-          label: "Plan",
-          data: plan,
-          backgroundColor: "rgba(17,17,17,0.12)",
-          borderColor: "rgba(17,17,17,0.25)",
-          borderWidth: 1,
-          borderRadius: 4,
-        },
-        {
-          label: "Actual",
-          data: actual,
-          backgroundColor: "rgba(17,17,17,0.82)",
-          borderWidth: 0,
-          borderRadius: 4,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: { beginAtZero: true, grid: { color: "#f0f0ee" },
-             ticks: { callback: v => fmtShort(v), font: { size: 11 } } }
-      },
-      animation: {
-        onComplete() {
-          const ctx = this.ctx;
-          ctx.save();
-          ctx.font = "600 11px Inter, system-ui, sans-serif";
-          ctx.textAlign = "center";
-          ctx.textBaseline = "bottom";
-          this.data.datasets.forEach((ds, di) => {
-            this.getDatasetMeta(di).data.forEach((bar, idx) => {
-              const v = ds.data[idx];
-              if (!v) return;
-              ctx.fillStyle = di === 0 ? "rgba(17,17,17,0.45)" : "rgba(17,17,17,0.9)";
-              ctx.fillText(fmtShort(v), bar.x, bar.y - 4);
-            });
-          });
-          ctx.restore();
-        }
-      }
-    }
-  });
-}
-
-// ── Monthly table ─────────────────────────────────────────────────────────────
-function renderMonthTable(plan, actual) {
-  const tbody = el("monthTableBody");
-  if (!tbody) return;
-  let totalP = 0, totalA = 0;
-  let rows = MONTHS_FULL.map((m, i) => {
-    const p = plan[i] || 0, a = actual[i] || 0;
-    const diff = a - p;
-    const pct  = p > 0 ? (a / p * 100).toFixed(1) + "%" : "—";
-    totalP += p; totalA += a;
-    return `<tr>
-      <td>${m}</td><td>${fmt(p)}</td><td>${fmt(a)}</td>
-      <td>${diffHTML(diff)}</td><td>${pct}</td>
-    </tr>`;
-  }).join("");
-  const tDiff = totalA - totalP;
-  rows += `<tr class="total-row">
-    <td>Total</td><td>${fmt(totalP)}</td><td>${fmt(totalA)}</td>
-    <td>${diffHTML(tDiff)}</td>
-    <td>${totalP > 0 ? (totalA/totalP*100).toFixed(1)+"%" : "—"}</td>
-  </tr>`;
-  tbody.innerHTML = rows;
-}
-
-// ── ③ YTD chart ───────────────────────────────────────────────────────────────
-function renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff) {
-  setText("ytdPlanVal",   fmt(ytdPlanVal));
-  setText("ytdActualVal", fmt(ytdActualVal));
-
-  const diffEl = el("ytdDiffVal");
-  if (diffEl) {
-    diffEl.textContent = (ytdDiff >= 0 ? "+" : "") + fmt(ytdDiff);
-    diffEl.className   = "ys-val " + (ytdDiff > 0 ? "pos" : ytdDiff < 0 ? "neg" : "");
-  }
-
-  const canvas = el("ytdChart");
-  if (!canvas) return;
-
-  chartYTD = new Chart(canvas.getContext("2d"), {
-    type: "line",
-    data: {
-      labels: MONTHS_SHORT,
-      datasets: [
-        {
-          label: "YTD Plan",
-          data: ytdPlan,
-          borderColor: "rgba(17,17,17,0.25)",
-          backgroundColor: "transparent",
-          borderWidth: 2,
-          borderDash: [6, 4],
-          pointRadius: 4,
-          pointBackgroundColor: "rgba(17,17,17,0.25)",
-          tension: 0.3,
-          fill: false,
-        },
-        {
-          label: "YTD Actual",
-          data: ytdActual,
-          borderColor: "#111",
-          backgroundColor: "rgba(17,17,17,0.06)",
-          borderWidth: 2.5,
-          pointRadius: 5,
-          pointBackgroundColor: "#111",
-          tension: 0.3,
-          fill: true,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "top",
-          labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } } },
-        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } }
-      },
-      scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: { beginAtZero: true, grid: { color: "#f0f0ee" },
-             ticks: { callback: v => fmtShort(v), font: { size: 11 } } }
-      }
-    }
-  });
-}
-
-// ── Logout ────────────────────────────────────────────────────────────────────
-const logoutBtn = el("logoutBtn");
-if (logoutBtn) {
-  logoutBtn.addEventListener("click", async () => {
-    await signOut(auth);
-    window.location.href = "login.html";
-  });
-}
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/hr-dashboard.js"></script>
+</body>
+</html>
