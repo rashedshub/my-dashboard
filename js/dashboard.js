@@ -10,28 +10,53 @@ import {
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── Sidebar toggle ────────────────────────────────────────────────────────────
-const sidebar   = document.getElementById("sidebar");
-const sbToggle  = document.getElementById("sbToggle");
-const COLLAPSED = "sb-collapsed";
+// ── Sidebar collapse ──────────────────────────────────────────────────────────
+const sidebar  = document.getElementById("sidebar");
+const sbToggle = document.getElementById("sbToggle");
 
-const savedState = localStorage.getItem("ems-sidebar");
-if (savedState === "collapsed") sidebar.classList.add(COLLAPSED);
+if (localStorage.getItem("ems-sidebar") === "collapsed") {
+  sidebar.classList.add("sb-collapsed");
+}
 
 sbToggle.addEventListener("click", () => {
-  sidebar.classList.toggle(COLLAPSED);
-  localStorage.setItem("ems-sidebar", sidebar.classList.contains(COLLAPSED) ? "collapsed" : "open");
+  const collapsed = sidebar.classList.toggle("sb-collapsed");
+  localStorage.setItem("ems-sidebar", collapsed ? "collapsed" : "open");
+  // Close Data Entry submenu when collapsing
+  if (collapsed) closeDataEntry();
 });
 
-// Mark active nav item based on current page
-const currentPage = location.pathname.split("/").pop() || "index.html";
-document.querySelectorAll(".sb-item").forEach(link => {
-  const href = link.getAttribute("href");
-  if (href === currentPage || (currentPage === "" && href === "index.html")) {
-    link.classList.add("active");
-  } else {
-    link.classList.remove("active");
+// ── Data Entry submenu toggle ─────────────────────────────────────────────────
+const dataEntryToggle = document.getElementById("dataEntryToggle");
+const dataEntrySub    = document.getElementById("dataEntrySub");
+
+dataEntryToggle.addEventListener("click", () => {
+  // If sidebar is collapsed, expand it first
+  if (sidebar.classList.contains("sb-collapsed")) {
+    sidebar.classList.remove("sb-collapsed");
+    localStorage.setItem("ems-sidebar", "open");
   }
+  const isOpen = dataEntrySub.classList.toggle("open");
+  dataEntryToggle.setAttribute("aria-expanded", isOpen);
+});
+
+function closeDataEntry() {
+  dataEntrySub.classList.remove("open");
+  dataEntryToggle.setAttribute("aria-expanded", "false");
+}
+
+// Restore submenu state
+if (localStorage.getItem("ems-data-entry") === "open") {
+  dataEntrySub.classList.add("open");
+  dataEntryToggle.setAttribute("aria-expanded", "true");
+}
+dataEntrySub.addEventListener("transitionend", () => {
+  localStorage.setItem("ems-data-entry", dataEntrySub.classList.contains("open") ? "open" : "closed");
+});
+
+// Mark active nav item
+const currentPage = location.pathname.split("/").pop() || "index.html";
+document.querySelectorAll(".sb-item, .sb-sub-item").forEach(link => {
+  if (link.getAttribute("href") === currentPage) link.classList.add("active");
 });
 
 // ── Auth & data ───────────────────────────────────────────────────────────────
@@ -45,17 +70,16 @@ onAuthStateChanged(auth, async (user) => {
     if (!snap.exists()) return;
     const d = snap.data();
 
-    // Redirect admin to admin panel
     if (d.role === "admin") { window.location.href = "admin.html"; return; }
 
     // Sidebar user info
     const initials = (d.name || "?").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
-    document.getElementById("sbAvatar").textContent  = initials;
-    document.getElementById("sbName").textContent    = d.name  || "—";
-    document.getElementById("sbEmail").textContent   = d.email || "—";
+    document.getElementById("sbAvatar").textContent = initials;
+    document.getElementById("sbName").textContent   = d.name  || "—";
+    document.getElementById("sbEmail").textContent  = d.email || "—";
 
-    // Header
-    document.getElementById("userName").textContent  = d.name?.split(" ")[0] || "there";
+    // Header greeting
+    document.getElementById("userName").textContent = d.name?.split(" ")[0] || "there";
 
     // Stats
     document.getElementById("statRole").textContent  = capitalize(d.role || "—");
@@ -69,10 +93,10 @@ onAuthStateChanged(auth, async (user) => {
     document.getElementById("infoRole").textContent    = capitalize(d.role || "—");
     document.getElementById("infoStatus").innerHTML    = badgeHTML(d.status);
     document.getElementById("infoCreated").textContent = d.createdAt
-      ? new Date(d.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+      ? new Date(d.createdAt).toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" })
       : "—";
 
-    // Survey responses
+    // Survey count
     const respSnap = await getDocs(query(
       collection(db, "responses"),
       where("userId", "==", user.uid)
@@ -99,7 +123,7 @@ async function renderMyCharts(responses) {
     bySurvey[r.surveyId].responses.push(r);
   });
 
-  const surveyIds = Object.keys(bySurvey);
+  const surveyIds  = Object.keys(bySurvey);
   const surveyDefs = {};
   await Promise.all(surveyIds.map(async id => {
     const s = await getDoc(doc(db, "surveys", id));
@@ -126,7 +150,7 @@ async function renderMyCharts(responses) {
       const wrap = document.createElement("div");
       wrap.style.marginBottom = "20px";
       wrap.innerHTML = `
-        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Q${i + 1}: ${q.text}</p>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:8px;">Q${i+1}: ${q.text}</p>
         <div class="chart-wrap"><canvas id="dc-${surveyId}-${i}"></canvas></div>`;
       card.appendChild(wrap);
 
@@ -172,7 +196,6 @@ function badgeHTML(status) {
   return `<span class="badge ${cls}">${capitalize(status || "pending")}</span>`;
 }
 
-// ── Logout ────────────────────────────────────────────────────────────────────
 document.getElementById("logoutBtn").addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "login.html";
