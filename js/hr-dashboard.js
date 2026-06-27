@@ -15,57 +15,82 @@ const MONTHS_FULL  = ["January","February","March","April","May","June","July","
 let currentYear = new Date().getFullYear();
 let chartBar, chartYTD;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function el(id) { return document.getElementById(id); }
+// safe element getter — never throws
+function el(id) {
+  const node = document.getElementById(id);
+  if (!node) console.warn("Missing element:", id);
+  return node;
+}
+
+// safe text setter
+function setText(id, value) {
+  const node = el(id);
+  if (node) node.textContent = value;
+}
+
+// safe html setter
+function setHTML(id, value) {
+  const node = el(id);
+  if (node) node.innerHTML = value;
+}
 
 function fmt(n) {
   if (n === null || n === undefined) return "—";
   const num = parseFloat(n);
+  if (isNaN(num)) return "—";
   return Number.isInteger(num)
     ? num.toLocaleString()
     : num.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
 function fmtShort(n) {
-  if (n === null || n === undefined) return "";
+  if (n === null || n === undefined || isNaN(n)) return "";
   if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + "k";
   return n;
 }
 
 function diffHTML(diff) {
-  if (diff === 0) return `<span class="diff-z">0</span>`;
+  if (!diff || diff === 0) return `<span class="diff-z">0</span>`;
   const cls = diff > 0 ? "diff-p" : "diff-n";
   return `<span class="${cls}">${diff > 0 ? "+" : ""}${fmt(diff)}</span>`;
 }
 
 function destroyCharts() {
-  if (chartBar) { chartBar.destroy(); chartBar = null; }
-  if (chartYTD) { chartYTD.destroy(); chartYTD = null; }
+  try { if (chartBar) { chartBar.destroy(); chartBar = null; } } catch(e) {}
+  try { if (chartYTD) { chartYTD.destroy(); chartYTD = null; } } catch(e) {}
 }
 
-function showError(msg) {
-  el("loadingState").style.display = "block";
-  el("mainContent").style.display  = "none";
-  el("loadingState").innerHTML = `<div class="icon">⚠️</div>${msg}`;
+function showLoading(msg) {
+  const ls = el("loadingState");
+  const mc = el("mainContent");
+  if (ls) { ls.style.display = "block"; ls.innerHTML = msg; }
+  if (mc) mc.style.display = "none";
+}
+
+function showContent() {
+  const ls = el("loadingState");
+  const mc = el("mainContent");
+  if (ls) ls.style.display = "none";
+  if (mc) mc.style.display = "block";
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   if (!user) { window.location.href = "login.html"; return; }
-  const emailEl = el("topbarEmail");
-  if (emailEl) emailEl.textContent = user.email;
+  setText("topbarEmail", user.email);
   buildYearSelector();
   loadData();
 });
 
 // ── Year selector ─────────────────────────────────────────────────────────────
 function buildYearSelector() {
-  const sel  = el("yearSelect");
+  const sel = el("yearSelect");
   if (!sel) return;
   const base = new Date().getFullYear();
   for (let y = base - 2; y <= base + 5; y++) {
     const opt = document.createElement("option");
-    opt.value = y; opt.textContent = y;
+    opt.value = y;
+    opt.textContent = y;
     if (y === base) opt.selected = true;
     sel.appendChild(opt);
   }
@@ -77,8 +102,7 @@ function buildYearSelector() {
 
 // ── Load & aggregate ──────────────────────────────────────────────────────────
 async function loadData() {
-  el("loadingState").style.display = "block";
-  el("mainContent").style.display  = "none";
+  showLoading(`<div class="icon">📊</div>Loading ${currentYear} data…`);
   destroyCharts();
 
   try {
@@ -87,17 +111,18 @@ async function loadData() {
       getDocs(collection(db, "users"))
     ]);
 
-    const docs = leaveSnap.docs.map(d => d.data()).filter(d => d.year === currentYear);
+    const docs = leaveSnap.docs
+      .map(d => d.data())
+      .filter(d => Number(d.year) === Number(currentYear));
 
     const usersMap = {};
     usersSnap.docs.forEach(d => { usersMap[d.id] = d.data(); });
 
     if (docs.length === 0) {
-      showError(`No leave data found for ${currentYear}.`);
+      showLoading(`<div class="icon">📭</div>No leave data found for ${currentYear}.`);
       return;
     }
 
-    // Aggregate per month
     const planByMonth   = Array(12).fill(0);
     const actualByMonth = Array(12).fill(0);
 
@@ -112,11 +137,10 @@ async function loadData() {
         totalActual      += a;
       }
       const user = usersMap[d.uid] || {};
-      return { name: user.name || "Unknown", totalPlan, totalActual };
+      return { name: user.name || "Employee", totalPlan, totalActual };
     });
 
-    // YTD up to current month
-    const today         = new Date();
+    const today           = new Date();
     const currentMonthIdx = currentYear === today.getFullYear() ? today.getMonth() : 11;
 
     const ytdPlan = [], ytdActual = [];
@@ -128,23 +152,26 @@ async function loadData() {
       ytdActual.push(i <= currentMonthIdx ? cumA : null);
     }
 
-    const grandPlan     = planByMonth.reduce((a,b) => a+b, 0);
-    const grandActual   = actualByMonth.slice(0, currentMonthIdx + 1).reduce((a,b) => a+b, 0);
-    const ytdPlanVal    = ytdPlan[currentMonthIdx]  || 0;
-    const ytdDiff       = grandActual - ytdPlanVal;
+    const ytdPlanVal   = ytdPlan[currentMonthIdx]  || 0;
+    const ytdActualVal = cumA;
+    const ytdDiff      = ytdActualVal - ytdPlanVal;
 
-    // Show content first, then render into visible elements
-    el("loadingState").style.display = "none";
-    el("mainContent").style.display  = "block";
+    // Show content FIRST before writing into child elements
+    showContent();
 
-    renderPctCards(grandPlan, grandActual, empData);
-    renderBarChart(planByMonth, actualByMonth);
-    renderMonthTable(planByMonth, actualByMonth);
-    renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, grandActual, ytdDiff);
+    // Small timeout ensures DOM is visible before Chart.js measures canvas
+    setTimeout(() => {
+      renderPctCards(planByMonth.reduce((a,b)=>a+b,0),
+                     actualByMonth.slice(0,currentMonthIdx+1).reduce((a,b)=>a+b,0),
+                     empData);
+      renderBarChart(planByMonth, actualByMonth);
+      renderMonthTable(planByMonth, actualByMonth);
+      renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff);
+    }, 50);
 
   } catch (e) {
-    console.error(e);
-    showError("Failed to load data: " + e.message);
+    console.error("HR Dashboard error:", e);
+    showLoading(`<div class="icon">⚠️</div>Failed to load data: ${e.message}`);
   }
 }
 
@@ -153,9 +180,9 @@ function renderPctCards(grandPlan, grandActual, empData) {
   const grid = el("pctGrid");
   if (!grid) return;
 
-  const overallPct = grandPlan > 0 ? (grandActual / grandPlan * 100) : 0;
-  const overallCls = overallPct > 100 ? "over" : overallPct < 100 ? "under" : "exact";
-  const overallBar = Math.min(overallPct, 100);
+  const overallPct  = grandPlan > 0 ? (grandActual / grandPlan * 100) : 0;
+  const overallCls  = overallPct > 100 ? "over" : overallPct < 100 ? "under" : "exact";
+  const overallBar  = Math.min(overallPct, 100);
   const overallDiff = grandActual - grandPlan;
 
   let html = `
@@ -173,15 +200,13 @@ function renderPctCards(grandPlan, grandActual, empData) {
           ? `<span style="color:#166534">▼ ${fmt(Math.abs(overallDiff))} under plan</span>`
           : "On target"}
       </div>
-    </div>
-  `;
+    </div>`;
 
   empData.forEach(e => {
     const pct    = e.totalPlan > 0 ? (e.totalActual / e.totalPlan * 100) : 0;
     const cls    = pct > 100 ? "over" : pct < 100 ? "under" : "exact";
     const barPct = Math.min(pct, 100);
     const diff   = e.totalActual - e.totalPlan;
-
     html += `
       <div class="pct-card">
         <div class="c-label">${e.name}</div>
@@ -197,8 +222,7 @@ function renderPctCards(grandPlan, grandActual, empData) {
             ? `<span style="color:#166534">▼ ${fmt(Math.abs(diff))} under plan</span>`
             : "On target"}
         </div>
-      </div>
-    `;
+      </div>`;
   });
 
   grid.innerHTML = html;
@@ -208,9 +232,8 @@ function renderPctCards(grandPlan, grandActual, empData) {
 function renderBarChart(plan, actual) {
   const canvas = el("barChart");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
 
-  chartBar = new Chart(ctx, {
+  chartBar = new Chart(canvas.getContext("2d"), {
     type: "bar",
     data: {
       labels: MONTHS_SHORT,
@@ -222,16 +245,13 @@ function renderBarChart(plan, actual) {
           borderColor: "rgba(17,17,17,0.25)",
           borderWidth: 1,
           borderRadius: 4,
-          borderSkipped: false,
         },
         {
           label: "Actual",
           data: actual,
           backgroundColor: "rgba(17,17,17,0.82)",
-          borderColor: "rgba(17,17,17,1)",
           borderWidth: 0,
           borderRadius: 4,
-          borderSkipped: false,
         }
       ]
     },
@@ -240,33 +260,26 @@ function renderBarChart(plan, actual) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: false },
-        tooltip: {
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}` }
-        }
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } }
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: {
-          beginAtZero: true,
-          grid: { color: "#f0f0ee" },
-          ticks: { callback: v => fmtShort(v), font: { size: 11 } }
-        }
+        y: { beginAtZero: true, grid: { color: "#f0f0ee" },
+             ticks: { callback: v => fmtShort(v), font: { size: 11 } } }
       },
       animation: {
-        onComplete: function() {
-          const chart = this;
-          const ctx   = chart.ctx;
+        onComplete() {
+          const ctx = this.ctx;
           ctx.save();
-          ctx.font         = "600 11px Inter, system-ui, sans-serif";
-          ctx.textAlign    = "center";
+          ctx.font = "600 11px Inter, system-ui, sans-serif";
+          ctx.textAlign = "center";
           ctx.textBaseline = "bottom";
-          chart.data.datasets.forEach((dataset, dsIdx) => {
-            const meta = chart.getDatasetMeta(dsIdx);
-            meta.data.forEach((bar, idx) => {
-              const val = dataset.data[idx];
-              if (!val || val === 0) return;
-              ctx.fillStyle = dsIdx === 0 ? "rgba(17,17,17,0.45)" : "rgba(17,17,17,0.9)";
-              ctx.fillText(fmtShort(val), bar.x, bar.y - 4);
+          this.data.datasets.forEach((ds, di) => {
+            this.getDatasetMeta(di).data.forEach((bar, idx) => {
+              const v = ds.data[idx];
+              if (!v) return;
+              ctx.fillStyle = di === 0 ? "rgba(17,17,17,0.45)" : "rgba(17,17,17,0.9)";
+              ctx.fillText(fmtShort(v), bar.x, bar.y - 4);
             });
           });
           ctx.restore();
@@ -276,61 +289,45 @@ function renderBarChart(plan, actual) {
   });
 }
 
-// ── Monthly data table ────────────────────────────────────────────────────────
+// ── Monthly table ─────────────────────────────────────────────────────────────
 function renderMonthTable(plan, actual) {
   const tbody = el("monthTableBody");
   if (!tbody) return;
-
   let totalP = 0, totalA = 0;
   let rows = MONTHS_FULL.map((m, i) => {
-    const p    = plan[i]   || 0;
-    const a    = actual[i] || 0;
+    const p = plan[i] || 0, a = actual[i] || 0;
     const diff = a - p;
     const pct  = p > 0 ? (a / p * 100).toFixed(1) + "%" : "—";
     totalP += p; totalA += a;
-    return `
-      <tr>
-        <td>${m}</td>
-        <td>${fmt(p)}</td>
-        <td>${fmt(a)}</td>
-        <td>${diffHTML(diff)}</td>
-        <td>${pct}</td>
-      </tr>
-    `;
+    return `<tr>
+      <td>${m}</td><td>${fmt(p)}</td><td>${fmt(a)}</td>
+      <td>${diffHTML(diff)}</td><td>${pct}</td>
+    </tr>`;
   }).join("");
-
-  const totalDiff = totalA - totalP;
-  const totalPct  = totalP > 0 ? (totalA / totalP * 100).toFixed(1) + "%" : "—";
-  rows += `
-    <tr class="total-row">
-      <td>Total</td>
-      <td>${fmt(totalP)}</td>
-      <td>${fmt(totalA)}</td>
-      <td>${diffHTML(totalDiff)}</td>
-      <td>${totalPct}</td>
-    </tr>
-  `;
+  const tDiff = totalA - totalP;
+  rows += `<tr class="total-row">
+    <td>Total</td><td>${fmt(totalP)}</td><td>${fmt(totalA)}</td>
+    <td>${diffHTML(tDiff)}</td>
+    <td>${totalP > 0 ? (totalA/totalP*100).toFixed(1)+"%" : "—"}</td>
+  </tr>`;
   tbody.innerHTML = rows;
 }
 
-// ── ③ YTD cumulative line chart ───────────────────────────────────────────────
+// ── ③ YTD chart ───────────────────────────────────────────────────────────────
 function renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff) {
-  const planEl   = el("ytdPlanVal");
-  const actualEl = el("ytdActualVal");
-  const diffEl   = el("ytdDiffVal");
-  const canvas   = el("ytdChart");
+  setText("ytdPlanVal",   fmt(ytdPlanVal));
+  setText("ytdActualVal", fmt(ytdActualVal));
 
-  if (planEl)   planEl.textContent   = fmt(ytdPlanVal);
-  if (actualEl) actualEl.textContent = fmt(ytdActualVal);
+  const diffEl = el("ytdDiffVal");
   if (diffEl) {
     diffEl.textContent = (ytdDiff >= 0 ? "+" : "") + fmt(ytdDiff);
     diffEl.className   = "ys-val " + (ytdDiff > 0 ? "pos" : ytdDiff < 0 ? "neg" : "");
   }
 
+  const canvas = el("ytdChart");
   if (!canvas) return;
-  const ctx = canvas.getContext("2d");
 
-  chartYTD = new Chart(ctx, {
+  chartYTD = new Chart(canvas.getContext("2d"), {
     type: "line",
     data: {
       labels: MONTHS_SHORT,
@@ -364,21 +361,14 @@ function renderYTDChart(ytdPlan, ytdActual, ytdPlanVal, ytdActualVal, ytdDiff) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: {
-          position: "top",
-          labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } }
-        },
-        tooltip: {
-          callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}` }
-        }
+        legend: { position: "top",
+          labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } } },
+        tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } }
       },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 12 } } },
-        y: {
-          beginAtZero: true,
-          grid: { color: "#f0f0ee" },
-          ticks: { callback: v => fmtShort(v), font: { size: 11 } }
-        }
+        y: { beginAtZero: true, grid: { color: "#f0f0ee" },
+             ticks: { callback: v => fmtShort(v), font: { size: 11 } } }
       }
     }
   });
