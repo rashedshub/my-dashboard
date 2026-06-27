@@ -68,7 +68,9 @@ async function loadData() {
       getDocs(collection(db, "users"))
     ]);
 
-    const docs = leaveSnap.docs.map(d => d.data()).filter(d => Number(d.year) === Number(currentYear));
+    const docs = leaveSnap.docs.map(d => d.data()).filter(d => String(d.year) === String(currentYear));
+    console.log("All leave_data docs:", leaveSnap.docs.map(d => d.data()).map(d => ({uid:d.uid, year:d.year})));
+    console.log("Filtered for year", currentYear, ":", docs.length, "docs");
 
     if (docs.length === 0) {
       if (ls) { ls.style.display = "block"; ls.innerHTML = `<div class="icon">📭</div>No leave data for ${currentYear}.`; }
