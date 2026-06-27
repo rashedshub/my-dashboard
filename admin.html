@@ -21,6 +21,7 @@
       <span class="brand-name">EMS — Admin</span>
     </div>
     <div class="topbar-right">
+      <a href="survey-admin.html" style="font-size:0.875rem;font-weight:500;color:var(--text);text-decoration:none;margin-right:16px;">📋 Surveys</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
@@ -34,11 +35,10 @@
       </div>
     </div>
 
-    <!-- Tabs -->
     <nav class="tab-nav">
-      <button class="active" data-tab="pending"   onclick="switchTab('pending')">Pending Approval</button>
-      <button              data-tab="all"       onclick="switchTab('all')">All Employees</button>
-      <button              data-tab="admins"    onclick="switchTab('admins')">Admins</button>
+      <button class="active" data-tab="pending" onclick="switchTab('pending')">Pending Approval</button>
+      <button data-tab="all"    onclick="switchTab('all')">All Employees</button>
+      <button data-tab="admins" onclick="switchTab('admins')">Admins</button>
     </nav>
 
     <!-- Pending tab -->
@@ -50,13 +50,7 @@
       <div class="table-wrap">
         <table class="data-table" id="pending-table">
           <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Employee ID</th>
-              <th>Registered</th>
-              <th>Actions</th>
-            </tr>
+            <tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Registered</th><th>Actions</th></tr>
           </thead>
           <tbody id="pending-body">
             <tr><td colspan="5"><div class="empty-state"><div class="empty-icon">⏳</div>Loading…</div></td></tr>
@@ -74,14 +68,7 @@
       <div class="table-wrap">
         <table class="data-table" id="all-table">
           <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Employee ID</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
+            <tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Role</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody id="all-body">
             <tr><td colspan="6"><div class="empty-state"><div class="empty-icon">👥</div>Loading…</div></td></tr>
@@ -99,12 +86,7 @@
       <div class="table-wrap">
         <table class="data-table" id="admins-table">
           <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Employee ID</th>
-              <th>Actions</th>
-            </tr>
+            <tr><th>Name</th><th>Email</th><th>Employee ID</th><th>Actions</th></tr>
           </thead>
           <tbody id="admins-body">
             <tr><td colspan="4"><div class="empty-state"><div class="empty-icon">🛡️</div>Loading…</div></td></tr>
@@ -114,9 +96,7 @@
     </div>
   </main>
 
-  <!-- Toast -->
   <div class="toast" id="toast"></div>
-
   <script type="module" src="js/admin.js"></script>
 </body>
 </html>
