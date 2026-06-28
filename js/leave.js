@@ -1,298 +1,313 @@
-import { app } from "./firebase.js";
-import {
-  getAuth, onAuthStateChanged, signOut
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+/**
+ * leave.js
+ *
+ * Firestore structure:
+ *   users/{uid}          → { displayName, email, department, role, … }
+ *   leave_data/{uid_year} → {
+ *     uid, year,
+ *     months: {
+ *       "Jan": { plan: 0, actual: 0 },
+ *       "Feb": { plan: 0, actual: 0 },
+ *       … (all 12 months)
+ *     },
+ *     updatedAt, updatedByEmail
+ *   }
+ *
+ * Security rules (existing):
+ *   leave_data: any logged-in user can READ all docs
+ *               users can only WRITE their own doc (docId must start with uid)
+ *
+ * Therefore:
+ *   - Every employee row is visible to all.
+ *   - Inputs are only enabled for the current user's own row.
+ *   - Save only writes the current user's own doc.
+ */
+
+import { initializeApp }         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut }
+                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore,
-  doc, getDoc, setDoc, getDocs, collection
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+  collection, getDocs,
+  doc, getDoc, setDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// ── Firebase config ──────────────────────────────────────────────────────────
+// Replace with your own config object.
+import { firebaseConfig } from "./firebase-config.js";
+
+const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-const MONTHS = [
-  "January","February","March","April",
-  "May","June","July","August",
-  "September","October","November","December"
-];
+// ── Constants ────────────────────────────────────────────────────────────────
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
+                "Jul","Aug","Sep","Oct","Nov","Dec"];
 
-let currentYear = new Date().getFullYear();
-let currentUser = null;
-let allUsers    = {};   // uid → { name, employeeId }
-// Shared data structure:
-// { months: { [monthIdx]: { [uid]: { plan, actual } } }, updatedAt, updatedBy }
-let sharedData  = {};
+const FIELDS = ["plan", "actual"]; // columns per month
 
-function el(id)           { return document.getElementById(id); }
-function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
+// ── State ────────────────────────────────────────────────────────────────────
+let currentUser   = null;   // Firebase auth user
+let selectedYear  = new Date().getFullYear();
+let employees     = [];     // [{ uid, displayName, email, department }]
+let leaveData     = {};     // { uid: { Jan:{plan,actual}, … } }
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "login.html"; return; }
-  currentUser = user;
-  setText("topbarEmail", user.email);
-  await loadUsers();
-  buildYearSelector();
-  loadData();
-});
-
-// ── Load all users from Firestore ─────────────────────────────────────────────
-async function loadUsers() {
-  try {
-    const snap = await getDocs(collection(db, "users"));
-    snap.docs.forEach(d => {
-      const data = d.data();
-      allUsers[d.id] = { name: data.name || "Unknown", employeeId: data.employeeId || "—" };
-    });
-  } catch(e) { console.error("loadUsers error:", e); }
-}
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const yearSelect   = document.getElementById("yearSelect");
+const tableArea    = document.getElementById("tableArea");
+const saveBtn      = document.getElementById("saveBtn");
+const saveMsg      = document.getElementById("saveMsg");
+const lastUpdated  = document.getElementById("lastUpdated");
+const topbarEmail  = document.getElementById("topbarEmail");
+const logoutBtn    = document.getElementById("logoutBtn");
+const toast        = document.getElementById("toast");
 
 // ── Year selector ─────────────────────────────────────────────────────────────
-function buildYearSelector() {
-  const sel  = el("yearSelect");
-  const base = new Date().getFullYear();
-  for (let y = base - 2; y <= base + 5; y++) {
+function populateYears() {
+  const current = new Date().getFullYear();
+  for (let y = current - 2; y <= current + 2; y++) {
     const opt = document.createElement("option");
-    opt.value = y; opt.textContent = y;
-    if (y === base) opt.selected = true;
-    sel.appendChild(opt);
+    opt.value = y;
+    opt.textContent = y;
+    if (y === current) opt.selected = true;
+    yearSelect.appendChild(opt);
   }
-  sel.addEventListener("change", () => {
-    currentYear = Number(sel.value);
-    loadData();
-  });
 }
 
-// ── Load shared data ──────────────────────────────────────────────────────────
-async function loadData() {
-  el("tableArea").innerHTML = `<div class="table-loading">Loading ${currentYear} data…</div>`;
-  const lu = el("lastUpdated");
-  if (lu) lu.style.display = "none";
+yearSelect.addEventListener("change", () => {
+  selectedYear = parseInt(yearSelect.value, 10);
+  loadAllLeaveData();
+});
 
-  sharedData = {};
+// ── Auth ──────────────────────────────────────────────────────────────────────
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    window.location.href = "index.html";
+    return;
+  }
+  currentUser = user;
+  topbarEmail.textContent = user.email;
+  init();
+});
+
+logoutBtn.addEventListener("click", () => signOut(auth));
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  populateYears();
+  await loadEmployees();
+  await loadAllLeaveData();
+}
+
+// ── Load employees from users collection ─────────────────────────────────────
+async function loadEmployees() {
   try {
-    const snap = await getDoc(doc(db, "leave_shared", `${currentYear}`));
-    if (snap.exists()) {
-      sharedData = snap.data();
-      // Show last updated
-      if (sharedData.updatedAt && lu) {
-        const by   = sharedData.updatedByName || sharedData.updatedBy || "someone";
-        const time = new Date(sharedData.updatedAt).toLocaleString();
-        lu.textContent  = `Last saved by ${by} on ${time}`;
-        lu.style.display = "block";
-      }
-    }
-  } catch(e) { console.error("Load error:", e); }
+    const snap = await getDocs(collection(db, "users"));
+    employees = snap.docs.map(d => ({
+      uid:         d.id,
+      displayName: d.data().displayName || d.data().name || d.data().email || d.id,
+      email:       d.data().email || "",
+      department:  d.data().department || d.data().dept || "",
+    }));
+    // Sort alphabetically by display name
+    employees.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch (err) {
+    console.error("Failed to load employees:", err);
+    showToast("Could not load employee list.", "error");
+  }
+}
+
+// ── Load all leave_data docs for the selected year ────────────────────────────
+async function loadAllLeaveData() {
+  tableArea.innerHTML = `<div class="table-loading">Loading leave data…</div>`;
+  lastUpdated.style.display = "none";
+  leaveData = {};
+
+  try {
+    // Each doc id = uid_year  e.g. "abc123_2025"
+    // We read all docs then filter by year suffix
+    const snap = await getDocs(collection(db, "leave_data"));
+    snap.docs.forEach(d => {
+      const parts = d.id.split("_");
+      // docId format: uid_year — uid may contain underscores so split from end
+      const year = parts[parts.length - 1];
+      if (year !== String(selectedYear)) return;
+      const uid = parts.slice(0, parts.length - 1).join("_");
+      leaveData[uid] = d.data().months || emptyMonths();
+    });
+  } catch (err) {
+    console.error("Failed to load leave data:", err);
+    showToast("Could not load leave data.", "error");
+  }
 
   renderTable();
+  showOwnLastUpdated();
 }
 
 // ── Render table ──────────────────────────────────────────────────────────────
 function renderTable() {
-  // Build list of users to show as columns
-  // Always include current user + any user that already has data
-  const userIds = new Set([currentUser.uid]);
-  const months  = sharedData.months || {};
-  Object.values(months).forEach(monthData => {
-    Object.keys(monthData).forEach(uid => userIds.add(uid));
-  });
-
-  // Sort: current user first, then by name
-  const sortedUids = [...userIds].sort((a, b) => {
-    if (a === currentUser.uid) return -1;
-    if (b === currentUser.uid) return 1;
-    return (allUsers[a]?.name || "").localeCompare(allUsers[b]?.name || "");
-  });
-
-  // Build header
-  let headerCols = sortedUids.map(uid => {
-    const u    = allUsers[uid] || {};
-    const name = uid === currentUser.uid ? "You" : (u.name || "Unknown");
-    const empId = u.employeeId && u.employeeId !== "—" ? `<br><span style="font-weight:400;opacity:.6">${u.employeeId}</span>` : "";
-    return `
-      <th colspan="2" style="text-align:center;border-left:1px solid var(--border);">
-        ${name}${empId}
-      </th>
-    `;
-  }).join("");
-
-  let subHeaderCols = sortedUids.map(() => `
-    <th style="text-align:center;border-left:1px solid var(--border);">Plan</th>
-    <th style="text-align:center;">Actual</th>
-  `).join("");
-
-  // Build rows
-  let bodyRows = "";
-  const totals = {}; // uid → { plan, actual }
-  sortedUids.forEach(uid => { totals[uid] = { plan: 0, actual: 0 }; });
-
-  MONTHS.forEach((month, i) => {
-    let cells = sortedUids.map(uid => {
-      const val    = months[i]?.[uid] || {};
-      const plan   = val.plan   ?? "";
-      const actual = val.actual ?? "";
-      if (plan   !== "") totals[uid].plan   += Number(plan)   || 0;
-      if (actual !== "") totals[uid].actual += Number(actual) || 0;
-
-      const diff     = (Number(actual) || 0) - (Number(plan) || 0);
-      const hasBoth  = plan !== "" && actual !== "";
-
-      return `
-        <td style="border-left:1px solid var(--border);text-align:center;">
-          <input class="leave-input" type="number" min="0" step="0.5"
-            id="plan-${i}-${uid}" value="${plan}" placeholder="0"
-            oninput="recalcRow(${i})"/>
-        </td>
-        <td style="text-align:center;">
-          <input class="leave-input" type="number" min="0" step="0.5"
-            id="actual-${i}-${uid}" value="${actual}" placeholder="0"
-            oninput="recalcRow(${i})"/>
-        </td>
-      `;
-    }).join("");
-
-    bodyRows += `<tr id="row-${i}"><td>${month}</td>${cells}</tr>`;
-  });
-
-  // Totals row
-  let totalCells = sortedUids.map(uid => {
-    const p = totals[uid].plan;
-    const a = totals[uid].actual;
-    const d = a - p;
-    const diffCls = d > 0 ? "diff-pos" : d < 0 ? "diff-neg" : "diff-zer";
-    return `
-      <td style="border-left:1px solid var(--border);text-align:center;">${fmt(p)}</td>
-      <td style="text-align:center;">${fmt(a)} <span class="${diffCls}" style="font-size:0.75rem;">${d !== 0 ? (d > 0 ? "+" : "") + fmt(d) : ""}</span></td>
-    `;
-  }).join("");
-
-  el("tableArea").innerHTML = `
-    <div style="overflow-x:auto;">
-      <table class="leave-table">
-        <thead>
-          <tr>
-            <th rowspan="2" style="vertical-align:bottom;">Month</th>
-            ${headerCols}
-          </tr>
-          <tr>${subHeaderCols}</tr>
-        </thead>
-        <tbody>${bodyRows}</tbody>
-        <tfoot>
-          <tr class="total-row">
-            <td>Total</td>
-            ${totalCells}
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  `;
-}
-
-// ── Recalculate totals row live ───────────────────────────────────────────────
-window.recalcRow = function(monthIdx) {
-  // Just re-read all inputs and update totals footer
-  const tfoot = document.querySelector(".leave-table tfoot .total-row");
-  if (!tfoot) return;
-
-  const userIds = getUserIds();
-  userIds.forEach((uid, colIdx) => {
-    let totalPlan = 0, totalActual = 0;
-    for (let i = 0; i < 12; i++) {
-      totalPlan   += Number(el(`plan-${i}-${uid}`)?.value)   || 0;
-      totalActual += Number(el(`actual-${i}-${uid}`)?.value) || 0;
-    }
-    const diff    = totalActual - totalPlan;
-    const diffCls = diff > 0 ? "diff-pos" : diff < 0 ? "diff-neg" : "diff-zer";
-    const cells   = tfoot.querySelectorAll("td");
-    const base    = 1 + colIdx * 2;
-    if (cells[base])     cells[base].textContent     = fmt(totalPlan);
-    if (cells[base + 1]) cells[base + 1].innerHTML   =
-      `${fmt(totalActual)} <span class="${diffCls}" style="font-size:0.75rem;">${diff !== 0 ? (diff > 0 ? "+" : "") + fmt(diff) : ""}</span>`;
-  });
-};
-
-function getUserIds() {
-  const userIds = new Set([currentUser.uid]);
-  const months  = sharedData.months || {};
-  Object.values(months).forEach(md => Object.keys(md).forEach(uid => userIds.add(uid)));
-  return [...userIds].sort((a, b) => {
-    if (a === currentUser.uid) return -1;
-    if (b === currentUser.uid) return 1;
-    return (allUsers[a]?.name || "").localeCompare(allUsers[b]?.name || "");
-  });
-}
-
-// ── Save ──────────────────────────────────────────────────────────────────────
-el("saveBtn").addEventListener("click", async () => {
-  const btn = el("saveBtn");
-  const msg = el("saveMsg");
-  msg.className = "message"; msg.textContent = "";
-  btn.disabled  = true; btn.classList.add("loading");
-
-  const userIds = getUserIds();
-  const months  = {};
-
-  for (let i = 0; i < 12; i++) {
-    months[i] = {};
-    userIds.forEach(uid => {
-      const plan   = parseFloat(el(`plan-${i}-${uid}`)?.value)   || 0;
-      const actual = parseFloat(el(`actual-${i}-${uid}`)?.value) || 0;
-      if (plan !== 0 || actual !== 0) {
-        months[i][uid] = { plan, actual };
-      }
-    });
+  if (!employees.length) {
+    tableArea.innerHTML = `<div class="table-loading">No employees found.</div>`;
+    return;
   }
 
-  const userName = allUsers[currentUser.uid]?.name || currentUser.email;
+  // ── Build header rows (two-level: month → plan/actual) ────────────────────
+  // Row 1: Employee | Dept | Jan (colspan 2) | Feb (colspan 2) | …
+  // Row 2:           |      | Plan | Actual  | Plan | Actual  | …
+  let headerRow1 = `<tr>
+    <th class="col-name" rowspan="2">Employee</th>
+    <th class="col-dept" rowspan="2">Department</th>`;
+
+  MONTHS.forEach(m => {
+    headerRow1 += `<th class="month-header" colspan="2">${m}</th>`;
+  });
+  headerRow1 += `</tr>`;
+
+  let headerRow2 = `<tr>`;
+  MONTHS.forEach(() => {
+    headerRow2 += `<th class="sub-header">Plan</th><th class="sub-header">Actual</th>`;
+  });
+  headerRow2 += `</tr>`;
+
+  // ── Build body rows ───────────────────────────────────────────────────────
+  const bodyRows = employees.map(emp => {
+    const isOwn   = emp.uid === currentUser.uid;
+    const months  = leaveData[emp.uid] || emptyMonths();
+    const rowClass = isOwn ? "own-row" : "";
+
+    let cells = "";
+    MONTHS.forEach((m, i) => {
+      const planVal   = months[m]?.plan   ?? "";
+      const actualVal = months[m]?.actual ?? "";
+      const sep       = i === 0 ? "" : ""; // border via CSS on month-sep
+
+      if (isOwn) {
+        cells += `
+          <td class="month-sep">
+            <input class="leave-input" type="number" min="0" max="31" step="0.5"
+              data-uid="${emp.uid}" data-month="${m}" data-field="plan"
+              value="${planVal}" placeholder="0" aria-label="${m} plan">
+          </td>
+          <td>
+            <input class="leave-input" type="number" min="0" max="31" step="0.5"
+              data-uid="${emp.uid}" data-month="${m}" data-field="actual"
+              value="${actualVal}" placeholder="0" aria-label="${m} actual">
+          </td>`;
+      } else {
+        cells += `
+          <td class="month-sep">${planVal !== "" ? planVal : "—"}</td>
+          <td>${actualVal !== "" ? actualVal : "—"}</td>`;
+      }
+    });
+
+    return `<tr class="${rowClass}">
+      <td class="col-name">${escHtml(emp.displayName)}${isOwn ? ' <span style="font-size:0.7rem;color:#92400e;font-weight:400;">(you)</span>' : ""}</td>
+      <td class="col-dept">${escHtml(emp.department)}</td>
+      ${cells}
+    </tr>`;
+  });
+
+  tableArea.innerHTML = `
+    <table class="leave-table">
+      <thead>${headerRow1}${headerRow2}</thead>
+      <tbody>${bodyRows.join("")}</tbody>
+    </table>`;
+
+  saveMsg.textContent = "";
+}
+
+// ── Show own row's last-updated timestamp ─────────────────────────────────────
+async function showOwnLastUpdated() {
+  if (!currentUser) return;
+  try {
+    const docId  = `${currentUser.uid}_${selectedYear}`;
+    const snap   = await getDoc(doc(db, "leave_data", docId));
+    if (snap.exists() && snap.data().updatedAt) {
+      const ts = snap.data().updatedAt.toDate();
+      lastUpdated.textContent =
+        `Your row last saved: ${ts.toLocaleString()} by ${snap.data().updatedByEmail || currentUser.email}`;
+      lastUpdated.style.display = "block";
+    }
+  } catch (_) { /* non-critical */ }
+}
+
+// ── Save current user's row ───────────────────────────────────────────────────
+saveBtn.addEventListener("click", async () => {
+  if (!currentUser) return;
+
+  // Collect values from inputs for own row
+  const inputs = tableArea.querySelectorAll(
+    `input[data-uid="${currentUser.uid}"]`
+  );
+
+  const months = emptyMonths();
+  inputs.forEach(inp => {
+    const m     = inp.dataset.month;
+    const field = inp.dataset.field;
+    const val   = inp.value.trim();
+    months[m][field] = val === "" ? null : parseFloat(val);
+  });
+
+  // Validate: no month value > 31
+  for (const m of MONTHS) {
+    for (const f of FIELDS) {
+      const v = months[m][f];
+      if (v !== null && (v < 0 || v > 31)) {
+        showToast(`${m} ${f} must be between 0 and 31.`, "error");
+        return;
+      }
+    }
+  }
+
+  setBtnLoading(true);
+  saveMsg.textContent = "";
 
   try {
-    await setDoc(doc(db, "leave_shared", `${currentYear}`), {
-      year:          currentYear,
+    const docId  = `${currentUser.uid}_${selectedYear}`;
+    await setDoc(doc(db, "leave_data", docId), {
+      uid:            currentUser.uid,
+      year:           selectedYear,
       months,
-      updatedAt:     new Date().toISOString(),
-      updatedBy:     currentUser.uid,
-      updatedByName: userName
+      updatedAt:      serverTimestamp(),
+      updatedByEmail: currentUser.email,
     });
 
     // Update local cache
-    sharedData.months        = months;
-    sharedData.updatedAt     = new Date().toISOString();
-    sharedData.updatedByName = userName;
-
-    const lu = el("lastUpdated");
-    if (lu) {
-      lu.textContent  = `Last saved by ${userName} on ${new Date().toLocaleString()}`;
-      lu.style.display = "block";
-    }
-
-    msg.className   = "message success";
-    msg.textContent = `✓ Data saved for ${currentYear}.`;
-    showToast("Leave data saved!");
-
-  } catch(e) {
-    msg.textContent = "Save failed: " + e.message;
+    leaveData[currentUser.uid] = months;
+    showToast("Saved successfully.", "success");
+    saveMsg.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
+    await showOwnLastUpdated();
+  } catch (err) {
+    console.error("Save error:", err);
+    showToast("Save failed — check your connection.", "error");
+  } finally {
+    setBtnLoading(false);
   }
-
-  btn.disabled = false; btn.classList.remove("loading");
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function fmt(n) {
-  if (!n && n !== 0) return "—";
-  return Number.isInteger(n)
-    ? n.toLocaleString()
-    : parseFloat(n).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+function emptyMonths() {
+  const m = {};
+  MONTHS.forEach(mo => { m[mo] = { plan: null, actual: null }; });
+  return m;
 }
 
-function showToast(text, error = false) {
-  const toast = document.getElementById("toast");
-  toast.textContent = text;
-  toast.className   = "toast" + (error ? " error" : "");
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 3000);
+function setBtnLoading(on) {
+  saveBtn.classList.toggle("loading", on);
+  saveBtn.disabled = on;
 }
 
-el("logoutBtn")?.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "login.html";
-});
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+let toastTimer;
+function showToast(msg, type = "info") {
+  toast.textContent = msg;
+  toast.className   = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
+}
