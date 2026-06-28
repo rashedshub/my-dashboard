@@ -3,7 +3,7 @@ import {
   getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc
+  getFirestore, doc, getDoc, collection, getDocs
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
@@ -15,7 +15,7 @@ const MONTHS_FULL = ["January","February","March","April","May","June",
                      "July","August","September","October","November","December"];
 
 let currentYear = new Date().getFullYear();
-let chartBar, chartYTD;
+let chartBar, chartYTD, chartYeepPie, chartYeepBar;
 
 function el(id)           { return document.getElementById(id); }
 function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
@@ -31,8 +31,10 @@ function fmtShort(n) {
   return Math.abs(n) >= 1000 ? (n / 1000).toFixed(1) + "k" : n;
 }
 function destroyCharts() {
-  try { if (chartBar) { chartBar.destroy(); chartBar = null; } } catch(e) {}
-  try { if (chartYTD) { chartYTD.destroy(); chartYTD = null; } } catch(e) {}
+  try { if (chartBar)     { chartBar.destroy();     chartBar     = null; } } catch(e) {}
+  try { if (chartYTD)     { chartYTD.destroy();     chartYTD     = null; } } catch(e) {}
+  try { if (chartYeepPie) { chartYeepPie.destroy(); chartYeepPie = null; } } catch(e) {}
+  try { if (chartYeepBar) { chartYeepBar.destroy(); chartYeepBar = null; } } catch(e) {}
 }
 function diffHTML(diff) {
   if (!diff || diff === 0) return `<span class="diff-z">0</span>`;
@@ -162,6 +164,9 @@ async function loadData() {
     // ④ Monthly table
     renderMonthTable(planArr, consumedArr);
 
+    // ⑤ YEEP
+    await loadYEEP();
+
   } catch(e) {
     console.error(e);
     showLoading(`<div class="icon">⚠️</div>Failed to load data: ${e.message}`);
@@ -271,6 +276,110 @@ function renderMonthTable(plan, consumed) {
     <td>${totalP > 0 ? (totalC / totalP * 100).toFixed(1) + "%" : "—"}</td>
   </tr>`;
   tbody.innerHTML = rows;
+}
+
+// ── ⑤ YEEP — load all users' docs and aggregate ──────────────────────────────
+async function loadYEEP() {
+  try {
+    const MONTH_KEYS = ["m0","m1","m2","m3","m4","m5","m6","m7","m8","m9","m10","m11"];
+    const snap       = await getDocs(collection(db, "yeep_data"));
+
+    // Filter docs for current year
+    const docs = snap.docs
+      .map(d => d.data())
+      .filter(d => String(d.year) === String(currentYear));
+
+    if (docs.length === 0) {
+      const yeepTotal = el("yeepTotal");
+      if (yeepTotal) yeepTotal.textContent = "No data";
+      return;
+    }
+
+    // Aggregate ES and ER monthly totals across all users
+    const esMonthly = Array(12).fill(0);
+    const erMonthly = Array(12).fill(0);
+
+    docs.forEach(d => {
+      const teams = d.teams || {};
+      MONTH_KEYS.forEach((key, i) => {
+        esMonthly[i] += Number(teams.ES?.[key]) || 0;
+        erMonthly[i] += Number(teams.ER?.[key]) || 0;
+      });
+    });
+
+    const totalES = esMonthly.reduce((a, b) => a + b, 0);
+    const totalER = erMonthly.reduce((a, b) => a + b, 0);
+    const total   = totalES + totalER;
+
+    // Stat cards
+    setText("yeepTotal", total.toLocaleString());
+    setText("yeepES",    totalES.toLocaleString());
+    setText("yeepER",    totalER.toLocaleString());
+    setText("yeepESPct", total > 0 ? `${(totalES/total*100).toFixed(1)}% of total` : "—");
+    setText("yeepERPct", total > 0 ? `${(totalER/total*100).toFixed(1)}% of total` : "—");
+
+    // Pie chart — ES vs ER
+    const pieCanvas = el("yeepPieChart");
+    if (pieCanvas) {
+      chartYeepPie = new Chart(pieCanvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["ES Team", "ER Team"],
+          datasets: [{
+            data: [totalES, totalER],
+            backgroundColor: ["rgba(55,48,163,0.8)", "rgba(22,101,52,0.8)"],
+            borderColor:     ["#3730a3", "#166534"],
+            borderWidth: 2,
+            hoverOffset: 6,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } } },
+            tooltip: {
+              callbacks: {
+                label: c => {
+                  const pct = total > 0 ? (c.raw / total * 100).toFixed(1) : 0;
+                  return ` ${c.label}: ${c.raw.toLocaleString()} (${pct}%)`;
+                }
+              }
+            }
+          },
+          cutout: "60%",
+        }
+      });
+    }
+
+    // Bar chart — monthly ES vs ER
+    const barCanvas = el("yeepBarChart");
+    if (barCanvas) {
+      chartYeepBar = new Chart(barCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: MONTHS,
+          datasets: [
+            { label:"ES Team", data:esMonthly, backgroundColor:"rgba(55,48,163,0.7)", borderRadius:4, borderWidth:0 },
+            { label:"ER Team", data:erMonthly, backgroundColor:"rgba(22,101,52,0.7)",  borderRadius:4, borderWidth:0 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position:"top", labels:{ usePointStyle:true, pointStyle:"circle", padding:16, font:{ size:12 } } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString()}` } }
+          },
+          scales: {
+            x: { grid:{ display:false }, ticks:{ font:{ size:11 } }, stacked: false },
+            y: { beginAtZero:true, grid:{ color:"#f0f0ee" }, ticks:{ font:{ size:11 } } }
+          }
+        }
+      });
+    }
+
+  } catch(e) {
+    console.error("YEEP load error:", e);
+  }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
