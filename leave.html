@@ -8,7 +8,7 @@
   <style>
     .leave-body { background: var(--bg); }
     .leave-main {
-      max-width: 1100px; margin: 0 auto; padding: 40px 24px 60px;
+      max-width: 560px; margin: 0 auto; padding: 40px 24px 60px;
       animation: fadeUp 400ms 80ms var(--ease) both;
     }
 
@@ -40,66 +40,37 @@
       border: 1px solid var(--border); overflow: hidden;
     }
 
-    /* ── Scroll wrapper ── */
-    .table-scroll { overflow-x: auto; }
-
     /* ── Table ── */
-    .leave-table {
-      width: 100%; border-collapse: collapse;
-      font-size: 0.8125rem; min-width: 960px;
-    }
+    .leave-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+
     .leave-table thead tr {
-      background: #fafaf9;
-    }
-    .leave-table thead tr:first-child {
-      border-bottom: none;
-    }
-    .leave-table thead tr:last-child {
-      border-bottom: 1.5px solid var(--border);
+      background: #f5f5f3; border-bottom: 1.5px solid var(--border);
     }
     .leave-table th {
-      padding: 10px 8px; text-align: center;
-      font-size: 0.69rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+      padding: 12px 20px; font-size: 0.75rem; font-weight: 700;
+      color: var(--text); text-transform: uppercase;
+      letter-spacing: 0.06em; white-space: nowrap;
     }
-    .leave-table th.col-name {
-      text-align: left; padding-left: 16px; min-width: 160px;
-    }
-    .leave-table th.col-dept {
-      text-align: left; min-width: 110px;
-    }
-    .leave-table th.month-header {
-      border-left: 1px solid var(--border);
-      font-size: 0.75rem; font-weight: 700;
-      color: var(--text); text-transform: none; letter-spacing: 0;
-    }
-    .leave-table th.sub-header {
-      border-left: 1px solid #ebebea;
-      font-size: 0.65rem; color: var(--muted); padding: 5px 4px;
-    }
-    .leave-table th.sub-header:first-of-type {
-      border-left: 1px solid var(--border);
-    }
+    .leave-table th:first-child { text-align: left; width: 35%; }
+    .leave-table th:not(:first-child) { text-align: center; }
 
     .leave-table td {
-      padding: 6px 6px; border-bottom: 1px solid #f0f0ee;
-      vertical-align: middle; text-align: center;
+      padding: 8px 20px; border-bottom: 1px solid #f0f0ee;
+      vertical-align: middle;
     }
     .leave-table tr:last-child td { border-bottom: none; }
     .leave-table tr:hover td { background: #fafaf9; }
-    .leave-table td.col-name {
-      text-align: left; padding-left: 16px; font-weight: 500;
+
+    .month-cell {
+      font-weight: 600; color: var(--text); text-align: left;
     }
-    .leave-table td.col-dept {
-      text-align: left; color: var(--muted); font-size: 0.78rem;
-    }
-    .leave-table td.month-sep { border-left: 1px solid var(--border); }
+    .leave-table td:not(.month-cell) { text-align: center; }
 
     /* ── Input ── */
     .leave-input {
-      width: 54px; padding: 5px 4px;
-      border: 1.5px solid var(--border); border-radius: 6px;
-      font-family: inherit; font-size: 0.8125rem; font-weight: 500;
+      width: 90px; padding: 7px 10px;
+      border: 1.5px solid var(--border); border-radius: 7px;
+      font-family: inherit; font-size: 0.875rem; font-weight: 500;
       color: var(--text); background: #fafaf9;
       text-align: center; outline: none;
       transition: border-color 200ms, box-shadow 200ms, background 200ms;
@@ -108,8 +79,13 @@
       border-color: var(--accent); background: #fff;
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
-    .leave-input:not(:placeholder-shown) {
-      background: #fff;
+    .leave-input:not(:placeholder-shown) { background: #fff; }
+
+    /* ── Last updated ── */
+    .last-updated {
+      font-size: 0.75rem; color: var(--muted);
+      padding: 9px 20px; border-top: 1px solid var(--border);
+      background: #fafaf9; min-height: 34px;
     }
 
     /* ── Save bar ── */
@@ -120,20 +96,6 @@
     }
     .save-bar .message { margin: 0; font-size: 0.8125rem; }
     .save-btn { width: auto; padding: 10px 28px; }
-
-    /* ── Info bar ── */
-    .info-bar {
-      display: flex; align-items: center; gap: 8px;
-      padding: 10px 20px; border-top: 1px solid var(--border);
-      background: #fafaf9; font-size: 0.75rem; color: var(--muted);
-    }
-    .info-bar svg { flex-shrink: 0; }
-
-    /* ── Loading ── */
-    .table-loading {
-      text-align: center; padding: 56px;
-      color: var(--muted); font-size: 0.9rem;
-    }
   </style>
 </head>
 <body class="leave-body">
@@ -160,8 +122,8 @@
   <main class="leave-main">
     <div class="leave-header">
       <div>
-        <h1>Leave: Plan vs Actual</h1>
-        <p>Enter planned and actual leave days per employee per month. Any user can update.</p>
+        <h1>Leave Plan vs Actual</h1>
+        <p>Any user can update. Last save overwrites.</p>
       </div>
       <div class="year-selector">
         <label for="yearSelect">Year</label>
@@ -170,24 +132,23 @@
     </div>
 
     <div class="leave-card">
-      <div class="table-scroll">
-        <div id="tableArea">
-          <div class="table-loading">Loading…</div>
-        </div>
-      </div>
+      <table class="leave-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Plan</th>
+            <th>Consumed</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
 
-      <div class="info-bar">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        Any logged-in user can edit any field. Save commits all rows to Firestore. Last save overwrites.
-      </div>
+      <div class="last-updated" id="lastUpdated"></div>
 
       <div class="save-bar">
         <p class="message" id="saveMsg"></p>
         <button class="btn save-btn" id="saveBtn">
-          <span class="btn-label">Save All Changes</span>
+          <span class="btn-label">Save</span>
           <span class="spinner"></span>
         </button>
       </div>
