@@ -48,7 +48,6 @@ const yearSelect  = document.getElementById("yearSelect");
 const tableArea   = document.getElementById("tableArea");
 const saveBtn     = document.getElementById("saveBtn");
 const saveMsg     = document.getElementById("saveMsg");
-const lastUpdated = document.getElementById("lastUpdated");
 const topbarEmail = document.getElementById("topbarEmail");
 const logoutBtn   = document.getElementById("logoutBtn");
 const toast       = document.getElementById("toast");
@@ -108,7 +107,6 @@ async function loadEmployees() {
 // ── Load all leave_data for selected year ─────────────────────────────────────
 async function loadAllLeaveData() {
   tableArea.innerHTML = `<div class="table-loading">Loading…</div>`;
-  lastUpdated.style.display = "none";
   leaveData = {};
 
   try {
