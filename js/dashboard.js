@@ -1,293 +1,207 @@
-/**
- * leave.js
- *
- * Firestore structure:
- *   users/{uid}           → { displayName, email, department, role, … }
- *   leave_data/{uid_year} → {
- *     uid, year,
- *     months: {
- *       "Jan": { plan: 0, actual: 0 },
- *       …
- *     },
- *     updatedAt, updatedByEmail
- *   }
- *
- * Rules:
- *   leave_data — any logged-in user can READ all docs
- *              — users can only WRITE their own doc (docId = uid_year)
- */
-
 import { app } from "./firebase.js";
-
-import { getAuth, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-
+import {
+  getAuth, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
   getFirestore,
-  collection, getDocs,
-  doc, getDoc, setDoc,
-  serverTimestamp
+  doc, getDoc, collection, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── Constants ────────────────────────────────────────────────────────────────
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
-                "Jul","Aug","Sep","Oct","Nov","Dec"];
-const FIELDS = ["plan", "actual"];
+function el(id)           { return document.getElementById(id); }
+function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
 
-// ── State ────────────────────────────────────────────────────────────────────
-let currentUser  = null;
-let selectedYear = new Date().getFullYear();
-let employees    = [];   // [{ uid, displayName, email, department }]
-let leaveData    = {};   // { uid: { Jan:{plan,actual}, … } }
+// ── Sidebar navigation ────────────────────────────────────────────────────────
+const navItems     = document.querySelectorAll(".nav-item[data-section]");
+const sections     = document.querySelectorAll(".section-panel");
+const dataToggle   = el("dataEntryToggle");
+const dataEntrySub = el("dataEntrySub");
 
-// ── DOM refs ─────────────────────────────────────────────────────────────────
-const yearSelect  = document.getElementById("yearSelect");
-const tableArea   = document.getElementById("tableArea");
-const saveBtn     = document.getElementById("saveBtn");
-const saveMsg     = document.getElementById("saveMsg");
-const lastUpdated = document.getElementById("lastUpdated");
-const topbarEmail = document.getElementById("topbarEmail");
-const logoutBtn   = document.getElementById("logoutBtn");
-const toast       = document.getElementById("toast");
-
-// ── Year selector ─────────────────────────────────────────────────────────────
-function populateYears() {
-  const current = new Date().getFullYear();
-  for (let y = current - 2; y <= current + 2; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    if (y === current) opt.selected = true;
-    yearSelect.appendChild(opt);
-  }
+function showSection(sectionId) {
+  sections.forEach(s => s.classList.remove("active"));
+  navItems.forEach(n => n.classList.remove("active"));
+  const panel = el(`section-${sectionId}`);
+  if (panel) panel.classList.add("active");
+  const tab = document.querySelector(`.nav-item[data-section="${sectionId}"]`);
+  if (tab) tab.classList.add("active");
+  closeSidebar();
 }
 
-yearSelect.addEventListener("change", () => {
-  selectedYear = parseInt(yearSelect.value, 10);
-  loadAllLeaveData();
+navItems.forEach(item => {
+  item.addEventListener("click", () => {
+    const section = item.dataset.section;
+    if (section === "dataentry") {
+      // Toggle sub-menu
+      const isOpen = dataEntrySub.classList.contains("open");
+      dataEntrySub.classList.toggle("open", !isOpen);
+      item.classList.toggle("open", !isOpen);
+    } else {
+      showSection(section);
+    }
+  });
 });
+
+// ── Mobile hamburger ──────────────────────────────────────────────────────────
+const sidebar        = el("sidebar");
+const overlay        = el("sidebarOverlay");
+const hamburger      = el("hamburger");
+
+function openSidebar()  { sidebar.classList.add("open"); overlay.classList.add("open"); }
+function closeSidebar() { sidebar.classList.remove("open"); overlay.classList.remove("open"); }
+
+hamburger.addEventListener("click", openSidebar);
+overlay.addEventListener("click", closeSidebar);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, user => {
-  if (!user) {
-    window.location.href = "index.html";
-    return;
-  }
-  currentUser = user;
-  topbarEmail.textContent = user.email;
-  init();
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { window.location.href = "login.html"; return; }
+
+  // Topbar chip
+  const initials = (user.email || "?")[0].toUpperCase();
+  const chipAv = el("chipAvatar");
+  if (chipAv) chipAv.textContent = initials;
+  setText("chipEmail", user.email);
+
+  loadProfile(user);
+  loadSurveys(user);
 });
 
-logoutBtn.addEventListener("click", () => signOut(auth));
+// ── Profile ───────────────────────────────────────────────────────────────────
+async function loadProfile(user) {
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    if (!snap.exists()) return;
+    const d = snap.data();
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-async function init() {
-  populateYears();
-  await loadEmployees();
-  await loadAllLeaveData();
+    if (d.role === "admin") { window.location.href = "admin.html"; return; }
+
+    const firstName = d.name?.split(" ")[0] || "there";
+    const initials  = (d.name || "?").split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+
+    // Sidebar mini profile
+    const sideAv = el("sideAvatar");
+    if (sideAv) sideAv.textContent = initials;
+    setText("sideName", d.name || "—");
+    setText("sideRole", capitalize(d.role || "user"));
+
+    // Topbar avatar
+    const chipAv = el("chipAvatar");
+    if (chipAv) chipAv.textContent = initials;
+
+    // Main profile
+    setText("userName",    firstName);
+    setText("userSub",     `${d.employeeId || ""} · ${capitalize(d.status || "pending")}`);
+    setText("statRole",    capitalize(d.role || "—"));
+    setText("statEmpId",   d.employeeId || "—");
+    setText("profileName", d.name || "—");
+    setText("profileSub",  `${capitalize(d.role || "user")} · ${d.employeeId || ""}`);
+    setText("infoEmail",   d.email || "—");
+    setText("infoEmpId",   d.employeeId || "—");
+    setText("infoCreated", d.createdAt
+      ? new Date(d.createdAt).toLocaleDateString("en-US", { year:"numeric", month:"long", day:"numeric" })
+      : "—");
+
+    const avEl = el("profileAvatar");
+    if (avEl) avEl.textContent = initials;
+
+    const statusEl = el("statStatus");
+    if (statusEl) statusEl.innerHTML = badgeHTML(d.status);
+    const infoStatusEl = el("infoStatus");
+    if (infoStatusEl) infoStatusEl.innerHTML = badgeHTML(d.status);
+
+  } catch(e) { console.error("Profile error:", e); }
 }
 
-// ── Load employees from users collection ─────────────────────────────────────
-async function loadEmployees() {
+// ── Surveys ───────────────────────────────────────────────────────────────────
+async function loadSurveys(user) {
   try {
-    const snap = await getDocs(collection(db, "users"));
-    employees = snap.docs.map(d => ({
-      uid:         d.id,
-      displayName: d.data().displayName || d.data().name || d.data().email || d.id,
-      email:       d.data().email || "",
-      department:  d.data().department || d.data().dept || "",
+    const respSnap = await getDocs(query(
+      collection(db, "responses"),
+      where("userId", "==", user.uid)
+    ));
+    const responses = respSnap.docs.map(d => d.data());
+    setText("statSurveys", responses.length);
+
+    if (responses.length === 0) return;
+
+    // Group by survey
+    const bySurvey = {};
+    responses.forEach(r => {
+      if (!bySurvey[r.surveyId]) bySurvey[r.surveyId] = {
+        title: r.surveyTitle, frequency: r.frequency, responses: []
+      };
+      bySurvey[r.surveyId].responses.push(r);
+    });
+
+    // Load defs
+    const surveyDefs = {};
+    await Promise.all(Object.keys(bySurvey).map(async id => {
+      const s = await getDoc(doc(db, "surveys", id));
+      if (s.exists()) surveyDefs[id] = s.data();
     }));
-    employees.sort((a, b) => a.displayName.localeCompare(b.displayName));
-  } catch (err) {
-    console.error("Failed to load employees:", err);
-    showToast("Could not load employee list.", "error");
-  }
-}
 
-// ── Load all leave_data docs for selected year ────────────────────────────────
-async function loadAllLeaveData() {
-  tableArea.innerHTML = `<div class="table-loading">Loading leave data…</div>`;
-  lastUpdated.style.display = "none";
-  leaveData = {};
+    const area = el("surveyContent");
+    area.innerHTML = "";
 
-  try {
-    const snap = await getDocs(collection(db, "leave_data"));
-    snap.docs.forEach(d => {
-      // docId format: uid_year — uid itself may contain underscores
-      const parts = d.id.split("_");
-      const year  = parts[parts.length - 1];
-      if (year !== String(selectedYear)) return;
-      const uid = parts.slice(0, parts.length - 1).join("_");
-      leaveData[uid] = d.data().months || emptyMonths();
-    });
-  } catch (err) {
-    console.error("Failed to load leave data:", err);
-    showToast("Could not load leave data.", "error");
-  }
+    for (const [surveyId, group] of Object.entries(bySurvey)) {
+      const def = surveyDefs[surveyId];
+      if (!def) continue;
+      const sorted  = group.responses.sort((a,b) => a.period.localeCompare(b.period));
+      const ratingQs = def.questions.map((q,i) => ({q,i})).filter(({q}) => q.type === "rating");
+      if (!ratingQs.length) continue;
 
-  renderTable();
-  showOwnLastUpdated();
-}
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h3>${group.title}</h3>
+        <p class="card-sub">${capitalize(group.frequency)} · ${sorted.length} response${sorted.length!==1?"s":""}</p>
+        ${ratingQs.map(({q,i}) => `
+          <p style="font-size:0.78rem;color:var(--muted);margin-bottom:6px;">Q${i+1}: ${q.text}</p>
+          <div class="chart-wrap" style="margin-bottom:16px;"><canvas id="sc-${surveyId}-${i}"></canvas></div>
+        `).join("")}
+      `;
+      area.appendChild(card);
 
-// ── Render table ──────────────────────────────────────────────────────────────
-function renderTable() {
-  if (!employees.length) {
-    tableArea.innerHTML = `<div class="table-loading">No employees found.</div>`;
-    return;
-  }
-
-  // Two-level header: month (colspan 2) → Plan | Actual
-  let headerRow1 = `<tr>
-    <th class="col-name" rowspan="2">Employee</th>
-    <th class="col-dept" rowspan="2">Department</th>`;
-  MONTHS.forEach(m => {
-    headerRow1 += `<th class="month-header" colspan="2">${m}</th>`;
-  });
-  headerRow1 += `</tr>`;
-
-  let headerRow2 = `<tr>`;
-  MONTHS.forEach(() => {
-    headerRow2 += `<th class="sub-header">Plan</th><th class="sub-header">Actual</th>`;
-  });
-  headerRow2 += `</tr>`;
-
-  const bodyRows = employees.map(emp => {
-    const isOwn    = emp.uid === currentUser.uid;
-    const months   = leaveData[emp.uid] || emptyMonths();
-    const rowClass = isOwn ? "own-row" : "";
-
-    let cells = "";
-    MONTHS.forEach(m => {
-      const planVal   = months[m]?.plan   ?? "";
-      const actualVal = months[m]?.actual ?? "";
-
-      if (isOwn) {
-        cells += `
-          <td class="month-sep">
-            <input class="leave-input" type="number" min="0" max="31" step="0.5"
-              data-uid="${emp.uid}" data-month="${m}" data-field="plan"
-              value="${planVal}" placeholder="0" aria-label="${m} plan">
-          </td>
-          <td>
-            <input class="leave-input" type="number" min="0" max="31" step="0.5"
-              data-uid="${emp.uid}" data-month="${m}" data-field="actual"
-              value="${actualVal}" placeholder="0" aria-label="${m} actual">
-          </td>`;
-      } else {
-        cells += `
-          <td class="month-sep">${planVal !== "" && planVal !== null ? planVal : "—"}</td>
-          <td>${actualVal !== "" && actualVal !== null ? actualVal : "—"}</td>`;
-      }
-    });
-
-    return `<tr class="${rowClass}">
-      <td class="col-name">${escHtml(emp.displayName)}
-        ${isOwn ? ' <span style="font-size:0.7rem;color:#92400e;font-weight:400;">(you)</span>' : ""}
-      </td>
-      <td class="col-dept">${escHtml(emp.department)}</td>
-      ${cells}
-    </tr>`;
-  });
-
-  tableArea.innerHTML = `
-    <table class="leave-table">
-      <thead>${headerRow1}${headerRow2}</thead>
-      <tbody>${bodyRows.join("")}</tbody>
-    </table>`;
-
-  saveMsg.textContent = "";
-}
-
-// ── Show own row last-updated timestamp ───────────────────────────────────────
-async function showOwnLastUpdated() {
-  if (!currentUser) return;
-  try {
-    const docId = `${currentUser.uid}_${selectedYear}`;
-    const snap  = await getDoc(doc(db, "leave_data", docId));
-    if (snap.exists() && snap.data().updatedAt) {
-      const ts = snap.data().updatedAt.toDate();
-      lastUpdated.textContent =
-        `Your row last saved: ${ts.toLocaleString()} · by ${snap.data().updatedByEmail || currentUser.email}`;
-      lastUpdated.style.display = "block";
+      ratingQs.forEach(({q,i}) => {
+        const data = sorted.map(r => Number(r.answers?.[i]) || null);
+        const ctx  = document.getElementById(`sc-${surveyId}-${i}`)?.getContext("2d");
+        if (!ctx) return;
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: sorted.map(r => r.period),
+            datasets: [{ data, borderColor:"#111", backgroundColor:"rgba(17,17,17,0.05)",
+              borderWidth:2, pointRadius:5, pointBackgroundColor:"#111", tension:0.3, fill:true }]
+          },
+          options: {
+            responsive:true, maintainAspectRatio:false,
+            plugins: { legend:{display:false} },
+            scales: {
+              x: { grid:{display:false}, ticks:{font:{size:11}} },
+              y: { min:1, max:5, ticks:{stepSize:1,font:{size:11}}, grid:{color:"#f0f0ee"} }
+            }
+          }
+        });
+      });
     }
-  } catch (_) { /* non-critical */ }
+  } catch(e) { console.error("Survey error:", e); }
 }
-
-// ── Save current user's row ───────────────────────────────────────────────────
-saveBtn.addEventListener("click", async () => {
-  if (!currentUser) return;
-
-  const inputs = tableArea.querySelectorAll(`input[data-uid="${currentUser.uid}"]`);
-  const months = emptyMonths();
-
-  inputs.forEach(inp => {
-    const m     = inp.dataset.month;
-    const field = inp.dataset.field;
-    const val   = inp.value.trim();
-    months[m][field] = val === "" ? null : parseFloat(val);
-  });
-
-  // Validate
-  for (const m of MONTHS) {
-    for (const f of FIELDS) {
-      const v = months[m][f];
-      if (v !== null && (v < 0 || v > 31)) {
-        showToast(`${m} ${f} must be between 0 and 31.`, "error");
-        return;
-      }
-    }
-  }
-
-  setBtnLoading(true);
-  saveMsg.textContent = "";
-
-  try {
-    const docId = `${currentUser.uid}_${selectedYear}`;
-    await setDoc(doc(db, "leave_data", docId), {
-      uid:            currentUser.uid,
-      year:           selectedYear,
-      months,
-      updatedAt:      serverTimestamp(),
-      updatedByEmail: currentUser.email,
-    });
-
-    leaveData[currentUser.uid] = months;
-    showToast("Saved successfully.", "success");
-    saveMsg.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
-    await showOwnLastUpdated();
-  } catch (err) {
-    console.error("Save error:", err);
-    showToast("Save failed — check your connection.", "error");
-  } finally {
-    setBtnLoading(false);
-  }
-});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function emptyMonths() {
-  const m = {};
-  MONTHS.forEach(mo => { m[mo] = { plan: null, actual: null }; });
-  return m;
+function capitalize(str) {
+  if (!str) return "—";
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function setBtnLoading(on) {
-  saveBtn.classList.toggle("loading", on);
-  saveBtn.disabled = on;
+function badgeHTML(status) {
+  const cls = status === "active" ? "badge-active" : "badge-pending";
+  return `<span class="badge ${cls}">${capitalize(status || "pending")}</span>`;
 }
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
-let toastTimer;
-function showToast(msg, type = "info") {
-  toast.textContent = msg;
-  toast.className   = `toast toast-${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
-}
+// ── Logout ────────────────────────────────────────────────────────────────────
+el("logoutBtn")?.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "login.html";
+});
