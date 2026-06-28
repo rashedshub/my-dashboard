@@ -30,13 +30,16 @@
     .year-pick select:focus {
       border-color: var(--accent); box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
+
+    /* Loading */
     .loading-state {
       text-align: center; padding: 80px; color: var(--muted); font-size: 0.9rem;
     }
     .loading-state .icon { font-size: 2.5rem; margin-bottom: 14px; }
+
     .section { margin-bottom: 24px; }
 
-    /* ── Overall pct card ── */
+    /* ── Pct card ── */
     .pct-card {
       background: var(--surface); border-radius: var(--radius);
       border: 1px solid var(--border); padding: 28px 24px;
@@ -87,11 +90,11 @@
     .chart-header p  { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
     .legend { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; color: var(--muted); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-    .dot-plan   { background: #d0d0cc; }
-    .dot-actual { background: #111; }
-    .chart-wrap      { position: relative; height: 300px; }
-    .chart-wrap-ytd  { position: relative; height: 260px; }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .dot-plan     { background: #d0d0cc; }
+    .dot-consumed { background: #111; }
+    .chart-wrap     { position: relative; height: 300px; }
+    .chart-wrap-ytd { position: relative; height: 260px; }
 
     /* YTD stat chips */
     .ytd-stats { display: flex; gap: 28px; flex-wrap: wrap; }
@@ -99,6 +102,43 @@
     .ytd-stat .ys-val   { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
     .ytd-stat .ys-val.pos { color: #991b1b; }
     .ytd-stat .ys-val.neg { color: #166534; }
+
+    /* ── Monthly table ── */
+    .table-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden;
+    }
+    .table-card-header {
+      padding: 18px 24px 16px; border-bottom: 1px solid var(--border);
+      font-size: 0.875rem; font-weight: 600;
+    }
+    .hr-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .hr-table th {
+      padding: 11px 20px; text-align: left;
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      background: #fafaf9; border-bottom: 1px solid var(--border);
+    }
+    .hr-table th:not(:first-child) { text-align: right; }
+    .hr-table td {
+      padding: 12px 20px; border-bottom: 1px solid #f0f0ee; vertical-align: middle;
+    }
+    .hr-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+    .hr-table tr:last-child td { border-bottom: none; }
+    .hr-table tr:hover td { background: #fafaf9; }
+    .hr-table .total-row td {
+      font-weight: 700; background: #fafaf9;
+      border-top: 1.5px solid var(--border); border-bottom: none;
+    }
+    .diff-p { color: #991b1b; font-weight: 600; }
+    .diff-n { color: #166534; font-weight: 600; }
+    .diff-z { color: var(--muted); }
+
+    /* Last updated */
+    .last-updated {
+      font-size: 0.75rem; color: var(--muted);
+      padding: 8px 0; margin-bottom: 16px; display: none;
+    }
   </style>
 </head>
 <body class="hr-body">
@@ -126,7 +166,7 @@
     <div class="hr-top">
       <div>
         <h1>HR Dashboard</h1>
-        <p>Leave plan vs actual — all employees combined.</p>
+        <p>Leave plan vs consumed — shared data.</p>
       </div>
       <div class="year-pick">
         <label for="yearSelect">Year</label>
@@ -140,11 +180,14 @@
 
     <div id="mainContent" style="display:none;">
 
-      <!-- ① Overall % card -->
+      <!-- Last updated -->
+      <div class="last-updated" id="lastUpdated"></div>
+
+      <!-- ① % card -->
       <div class="section">
         <div class="pct-card">
           <div class="pct-left">
-            <div class="pct-label">% of Actual Leave over Plan</div>
+            <div class="pct-label">% of Consumed over Plan</div>
             <div class="pct-value" id="pctValue">—</div>
           </div>
           <div class="pct-right">
@@ -157,8 +200,8 @@
                 <div class="s-val" id="pctPlan">—</div>
               </div>
               <div class="pct-stat">
-                <div class="s-label">Total Actual</div>
-                <div class="s-val" id="pctActual">—</div>
+                <div class="s-label">Total Consumed</div>
+                <div class="s-val" id="pctConsumed">—</div>
               </div>
               <div class="pct-stat">
                 <div class="s-label">Difference</div>
@@ -174,12 +217,12 @@
         <div class="chart-card">
           <div class="chart-header">
             <div>
-              <h2>Monthly Plan vs Actual</h2>
-              <p>Leave hours per month — all employees combined</p>
+              <h2>Monthly Plan vs Consumed</h2>
+              <p>Leave hours per month</p>
             </div>
             <div class="legend">
               <div class="legend-item"><div class="legend-dot dot-plan"></div>Plan</div>
-              <div class="legend-item"><div class="legend-dot dot-actual"></div>Actual</div>
+              <div class="legend-item"><div class="legend-dot dot-consumed"></div>Consumed</div>
             </div>
           </div>
           <div class="chart-wrap">
@@ -194,7 +237,7 @@
           <div class="chart-header">
             <div>
               <h2>YTD Cumulative</h2>
-              <p>Running total of plan vs actual through the year</p>
+              <p>Running total of plan vs consumed through the year</p>
             </div>
             <div class="ytd-stats">
               <div class="ytd-stat">
@@ -202,8 +245,8 @@
                 <div class="ys-val" id="ytdPlanVal">—</div>
               </div>
               <div class="ytd-stat">
-                <div class="ys-label">YTD Actual</div>
-                <div class="ys-val" id="ytdActualVal">—</div>
+                <div class="ys-label">YTD Consumed</div>
+                <div class="ys-val" id="ytdConsumedVal">—</div>
               </div>
               <div class="ytd-stat">
                 <div class="ys-label">YTD Diff</div>
@@ -214,6 +257,25 @@
           <div class="chart-wrap-ytd">
             <canvas id="ytdChart"></canvas>
           </div>
+        </div>
+      </div>
+
+      <!-- ④ Monthly breakdown table -->
+      <div class="section">
+        <div class="table-card">
+          <div class="table-card-header">Monthly Breakdown</div>
+          <table class="hr-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Plan</th>
+                <th>Consumed</th>
+                <th>Difference</th>
+                <th>% Used</th>
+              </tr>
+            </thead>
+            <tbody id="monthTableBody"></tbody>
+          </table>
         </div>
       </div>
 
