@@ -2,66 +2,56 @@
  * leave.js
  *
  * Firestore structure:
- *   users/{uid}          → { displayName, email, department, role, … }
+ *   users/{uid}           → { displayName, email, department, role, … }
  *   leave_data/{uid_year} → {
  *     uid, year,
  *     months: {
  *       "Jan": { plan: 0, actual: 0 },
- *       "Feb": { plan: 0, actual: 0 },
- *       … (all 12 months)
+ *       …
  *     },
  *     updatedAt, updatedByEmail
  *   }
  *
- * Security rules (existing):
- *   leave_data: any logged-in user can READ all docs
- *               users can only WRITE their own doc (docId must start with uid)
- *
- * Therefore:
- *   - Every employee row is visible to all.
- *   - Inputs are only enabled for the current user's own row.
- *   - Save only writes the current user's own doc.
+ * Rules:
+ *   leave_data — any logged-in user can READ all docs
+ *              — users can only WRITE their own doc (docId = uid_year)
  */
 
-import { initializeApp }         from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { app } from "./firebase.js";
+
 import { getAuth, onAuthStateChanged, signOut }
-                                  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+
 import {
   getFirestore,
   collection, getDocs,
   doc, getDoc, setDoc,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-// ── Firebase config ──────────────────────────────────────────────────────────
-// Replace with your own config object.
-import { firebaseConfig } from "./firebase-config.js";
-
-const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
                 "Jul","Aug","Sep","Oct","Nov","Dec"];
-
-const FIELDS = ["plan", "actual"]; // columns per month
+const FIELDS = ["plan", "actual"];
 
 // ── State ────────────────────────────────────────────────────────────────────
-let currentUser   = null;   // Firebase auth user
-let selectedYear  = new Date().getFullYear();
-let employees     = [];     // [{ uid, displayName, email, department }]
-let leaveData     = {};     // { uid: { Jan:{plan,actual}, … } }
+let currentUser  = null;
+let selectedYear = new Date().getFullYear();
+let employees    = [];   // [{ uid, displayName, email, department }]
+let leaveData    = {};   // { uid: { Jan:{plan,actual}, … } }
 
 // ── DOM refs ─────────────────────────────────────────────────────────────────
-const yearSelect   = document.getElementById("yearSelect");
-const tableArea    = document.getElementById("tableArea");
-const saveBtn      = document.getElementById("saveBtn");
-const saveMsg      = document.getElementById("saveMsg");
-const lastUpdated  = document.getElementById("lastUpdated");
-const topbarEmail  = document.getElementById("topbarEmail");
-const logoutBtn    = document.getElementById("logoutBtn");
-const toast        = document.getElementById("toast");
+const yearSelect  = document.getElementById("yearSelect");
+const tableArea   = document.getElementById("tableArea");
+const saveBtn     = document.getElementById("saveBtn");
+const saveMsg     = document.getElementById("saveMsg");
+const lastUpdated = document.getElementById("lastUpdated");
+const topbarEmail = document.getElementById("topbarEmail");
+const logoutBtn   = document.getElementById("logoutBtn");
+const toast       = document.getElementById("toast");
 
 // ── Year selector ─────────────────────────────────────────────────────────────
 function populateYears() {
@@ -110,7 +100,6 @@ async function loadEmployees() {
       email:       d.data().email || "",
       department:  d.data().department || d.data().dept || "",
     }));
-    // Sort alphabetically by display name
     employees.sort((a, b) => a.displayName.localeCompare(b.displayName));
   } catch (err) {
     console.error("Failed to load employees:", err);
@@ -118,20 +107,18 @@ async function loadEmployees() {
   }
 }
 
-// ── Load all leave_data docs for the selected year ────────────────────────────
+// ── Load all leave_data docs for selected year ────────────────────────────────
 async function loadAllLeaveData() {
   tableArea.innerHTML = `<div class="table-loading">Loading leave data…</div>`;
   lastUpdated.style.display = "none";
   leaveData = {};
 
   try {
-    // Each doc id = uid_year  e.g. "abc123_2025"
-    // We read all docs then filter by year suffix
     const snap = await getDocs(collection(db, "leave_data"));
     snap.docs.forEach(d => {
+      // docId format: uid_year — uid itself may contain underscores
       const parts = d.id.split("_");
-      // docId format: uid_year — uid may contain underscores so split from end
-      const year = parts[parts.length - 1];
+      const year  = parts[parts.length - 1];
       if (year !== String(selectedYear)) return;
       const uid = parts.slice(0, parts.length - 1).join("_");
       leaveData[uid] = d.data().months || emptyMonths();
@@ -152,13 +139,10 @@ function renderTable() {
     return;
   }
 
-  // ── Build header rows (two-level: month → plan/actual) ────────────────────
-  // Row 1: Employee | Dept | Jan (colspan 2) | Feb (colspan 2) | …
-  // Row 2:           |      | Plan | Actual  | Plan | Actual  | …
+  // Two-level header: month (colspan 2) → Plan | Actual
   let headerRow1 = `<tr>
     <th class="col-name" rowspan="2">Employee</th>
     <th class="col-dept" rowspan="2">Department</th>`;
-
   MONTHS.forEach(m => {
     headerRow1 += `<th class="month-header" colspan="2">${m}</th>`;
   });
@@ -170,17 +154,15 @@ function renderTable() {
   });
   headerRow2 += `</tr>`;
 
-  // ── Build body rows ───────────────────────────────────────────────────────
   const bodyRows = employees.map(emp => {
-    const isOwn   = emp.uid === currentUser.uid;
-    const months  = leaveData[emp.uid] || emptyMonths();
+    const isOwn    = emp.uid === currentUser.uid;
+    const months   = leaveData[emp.uid] || emptyMonths();
     const rowClass = isOwn ? "own-row" : "";
 
     let cells = "";
-    MONTHS.forEach((m, i) => {
+    MONTHS.forEach(m => {
       const planVal   = months[m]?.plan   ?? "";
       const actualVal = months[m]?.actual ?? "";
-      const sep       = i === 0 ? "" : ""; // border via CSS on month-sep
 
       if (isOwn) {
         cells += `
@@ -196,13 +178,15 @@ function renderTable() {
           </td>`;
       } else {
         cells += `
-          <td class="month-sep">${planVal !== "" ? planVal : "—"}</td>
-          <td>${actualVal !== "" ? actualVal : "—"}</td>`;
+          <td class="month-sep">${planVal !== "" && planVal !== null ? planVal : "—"}</td>
+          <td>${actualVal !== "" && actualVal !== null ? actualVal : "—"}</td>`;
       }
     });
 
     return `<tr class="${rowClass}">
-      <td class="col-name">${escHtml(emp.displayName)}${isOwn ? ' <span style="font-size:0.7rem;color:#92400e;font-weight:400;">(you)</span>' : ""}</td>
+      <td class="col-name">${escHtml(emp.displayName)}
+        ${isOwn ? ' <span style="font-size:0.7rem;color:#92400e;font-weight:400;">(you)</span>' : ""}
+      </td>
       <td class="col-dept">${escHtml(emp.department)}</td>
       ${cells}
     </tr>`;
@@ -217,16 +201,16 @@ function renderTable() {
   saveMsg.textContent = "";
 }
 
-// ── Show own row's last-updated timestamp ─────────────────────────────────────
+// ── Show own row last-updated timestamp ───────────────────────────────────────
 async function showOwnLastUpdated() {
   if (!currentUser) return;
   try {
-    const docId  = `${currentUser.uid}_${selectedYear}`;
-    const snap   = await getDoc(doc(db, "leave_data", docId));
+    const docId = `${currentUser.uid}_${selectedYear}`;
+    const snap  = await getDoc(doc(db, "leave_data", docId));
     if (snap.exists() && snap.data().updatedAt) {
       const ts = snap.data().updatedAt.toDate();
       lastUpdated.textContent =
-        `Your row last saved: ${ts.toLocaleString()} by ${snap.data().updatedByEmail || currentUser.email}`;
+        `Your row last saved: ${ts.toLocaleString()} · by ${snap.data().updatedByEmail || currentUser.email}`;
       lastUpdated.style.display = "block";
     }
   } catch (_) { /* non-critical */ }
@@ -236,12 +220,9 @@ async function showOwnLastUpdated() {
 saveBtn.addEventListener("click", async () => {
   if (!currentUser) return;
 
-  // Collect values from inputs for own row
-  const inputs = tableArea.querySelectorAll(
-    `input[data-uid="${currentUser.uid}"]`
-  );
-
+  const inputs = tableArea.querySelectorAll(`input[data-uid="${currentUser.uid}"]`);
   const months = emptyMonths();
+
   inputs.forEach(inp => {
     const m     = inp.dataset.month;
     const field = inp.dataset.field;
@@ -249,7 +230,7 @@ saveBtn.addEventListener("click", async () => {
     months[m][field] = val === "" ? null : parseFloat(val);
   });
 
-  // Validate: no month value > 31
+  // Validate
   for (const m of MONTHS) {
     for (const f of FIELDS) {
       const v = months[m][f];
@@ -264,7 +245,7 @@ saveBtn.addEventListener("click", async () => {
   saveMsg.textContent = "";
 
   try {
-    const docId  = `${currentUser.uid}_${selectedYear}`;
+    const docId = `${currentUser.uid}_${selectedYear}`;
     await setDoc(doc(db, "leave_data", docId), {
       uid:            currentUser.uid,
       year:           selectedYear,
@@ -273,7 +254,6 @@ saveBtn.addEventListener("click", async () => {
       updatedByEmail: currentUser.email,
     });
 
-    // Update local cache
     leaveData[currentUser.uid] = months;
     showToast("Saved successfully.", "success");
     saveMsg.textContent = `Saved at ${new Date().toLocaleTimeString()}`;
