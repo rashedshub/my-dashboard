@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>YEEP Data Entry — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .yeep-body { background: var(--bg); }
+    .yeep-main {
+      max-width: 780px; margin: 0 auto; padding: 40px 24px 60px;
+      animation: fadeUp 400ms 80ms var(--ease) both;
+    }
+
+    /* ── Page header ── */
+    .yeep-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px; flex-wrap: wrap; gap: 16px;
+    }
+    .yeep-header h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
+    .yeep-header p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+
+    /* ── Controls row ── */
+    .controls {
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+      margin-bottom: 24px;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    .control-group label {
+      font-size: 0.8rem; font-weight: 500; color: var(--muted); letter-spacing: 0.01em;
+    }
+    .control-select {
+      padding: 9px 14px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: inherit; font-size: 0.9rem;
+      font-weight: 500; color: var(--text); background: var(--surface);
+      outline: none; cursor: pointer; min-width: 130px;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .control-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+    }
+
+    /* ── Card ── */
+    .yeep-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden;
+    }
+
+    /* ── Team tabs inside card ── */
+    .team-tabs {
+      display: flex; border-bottom: 1px solid var(--border); background: #fafaf9;
+    }
+    .team-tab {
+      flex: 1; padding: 13px 16px; background: none; border: none;
+      font-family: inherit; font-size: 0.875rem; font-weight: 500;
+      color: var(--muted); cursor: pointer; position: relative;
+      transition: color 200ms; text-align: center;
+    }
+    .team-tab::after {
+      content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+      height: 2px; background: var(--accent); border-radius: 2px;
+      transform: scaleX(0);
+      transition: transform 280ms cubic-bezier(0.65,0,0.35,1);
+    }
+    .team-tab.active { color: var(--text); background: var(--surface); }
+    .team-tab.active::after { transform: scaleX(1); }
+
+    /* ── Table ── */
+    .yeep-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .yeep-table thead tr { background: #fafaf9; border-bottom: 1px solid var(--border); }
+    .yeep-table th {
+      padding: 11px 20px; text-align: left;
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .yeep-table th:not(:first-child) { text-align: center; }
+    .yeep-table td {
+      padding: 9px 20px; border-bottom: 1px solid #f0f0ee; vertical-align: middle;
+    }
+    .yeep-table td:first-child { font-weight: 500; width: 180px; }
+    .yeep-table td:not(:first-child) { text-align: center; }
+    .yeep-table tr:last-child td { border-bottom: none; }
+    .yeep-table tr:hover td { background: #fafaf9; }
+
+    /* ── Number input ── */
+    .yeep-input {
+      width: 100px; padding: 8px 10px;
+      border: 1.5px solid var(--border); border-radius: 7px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 500;
+      color: var(--text); background: #fafaf9;
+      text-align: center; outline: none;
+      transition: border-color 200ms, box-shadow 200ms, background 200ms;
+    }
+    .yeep-input:focus {
+      border-color: var(--accent); background: #fff;
+      box-shadow: 0 0 0 3px rgba(17,17,17,.07);
+    }
+
+    /* ── Total row ── */
+    .total-row td {
+      font-weight: 700; background: #fafaf9;
+      border-top: 1.5px solid var(--border) !important;
+      border-bottom: none !important;
+      font-size: 0.875rem;
+    }
+    .total-row td:first-child {
+      color: var(--muted); font-size: 0.72rem;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+
+    /* ── Save bar ── */
+    .save-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 24px; border-top: 1px solid var(--border);
+      flex-wrap: wrap; gap: 12px;
+    }
+    .save-bar .message { margin: 0; font-size: 0.875rem; }
+    .save-btn {
+      width: auto; padding: 10px 28px;
+    }
+
+    /* ── Loading ── */
+    .table-loading {
+      text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem;
+    }
+
+    /* ── Period label ── */
+    .period-label {
+      font-size: 0.78rem; color: var(--muted); padding: 10px 20px 0;
+    }
+  </style>
+</head>
+<body class="yeep-body">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="yeep-main">
+
+    <div class="yeep-header">
+      <div>
+        <h1>YEEP Installation</h1>
+        <p>Enter deployment counts by week or month, per team.</p>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="control-group">
+        <label>Year</label>
+        <select class="control-select" id="yearSelect"></select>
+      </div>
+      <div class="control-group">
+        <label>View by</label>
+        <select class="control-select" id="modeSelect">
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+      <div class="control-group" id="monthGroup" style="display:none;">
+        <label>Month</label>
+        <select class="control-select" id="monthSelect"></select>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="yeep-card">
+
+      <!-- Team tabs -->
+      <div class="team-tabs">
+        <button class="team-tab active" data-team="ES">ES Team</button>
+        <button class="team-tab"        data-team="ER">ER Team</button>
+        <button class="team-tab"        data-team="combined">Combined</button>
+      </div>
+
+      <!-- Table area -->
+      <div id="tableArea">
+        <div class="table-loading">Loading…</div>
+      </div>
+
+      <!-- Save bar -->
+      <div class="save-bar">
+        <p class="message" id="saveMsg"></p>
+        <button class="btn save-btn" id="saveBtn">
+          <span class="btn-label">Save Data</span>
+          <span class="spinner"></span>
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/yeep.js"></script>
+</body>
+</html>
