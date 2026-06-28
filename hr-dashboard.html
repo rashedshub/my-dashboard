@@ -139,6 +139,35 @@
       font-size: 0.75rem; color: var(--muted);
       padding: 8px 0; margin-bottom: 16px; display: none;
     }
+
+    /* ── YEEP section ── */
+    .section-title {
+      font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em;
+      margin: 36px 0 16px; padding-top: 20px;
+      border-top: 1.5px solid var(--border);
+    }
+    .yeep-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) { .yeep-grid { grid-template-columns: 1fr; } }
+    .pie-wrap { position: relative; height: 260px; }
+    .yeep-stat-row {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+      margin-bottom: 24px;
+    }
+    .yeep-stat {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 18px 16px;
+    }
+    .yeep-stat .yst-label {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+    }
+    .yeep-stat .yst-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
+    .yeep-stat .yst-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .es-color { color: #3730a3; }
+    .er-color { color: #166534; }
   </style>
 </head>
 <body class="hr-body">
@@ -279,6 +308,44 @@
         </div>
       </div>
 
+
+      <!-- ⑤ YEEP Section -->
+      <div class="section-title">YEEP Installation</div>
+
+      <!-- Stat cards -->
+      <div class="yeep-stat-row">
+        <div class="yeep-stat">
+          <div class="yst-label">Total Installations</div>
+          <div class="yst-value" id="yeepTotal">—</div>
+          <div class="yst-sub">ES + ER combined</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">ES Team</div>
+          <div class="yst-value es-color" id="yeepES">—</div>
+          <div class="yst-sub" id="yeepESPct">—% of total</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">ER Team</div>
+          <div class="yst-value er-color" id="yeepER">—</div>
+          <div class="yst-sub" id="yeepERPct">—% of total</div>
+        </div>
+      </div>
+
+      <!-- Pie charts -->
+      <div class="yeep-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div><h2>ES vs ER Split</h2><p>Total installations by team</p></div>
+          </div>
+          <div class="pie-wrap"><canvas id="yeepPieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div><h2>Monthly ES vs ER</h2><p>Installations per month by team</p></div>
+          </div>
+          <div class="chart-wrap"><canvas id="yeepBarChart"></canvas></div>
+        </div>
+      </div>
     </div><!-- /mainContent -->
   </main>
 
