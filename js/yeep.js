@@ -10,26 +10,24 @@ import {
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-const MONTHS = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December"
-];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL = ["January","February","March","April","May","June",
+                     "July","August","September","October","November","December"];
 
-// Generate week labels for a given year+month
+// Month keys match: m0 … m11
+const MONTH_KEYS = MONTHS.map((_, i) => `m${i}`);
+
 function getWeeksInMonth(year, month) {
   const weeks = [];
-  const firstDay = new Date(year, month, 1);
-  const lastDay  = new Date(year, month + 1, 0);
-  let weekNum    = 1;
-  let d          = new Date(firstDay);
-
+  const lastDay = new Date(year, month + 1, 0);
+  let d = new Date(year, month, 1);
+  let weekNum = 1;
   while (d <= lastDay) {
-    const weekStart = new Date(d);
-    const weekEnd   = new Date(d);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    if (weekEnd > lastDay) weekEnd.setDate(lastDay.getDate());
+    const start = new Date(d);
+    const end   = new Date(d); end.setDate(end.getDate() + 6);
+    if (end > lastDay) end.setDate(lastDay.getDate());
     weeks.push({
-      label: `Week ${weekNum} (${fmtDate(weekStart)} – ${fmtDate(weekEnd)})`,
+      label: `Week ${weekNum} (${fmtDate(start)} – ${fmtDate(end)})`,
       key:   `w${weekNum}`
     });
     d.setDate(d.getDate() + 7);
@@ -45,12 +43,14 @@ function fmtDate(d) {
 function el(id)           { return document.getElementById(id); }
 function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
 
-let currentUser = null;
-let currentYear = new Date().getFullYear();
-let currentMode = "monthly"; // "monthly" | "weekly"
-let currentMonth = new Date().getMonth(); // 0-indexed, used in weekly mode
-let currentTeam = "ES";
-let docData     = {}; // { ES: {...}, ER: {...} }
+let currentUser  = null;
+let currentYear  = new Date().getFullYear();
+let currentMode  = "monthly";
+let currentMonth = new Date().getMonth();
+let currentTeam  = "ES";
+
+// Shared data: { teams: { ES: { m0:5, m1:3, … }, ER: { m0:2, … } }, updatedAt, updatedByEmail }
+let sharedData = {};
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
@@ -61,7 +61,7 @@ onAuthStateChanged(auth, async (user) => {
   loadData();
 });
 
-// ── Build controls ────────────────────────────────────────────────────────────
+// ── Controls ──────────────────────────────────────────────────────────────────
 function buildControls() {
   // Year
   const yearSel = el("yearSelect");
@@ -72,10 +72,7 @@ function buildControls() {
     if (y === base) opt.selected = true;
     yearSel.appendChild(opt);
   }
-  yearSel.addEventListener("change", () => {
-    currentYear = Number(yearSel.value);
-    loadData();
-  });
+  yearSel.addEventListener("change", () => { currentYear = Number(yearSel.value); loadData(); });
 
   // Mode
   const modeSel = el("modeSelect");
@@ -85,18 +82,15 @@ function buildControls() {
     renderTable();
   });
 
-  // Month (for weekly mode)
+  // Month (weekly mode)
   const monthSel = el("monthSelect");
-  MONTHS.forEach((m, i) => {
+  MONTHS_FULL.forEach((m, i) => {
     const opt = document.createElement("option");
     opt.value = i; opt.textContent = m;
     if (i === new Date().getMonth()) opt.selected = true;
     monthSel.appendChild(opt);
   });
-  monthSel.addEventListener("change", () => {
-    currentMonth = Number(monthSel.value);
-    renderTable();
-  });
+  monthSel.addEventListener("change", () => { currentMonth = Number(monthSel.value); renderTable(); });
 
   // Team tabs
   document.querySelectorAll(".team-tab").forEach(tab => {
@@ -109,60 +103,59 @@ function buildControls() {
   });
 }
 
-// ── Load from Firestore ───────────────────────────────────────────────────────
+// ── Load shared doc ───────────────────────────────────────────────────────────
 async function loadData() {
   el("tableArea").innerHTML = `<div class="table-loading">Loading ${currentYear} data…</div>`;
-  docData = { ES: {}, ER: {} };
+  const lu = el("lastUpdated");
+  if (lu) lu.style.display = "none";
+
+  sharedData = { teams: { ES: {}, ER: {} } };
+
   try {
-    const snap = await getDoc(doc(db, "yeep_data", `${currentUser.uid}_${currentYear}`));
+    const snap = await getDoc(doc(db, "yeep_data", String(currentYear)));
     if (snap.exists()) {
-      docData = snap.data().teams || { ES: {}, ER: {} };
+      const data = snap.data();
+      sharedData = data;
+      if (!sharedData.teams) sharedData.teams = { ES: {}, ER: {} };
+
+      if (data.updatedAt && lu) {
+        const ts = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
+        lu.textContent   = `Last saved by ${data.updatedByEmail || "—"} on ${ts.toLocaleString()}`;
+        lu.style.display = "block";
+      }
     }
   } catch(e) { console.error("Load error:", e); }
+
   renderTable();
 }
 
 // ── Render table ──────────────────────────────────────────────────────────────
 function renderTable() {
-  const isCombined = currentTeam === "combined";
   const isWeekly   = currentMode === "weekly";
+  const isCombined = currentTeam === "combined";
 
-  // Rows to render
-  let rows = [];
-  if (isWeekly) {
-    rows = getWeeksInMonth(currentYear, currentMonth);
-  } else {
-    rows = MONTHS.map((m, i) => ({ label: m, key: `m${i}` }));
-  }
+  const rows = isWeekly
+    ? getWeeksInMonth(currentYear, currentMonth)
+    : MONTHS_FULL.map((m, i) => ({ label: m, key: MONTH_KEYS[i] }));
 
-  // Period heading
-  let periodLabel = isWeekly
-    ? `${MONTHS[currentMonth]} ${currentYear} — weekly breakdown`
-    : `${currentYear} — monthly breakdown`;
+  const periodLabel = isWeekly
+    ? `${MONTHS_FULL[currentMonth]} ${currentYear} — weekly`
+    : `${currentYear} — monthly`;
 
   if (isCombined) {
-    // Combined view — read-only sum of ES + ER
-    const tableRows = rows.map(({ label, key }) => {
-      const esVal = Number(docData.ES?.[key]) || 0;
-      const erVal = Number(docData.ER?.[key]) || 0;
-      const total = esVal + erVal;
-      return `
-        <tr>
-          <td>${label}</td>
-          <td>${esVal || "—"}</td>
-          <td>${erVal || "—"}</td>
-          <td><strong>${total || "—"}</strong></td>
-        </tr>
-      `;
-    }).join("");
-
-    // Totals
+    // Read-only combined view
     let totES = 0, totER = 0;
-    rows.forEach(({ key }) => {
-      totES += Number(docData.ES?.[key]) || 0;
-      totER += Number(docData.ER?.[key]) || 0;
-    });
-    const totAll = totES + totER;
+    const tableRows = rows.map(({ label, key }) => {
+      const es = Number(sharedData.teams?.ES?.[key]) || 0;
+      const er = Number(sharedData.teams?.ER?.[key]) || 0;
+      totES += es; totER += er;
+      return `<tr>
+        <td>${label}</td>
+        <td style="text-align:center;">${es || "—"}</td>
+        <td style="text-align:center;">${er || "—"}</td>
+        <td style="text-align:center;font-weight:600;">${(es + er) || "—"}</td>
+      </tr>`;
+    }).join("");
 
     el("tableArea").innerHTML = `
       <p class="period-label">${periodLabel}</p>
@@ -170,55 +163,42 @@ function renderTable() {
         <thead>
           <tr>
             <th>${isWeekly ? "Week" : "Month"}</th>
-            <th>ES Team</th>
-            <th>ER Team</th>
-            <th>Total</th>
+            <th style="text-align:center;">ES Team</th>
+            <th style="text-align:center;">ER Team</th>
+            <th style="text-align:center;">Total</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
         <tfoot>
           <tr class="total-row">
             <td>Total</td>
-            <td>${totES || "—"}</td>
-            <td>${totER || "—"}</td>
-            <td>${totAll || "—"}</td>
+            <td style="text-align:center;">${totES || "—"}</td>
+            <td style="text-align:center;">${totER || "—"}</td>
+            <td style="text-align:center;">${(totES + totER) || "—"}</td>
           </tr>
         </tfoot>
       </table>
     `;
-    // Hide save button in combined view
     el("saveBtn").style.display = "none";
-    el("saveMsg").textContent   = "";
 
   } else {
-    // ES or ER editable view
-    const teamData = docData[currentTeam] || {};
+    // Editable single-team view
+    const teamData = sharedData.teams?.[currentTeam] || {};
+    let currentTotal = 0;
 
     const tableRows = rows.map(({ label, key }) => {
       const val = teamData[key] ?? "";
-      return `
-        <tr>
-          <td>${label}</td>
-          <td>
-            <input
-              class="yeep-input"
-              type="number"
-              min="0"
-              step="1"
-              id="inp-${key}"
-              value="${val}"
-              placeholder="0"
-              oninput="updateTotal()"
-            />
-          </td>
-          <td class="diff-cell" id="display-${key}">${val !== "" ? Number(val).toLocaleString() : "—"}</td>
-        </tr>
-      `;
+      if (val !== "") currentTotal += Number(val) || 0;
+      return `<tr>
+        <td>${label}</td>
+        <td style="text-align:center;">
+          <input class="yeep-input" type="number" min="0" step="1"
+            id="inp-${key}" value="${val}" placeholder="0"
+            oninput="updateTotal()"/>
+        </td>
+        <td style="text-align:center;" id="disp-${key}">${val !== "" ? Number(val).toLocaleString() : "—"}</td>
+      </tr>`;
     }).join("");
-
-    // Compute total
-    let currentTotal = 0;
-    rows.forEach(({ key }) => { currentTotal += Number(teamData[key]) || 0; });
 
     el("tableArea").innerHTML = `
       <p class="period-label">${periodLabel}</p>
@@ -226,8 +206,8 @@ function renderTable() {
         <thead>
           <tr>
             <th>${isWeekly ? "Week" : "Month"}</th>
-            <th>${currentTeam} Team — Installations</th>
-            <th>Saved Value</th>
+            <th style="text-align:center;">${currentTeam} Team — Installations</th>
+            <th style="text-align:center;">Saved</th>
           </tr>
         </thead>
         <tbody>${tableRows}</tbody>
@@ -235,22 +215,19 @@ function renderTable() {
           <tr class="total-row">
             <td>Total</td>
             <td></td>
-            <td id="grandTotal">${currentTotal > 0 ? currentTotal.toLocaleString() : "—"}</td>
+            <td style="text-align:center;" id="grandTotal">${currentTotal > 0 ? currentTotal.toLocaleString() : "—"}</td>
           </tr>
         </tfoot>
       </table>
     `;
-
     el("saveBtn").style.display = "";
   }
 }
 
-// ── Live total update ─────────────────────────────────────────────────────────
+// ── Live total ────────────────────────────────────────────────────────────────
 window.updateTotal = function() {
   let total = 0;
-  document.querySelectorAll(".yeep-input").forEach(inp => {
-    total += Number(inp.value) || 0;
-  });
+  document.querySelectorAll(".yeep-input").forEach(inp => { total += Number(inp.value) || 0; });
   const gt = el("grandTotal");
   if (gt) gt.textContent = total > 0 ? total.toLocaleString() : "—";
 };
@@ -263,40 +240,42 @@ el("saveBtn").addEventListener("click", async () => {
   btn.disabled  = true; btn.classList.add("loading");
 
   const isWeekly = currentMode === "weekly";
-  const rows = isWeekly
+  const rows     = isWeekly
     ? getWeeksInMonth(currentYear, currentMonth)
-    : MONTHS.map((m, i) => ({ label: m, key: `m${i}` }));
+    : MONTHS_FULL.map((_, i) => ({ key: MONTH_KEYS[i] }));
 
-  // Read inputs
-  const updates = {};
+  // Read inputs into team data
+  if (!sharedData.teams) sharedData.teams = { ES: {}, ER: {} };
+  if (!sharedData.teams[currentTeam]) sharedData.teams[currentTeam] = {};
+
   rows.forEach(({ key }) => {
     const inp = el(`inp-${key}`);
-    if (inp) updates[key] = Number(inp.value) || 0;
+    if (inp) sharedData.teams[currentTeam][key] = Number(inp.value) || 0;
   });
 
-  // Merge into docData
-  if (!docData[currentTeam]) docData[currentTeam] = {};
-  Object.assign(docData[currentTeam], updates);
-
   try {
-    await setDoc(
-      doc(db, "yeep_data", `${currentUser.uid}_${currentYear}`),
-      {
-        uid:       currentUser.uid,
-        year:      currentYear,
-        teams:     docData,
-        updatedAt: new Date().toISOString()
-      }
-    );
-    msg.className   = "message success";
-    msg.textContent = `✓ ${currentTeam} team data saved for ${currentYear}.`;
-    showToast(`${currentTeam} data saved!`);
+    await setDoc(doc(db, "yeep_data", String(currentYear)), {
+      year:           currentYear,
+      teams:          sharedData.teams,
+      updatedAt:      new Date().toISOString(),
+      updatedByEmail: currentUser.email
+    });
 
-    // Refresh display column
+    msg.className   = "message success";
+    msg.textContent = `✓ ${currentTeam} data saved for ${currentYear}.`;
+    showToast(`${currentTeam} team data saved!`);
+
+    const lu = el("lastUpdated");
+    if (lu) {
+      lu.textContent   = `Last saved by ${currentUser.email} on ${new Date().toLocaleString()}`;
+      lu.style.display = "block";
+    }
+
+    // Refresh saved column
     rows.forEach(({ key }) => {
-      const dispEl = el(`display-${key}`);
+      const dispEl = el(`disp-${key}`);
       if (dispEl) {
-        const v = updates[key];
+        const v = sharedData.teams[currentTeam][key];
         dispEl.textContent = v > 0 ? v.toLocaleString() : "—";
       }
     });
@@ -317,7 +296,7 @@ function showToast(text, error = false) {
   setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
-el("logoutBtn").addEventListener("click", async () => {
+el("logoutBtn")?.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "login.html";
 });
