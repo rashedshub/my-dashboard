@@ -3,7 +3,7 @@ import {
   getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, collection, getDocs
+  getFirestore, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
@@ -278,34 +278,25 @@ function renderMonthTable(plan, consumed) {
   tbody.innerHTML = rows;
 }
 
-// ── ⑤ YEEP — load all users' docs and aggregate ──────────────────────────────
+// ── ⑤ YEEP — load single shared doc ─────────────────────────────────────────
 async function loadYEEP() {
   try {
     const MONTH_KEYS = ["m0","m1","m2","m3","m4","m5","m6","m7","m8","m9","m10","m11"];
-    const snap       = await getDocs(collection(db, "yeep_data"));
 
-    // Filter docs for current year
-    const docs = snap.docs
-      .map(d => d.data())
-      .filter(d => String(d.year) === String(currentYear));
+    // Single shared doc per year — same as yeep.js writes to
+    const snap = await getDoc(doc(db, "yeep_data", String(currentYear)));
 
-    if (docs.length === 0) {
-      const yeepTotal = el("yeepTotal");
-      if (yeepTotal) yeepTotal.textContent = "No data";
+    if (!snap.exists()) {
+      setText("yeepTotal", "No data");
+      setText("yeepES", "—"); setText("yeepER", "—");
+      setText("yeepESPct", "—"); setText("yeepERPct", "—");
       return;
     }
 
-    // Aggregate ES and ER monthly totals across all users
-    const esMonthly = Array(12).fill(0);
-    const erMonthly = Array(12).fill(0);
+    const teams = snap.data().teams || {};
 
-    docs.forEach(d => {
-      const teams = d.teams || {};
-      MONTH_KEYS.forEach((key, i) => {
-        esMonthly[i] += Number(teams.ES?.[key]) || 0;
-        erMonthly[i] += Number(teams.ER?.[key]) || 0;
-      });
-    });
+    const esMonthly = MONTH_KEYS.map(k => Number(teams.ES?.[k]) || 0);
+    const erMonthly = MONTH_KEYS.map(k => Number(teams.ER?.[k]) || 0);
 
     const totalES = esMonthly.reduce((a, b) => a + b, 0);
     const totalER = erMonthly.reduce((a, b) => a + b, 0);
