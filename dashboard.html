@@ -7,169 +7,326 @@
   <link rel="stylesheet" href="style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .dash-body { background: var(--bg); min-height: 100vh; }
-    .topbar { position: sticky; top: 0; z-index: 20; }
-    .dash-wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 60px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* Welcome */
-    .welcome { margin-bottom: 28px; animation: fadeUp 350ms var(--ease) both; }
-    .welcome h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 4px; }
-    .welcome p  { font-size: 0.875rem; color: var(--muted); }
+    :root {
+      --sidebar-w: 240px;
+      --topbar-h: 56px;
+      --bg: #f5f5f3;
+      --surface: #ffffff;
+      --text: #111111;
+      --muted: #777777;
+      --border: #e2e2e0;
+      --accent: #111111;
+      --accent-hover: #333333;
+      --radius: 12px;
+      --ease: cubic-bezier(0.65, 0, 0.35, 1);
+    }
 
-    /* Slide nav */
-    .slide-nav {
-      display: flex; border-bottom: 1.5px solid var(--border);
-      margin-bottom: 24px; overflow-x: auto; scrollbar-width: none;
-      animation: fadeUp 350ms 60ms var(--ease) both;
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; -webkit-font-smoothing: antialiased;
     }
-    .slide-nav::-webkit-scrollbar { display: none; }
-    .slide-tab {
-      background: none; border: none; font-family: inherit;
-      font-size: 0.875rem; font-weight: 500; color: var(--muted);
-      padding: 10px 18px 10px 0; cursor: pointer;
-      position: relative; transition: color 200ms;
-      white-space: nowrap; margin-right: 8px; flex-shrink: 0;
-    }
-    .slide-tab::after {
-      content: ''; position: absolute; bottom: -1.5px; left: 0; right: 0;
-      height: 2px; background: var(--accent); border-radius: 2px;
-      transform: scaleX(0);
-      transition: transform 320ms cubic-bezier(0.65,0,0.35,1);
-    }
-    .slide-tab.active { color: var(--text); }
-    .slide-tab.active::after { transform: scaleX(1); }
-    .tab-icon { margin-right: 6px; }
 
-    /* Slide track */
-    .slide-viewport { overflow: hidden; animation: fadeUp 350ms 100ms var(--ease) both; }
-    .slide-track {
-      display: flex;
-      transition: transform 420ms cubic-bezier(0.65,0,0.35,1);
-      will-change: transform;
+    /* ══════════════════════════════════════
+       TOPBAR
+    ══════════════════════════════════════ */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: var(--topbar-h); z-index: 100;
+      background: rgba(255,255,255,.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 20px;
+      gap: 12px;
     }
-    .slide-panel { width: 100%; flex-shrink: 0; }
-
-    /* Stat pills */
-    .stat-row {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px; margin-bottom: 16px;
+    .topbar-brand {
+      display: flex; align-items: center; gap: 9px;
+      width: var(--sidebar-w); flex-shrink: 0;
     }
-    .stat-pill {
-      background: var(--surface); border-radius: 12px;
-      border: 1px solid var(--border); padding: 18px 16px;
+    .brand-icon {
+      width: 30px; height: 30px; background: var(--accent);
+      border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
     }
-    .stat-pill .sp-label {
-      font-size: 0.72rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
+    .brand-name {
+      font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--text);
     }
-    .stat-pill .sp-value { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.03em; }
-
-    /* Profile card */
-    .profile-card {
-      background: var(--surface); border-radius: 12px;
-      border: 1px solid var(--border); overflow: hidden;
+    .topbar-spacer { flex: 1; }
+    .hamburger {
+      display: none; background: none; border: none;
+      cursor: pointer; padding: 6px; border-radius: 6px;
+      color: var(--text); font-size: 1.1rem;
+      transition: background 160ms;
     }
-    .profile-banner { height: 60px; background: #111; }
-    .profile-body { padding: 0 20px 20px; }
-    .profile-avatar {
-      width: 50px; height: 50px; border-radius: 50%;
-      background: #444; color: #fff;
+    .hamburger:hover { background: #f0f0ee; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .user-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px 5px 5px;
+      border: 1px solid var(--border); border-radius: 99px;
+      font-size: 0.8rem; cursor: default;
+    }
+    .user-chip .chip-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--accent); color: #fff;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; font-weight: 700;
-      margin-top: -25px; margin-bottom: 10px;
-      border: 3px solid var(--surface);
+      font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
     }
-    .profile-name  { font-size: 1rem; font-weight: 700; }
-    .profile-sub   { font-size: 0.8rem; color: var(--muted); margin-top: 2px; margin-bottom: 14px; }
-    .profile-row {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 0.875rem;
+    .chip-email { color: var(--muted); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .logout-btn {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 7px; padding: 6px 14px;
+      font-family: inherit; font-size: 0.8rem; font-weight: 500;
+      cursor: pointer; color: var(--text);
+      transition: border-color 180ms, background 180ms;
     }
-    .profile-row:last-child { border-bottom: none; }
-    .profile-row .pk { color: var(--muted); font-size: 0.8rem; }
-    .profile-row .pv { font-weight: 500; }
+    .logout-btn:hover { border-color: var(--accent); background: var(--accent); color: #fff; }
 
-    /* Quick links */
-    .quick-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    /* ══════════════════════════════════════
+       LAYOUT
+    ══════════════════════════════════════ */
+    .layout {
+      display: flex;
+      padding-top: var(--topbar-h);
+      min-height: 100vh;
     }
-    .quick-card {
-      background: var(--surface); border-radius: 12px;
+
+    /* ══════════════════════════════════════
+       SIDEBAR
+    ══════════════════════════════════════ */
+    .sidebar {
+      width: var(--sidebar-w); flex-shrink: 0;
+      position: fixed; top: var(--topbar-h); left: 0;
+      height: calc(100vh - var(--topbar-h));
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto; overflow-x: hidden;
+      padding: 20px 12px 32px;
+      transition: transform 300ms var(--ease);
+      z-index: 90;
+    }
+    .sidebar-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.3); z-index: 89;
+      backdrop-filter: blur(2px);
+    }
+
+    /* Profile mini */
+    .sidebar-profile {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px; border-radius: 10px; background: #f5f5f3;
+      margin-bottom: 20px;
+    }
+    .sp-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--accent); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem; font-weight: 700; flex-shrink: 0;
+    }
+    .sp-info .sp-name  { font-size: 0.85rem; font-weight: 600; }
+    .sp-info .sp-role  { font-size: 0.73rem; color: var(--muted); margin-top: 1px; }
+
+    /* Nav items */
+    .nav-section { margin-bottom: 6px; }
+    .nav-section-label {
+      font-size: 0.67rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      padding: 10px 10px 6px; display: block;
+    }
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 10px; border-radius: 8px;
+      font-size: 0.875rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; border: none; background: none;
+      font-family: inherit; width: 100%; text-align: left;
+      text-decoration: none;
+      transition: background 150ms, color 150ms;
+      position: relative;
+    }
+    .nav-item:hover { background: #f0f0ee; color: var(--text); }
+    .nav-item.active {
+      background: var(--accent); color: #fff;
+    }
+    .nav-item.active .nav-icon { opacity: 1; }
+    .nav-icon { font-size: 1rem; flex-shrink: 0; opacity: .7; }
+    .nav-arrow {
+      margin-left: auto; font-size: 0.75rem; opacity: .5;
+      transition: transform 250ms var(--ease);
+    }
+    .nav-item.open .nav-arrow { transform: rotate(90deg); }
+
+    /* Sub-items */
+    .nav-sub {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 300ms var(--ease);
+    }
+    .nav-sub.open { max-height: 200px; }
+    .nav-sub-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 10px 7px 32px; border-radius: 8px;
+      font-size: 0.82rem; font-weight: 500; color: var(--muted);
+      cursor: pointer; border: none; background: none;
+      font-family: inherit; width: 100%; text-align: left;
+      text-decoration: none;
+      transition: background 150ms, color 150ms;
+    }
+    .nav-sub-item:hover { background: #f0f0ee; color: var(--text); }
+    .nav-sub-item.active { color: var(--text); font-weight: 700; }
+    .nav-sub-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: currentColor; flex-shrink: 0; opacity: .5;
+    }
+    .nav-sub-item.active .nav-sub-dot { opacity: 1; background: var(--accent); }
+
+    .nav-divider { height: 1px; background: var(--border); margin: 10px 4px; }
+
+    /* ══════════════════════════════════════
+       MAIN CONTENT
+    ══════════════════════════════════════ */
+    .main {
+      flex: 1;
+      margin-left: var(--sidebar-w);
+      padding: 32px 28px 60px;
+      min-width: 0;
+      animation: fadeUp 400ms var(--ease) both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Section panels */
+    .section-panel { display: none; }
+    .section-panel.active { display: block; }
+
+    /* Page heading */
+    .page-heading { margin-bottom: 28px; }
+    .page-heading h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+    .page-heading p  { font-size: 0.875rem; color: var(--muted); margin-top: 4px; }
+
+    /* ── Stat grid ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface); border-radius: var(--radius);
       border: 1px solid var(--border); padding: 20px;
-      text-decoration: none; color: var(--text);
-      display: flex; flex-direction: column; gap: 8px;
-      transition: border-color 180ms, transform 150ms, box-shadow 180ms;
     }
-    .quick-card:hover {
-      border-color: var(--accent); transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0,0,0,.07);
+    .sc-label {
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;
     }
-    .quick-card:active { transform: scale(0.98); }
-    .quick-icon  { font-size: 1.4rem; }
-    .quick-title { font-size: 0.9rem; font-weight: 600; }
-    .quick-desc  { font-size: 0.78rem; color: var(--muted); line-height: 1.4; flex: 1; }
-    .quick-arrow { font-size: 0.8rem; color: var(--muted); }
-    .quick-card:hover .quick-arrow { color: var(--text); }
+    .sc-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
+    .sc-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
 
-    /* Survey panel */
-    .panel-empty {
-      background: var(--surface); border-radius: 12px;
-      border: 1px solid var(--border); padding: 48px 24px;
-      text-align: center; color: var(--muted); font-size: 0.875rem;
+    /* ── Profile section ── */
+    .profile-banner {
+      height: 80px; border-radius: var(--radius) var(--radius) 0 0;
+      background: linear-gradient(135deg, #111 0%, #555 100%);
     }
-    .panel-empty .pe-icon { font-size: 2rem; margin-bottom: 12px; }
-    .panel-empty a {
-      display: inline-block; margin-top: 14px;
-      padding: 9px 20px; background: var(--accent); color: #fff;
-      border-radius: 8px; font-size: 0.875rem; font-weight: 500;
-      text-decoration: none; transition: background 180ms;
+    .profile-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden; margin-bottom: 16px;
     }
-    .panel-empty a:hover { background: #333; }
+    .profile-body { padding: 0 24px 24px; }
+    .profile-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: #333; color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 700;
+      margin-top: -28px; border: 3px solid var(--surface);
+      margin-bottom: 12px;
+    }
+    .profile-name { font-size: 1.1rem; font-weight: 700; }
+    .profile-sub  { font-size: 0.82rem; color: var(--muted); margin-top: 3px; margin-bottom: 20px; }
+    .info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 11px 0; border-bottom: 1px solid #f0f0ee; font-size: 0.875rem;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-row .ik { color: var(--muted); font-size: 0.8rem; }
+    .info-row .iv { font-weight: 500; }
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 99px;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .badge-active  { background: #dcfce7; color: #166534; }
+    .badge-pending { background: #fef9c3; color: #854d0e; }
 
-    .survey-chart-card {
-      background: var(--surface); border-radius: 12px;
-      border: 1px solid var(--border); padding: 20px; margin-bottom: 12px;
+    /* ── Card base ── */
+    .card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 24px; margin-bottom: 16px;
     }
-    .survey-chart-card h3  { font-size: 0.875rem; font-weight: 600; margin-bottom: 3px; }
-    .survey-chart-card .sc-meta { font-size: 0.75rem; color: var(--muted); margin-bottom: 14px; }
-    .chart-wrap { position: relative; height: 180px; }
+    .card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+    .card .card-sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 16px; }
+    .chart-wrap { position: relative; height: 220px; }
 
-    /* Leave panel */
-    .leave-summary-card {
-      background: var(--surface); border-radius: 12px;
-      border: 1px solid var(--border); padding: 20px; margin-bottom: 12px;
-    }
-    .leave-summary-card h3 { font-size: 0.875rem; font-weight: 600; margin-bottom: 16px; }
+    /* ── Leave bars ── */
     .leave-bar-row { margin-bottom: 14px; }
     .leave-bar-label {
       display: flex; justify-content: space-between;
       font-size: 0.78rem; margin-bottom: 6px;
     }
     .leave-bar-label .lbl-name { color: var(--muted); }
-    .leave-bar-label .lbl-pct  { font-weight: 600; color: var(--text); }
+    .leave-bar-label .lbl-pct  { font-weight: 600; }
     .leave-track { height: 7px; background: #f0f0ee; border-radius: 99px; overflow: hidden; }
-    .leave-fill  {
-      height: 100%; border-radius: 99px;
-      transition: width 700ms cubic-bezier(0.65,0,0.35,1);
-    }
+    .leave-fill  { height: 100%; border-radius: 99px; transition: width 700ms var(--ease); }
     .leave-fill.ok   { background: #111; }
     .leave-fill.over { background: #991b1b; }
-    .leave-cta {
-      display: inline-block; margin-top: 8px;
-      font-size: 0.8rem; font-weight: 600; color: var(--text);
-      text-decoration: none; border-bottom: 1.5px solid var(--text);
-      line-height: 1.1; transition: opacity 160ms;
+
+    /* ── Quick action links ── */
+    .quick-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;
+      margin-bottom: 16px;
     }
-    .leave-cta:hover { opacity: 0.5; }
+    .quick-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 16px;
+      display: flex; flex-direction: column; gap: 8px;
+      cursor: pointer; text-decoration: none; color: var(--text);
+      transition: border-color 160ms, transform 140ms, box-shadow 160ms;
+      font-family: inherit;
+    }
+    .quick-btn:hover {
+      border-color: var(--accent); transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,.07);
+    }
+    .quick-btn:active { transform: scale(0.98); }
+    .qb-icon  { font-size: 1.3rem; }
+    .qb-title { font-size: 0.875rem; font-weight: 600; }
+    .qb-desc  { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .sidebar-overlay.open { display: block; }
+      .main { margin-left: 0; padding: 20px 16px 60px; }
+      .hamburger { display: flex; }
+      .topbar-brand { width: auto; }
+      .chip-email { display: none; }
+    }
   </style>
 </head>
-<body class="dash-body">
+<body>
 
+  <!-- ── Topbar ── -->
   <header class="topbar">
     <div class="topbar-brand">
       <div class="brand-icon">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
           <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
           <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
@@ -178,112 +335,171 @@
       </div>
       <span class="brand-name">EMS</span>
     </div>
+    <div class="topbar-spacer"></div>
+    <button class="hamburger" id="hamburger">☰</button>
     <div class="topbar-right">
-      <span class="user-badge" id="topbarEmail"></span>
+      <div class="user-chip">
+        <div class="chip-avatar" id="chipAvatar">?</div>
+        <span class="chip-email" id="chipEmail">—</span>
+      </div>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
   </header>
 
-  <main class="dash-wrap">
+  <!-- ── Sidebar overlay (mobile) ── -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <div class="welcome">
-      <h1>Hello, <span id="userName">there</span> 👋</h1>
-      <p id="welcomeSub">Loading your profile…</p>
-    </div>
+  <div class="layout">
 
-    <!-- Tab bar -->
-    <nav class="slide-nav">
-      <button class="slide-tab active" data-panel="0"><span class="tab-icon">👤</span>Profile</button>
-      <button class="slide-tab"        data-panel="1"><span class="tab-icon">⚡</span>Quick Links</button>
-      <button class="slide-tab"        data-panel="2"><span class="tab-icon">📋</span>Surveys</button>
-      <button class="slide-tab"        data-panel="3"><span class="tab-icon">📅</span>Data Entry</button>
-    </nav>
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar" id="sidebar">
 
-    <!-- Panels -->
-    <div class="slide-viewport">
-      <div class="slide-track" id="slideTrack">
-
-        <!-- 0 · Profile -->
-        <div class="slide-panel">
-          <div class="stat-row">
-            <div class="stat-pill"><div class="sp-label">Role</div><div class="sp-value" id="statRole">—</div></div>
-            <div class="stat-pill"><div class="sp-label">Status</div><div class="sp-value" id="statStatus">—</div></div>
-            <div class="stat-pill"><div class="sp-label">Employee ID</div><div class="sp-value" id="statEmpId">—</div></div>
-            <div class="stat-pill"><div class="sp-label">Surveys Done</div><div class="sp-value" id="statSurveys">—</div></div>
-          </div>
-          <div class="profile-card">
-            <div class="profile-banner"></div>
-            <div class="profile-body">
-              <div class="profile-avatar" id="profileAvatar">?</div>
-              <div class="profile-name" id="profileName">—</div>
-              <div class="profile-sub"  id="profileSub">—</div>
-              <div class="profile-row"><span class="pk">Email</span><span class="pv" id="infoEmail">—</span></div>
-              <div class="profile-row"><span class="pk">Employee ID</span><span class="pv" id="infoEmpId">—</span></div>
-              <div class="profile-row"><span class="pk">Status</span><span class="pv" id="infoStatus">—</span></div>
-              <div class="profile-row"><span class="pk">Member since</span><span class="pv" id="infoCreated">—</span></div>
-            </div>
-          </div>
+      <!-- Mini profile -->
+      <div class="sidebar-profile">
+        <div class="sp-avatar" id="sideAvatar">?</div>
+        <div class="sp-info">
+          <div class="sp-name" id="sideName">Loading…</div>
+          <div class="sp-role" id="sideRole">—</div>
         </div>
-
-        <!-- 1 · Quick links -->
-        <div class="slide-panel">
-          <div class="quick-grid">
-            <a href="survey.html" class="quick-card">
-              <div class="quick-icon">📋</div>
-              <div class="quick-title">Surveys</div>
-              <div class="quick-desc">Answer active surveys assigned to you</div>
-              <div class="quick-arrow">→</div>
-            </a>
-            <a href="leave.html" class="quick-card">
-              <div class="quick-icon">📅</div>
-              <div class="quick-title">Data Entry</div>
-              <div class="quick-desc">Enter your plan vs actual leave hours</div>
-              <div class="quick-arrow">→</div>
-            </a>
-            <a href="hr-dashboard.html" class="quick-card">
-              <div class="quick-icon">📊</div>
-              <div class="quick-title">HR Dashboard</div>
-              <div class="quick-desc">View leave charts for all employees</div>
-              <div class="quick-arrow">→</div>
-            </a>
-            <a href="admin.html" class="quick-card" id="adminLink" style="display:none;">
-              <div class="quick-icon">🛡️</div>
-              <div class="quick-title">Admin Panel</div>
-              <div class="quick-desc">Manage employees and approvals</div>
-              <div class="quick-arrow">→</div>
-            </a>
-          </div>
-        </div>
-
-        <!-- 2 · Surveys -->
-        <div class="slide-panel">
-          <div class="panel-empty" id="surveyEmpty">
-            <div class="pe-icon">📋</div>
-            No survey responses yet.
-            <br><a href="survey.html">Take a survey →</a>
-          </div>
-          <div id="surveyChartsArea" style="display:none;"></div>
-        </div>
-
-        <!-- 3 · Leave -->
-        <div class="slide-panel">
-          <div class="panel-empty" id="leaveEmpty">
-            <div class="pe-icon">📅</div>
-            No data entry for this year yet.
-            <br><a href="leave.html">Enter data →</a>
-          </div>
-          <div id="leaveSummaryArea" style="display:none;"></div>
-        </div>
-<a href="yeep.html" class="quick-card">
-  <div class="quick-icon">🔧</div>
-  <div class="quick-title">YEEP Entry</div>
-  <div class="quick-desc">Log weekly/monthly installation counts</div>
-  <div class="quick-arrow">→</div>
-</a>
       </div>
-    </div>
-  </main>
 
+      <!-- Nav -->
+      <nav>
+        <!-- My Profile -->
+        <div class="nav-section">
+          <button class="nav-item active" data-section="profile">
+            <span class="nav-icon">👤</span> My Profile
+          </button>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <!-- HR Dashboard -->
+        <div class="nav-section">
+          <a class="nav-item" href="hr-dashboard.html">
+            <span class="nav-icon">📊</span> HR Dashboard
+            <span class="nav-arrow">›</span>
+          </a>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <!-- Data Entry -->
+        <div class="nav-section">
+          <button class="nav-item" id="dataEntryToggle" data-section="dataentry">
+            <span class="nav-icon">📝</span> Data Entry
+            <span class="nav-arrow">›</span>
+          </button>
+          <div class="nav-sub" id="dataEntrySub">
+            <a class="nav-sub-item" href="leave.html">
+              <span class="nav-sub-dot"></span> Leave Plan
+            </a>
+            <a class="nav-sub-item" href="yeep.html">
+              <span class="nav-sub-dot"></span> YEEP
+            </a>
+          </div>
+        </div>
+
+        <div class="nav-divider"></div>
+
+        <!-- Survey -->
+        <div class="nav-section">
+          <button class="nav-item" data-section="survey">
+            <span class="nav-icon">📋</span> Survey
+          </button>
+        </div>
+
+      </nav>
+    </aside>
+
+    <!-- ── Main content ── -->
+    <main class="main">
+
+      <!-- ① Profile section -->
+      <div class="section-panel active" id="section-profile">
+        <div class="page-heading">
+          <h2>Hello, <span id="userName">there</span> 👋</h2>
+          <p id="userSub">Loading your profile…</p>
+        </div>
+
+        <!-- Stat pills -->
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="sc-label">Role</div>
+            <div class="sc-value" id="statRole">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-label">Status</div>
+            <div class="sc-value" id="statStatus">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-label">Employee ID</div>
+            <div class="sc-value" id="statEmpId">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="sc-label">Surveys Done</div>
+            <div class="sc-value" id="statSurveys">—</div>
+          </div>
+        </div>
+
+        <!-- Profile card -->
+        <div class="profile-card">
+          <div class="profile-banner"></div>
+          <div class="profile-body">
+            <div class="profile-avatar" id="profileAvatar">?</div>
+            <div class="profile-name" id="profileName">—</div>
+            <div class="profile-sub"  id="profileSub">—</div>
+            <div class="info-row"><span class="ik">Email</span>      <span class="iv" id="infoEmail">—</span></div>
+            <div class="info-row"><span class="ik">Employee ID</span><span class="iv" id="infoEmpId">—</span></div>
+            <div class="info-row"><span class="ik">Status</span>     <span class="iv" id="infoStatus">—</span></div>
+            <div class="info-row"><span class="ik">Member since</span><span class="iv" id="infoCreated">—</span></div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div class="quick-grid">
+          <a href="leave.html" class="quick-btn">
+            <div class="qb-icon">📅</div>
+            <div class="qb-title">Leave Plan</div>
+            <div class="qb-desc">Enter plan vs actual hours</div>
+          </a>
+          <a href="yeep.html" class="quick-btn">
+            <div class="qb-icon">🔧</div>
+            <div class="qb-title">YEEP</div>
+            <div class="qb-desc">Log installation counts</div>
+          </a>
+          <a href="survey.html" class="quick-btn">
+            <div class="qb-icon">📋</div>
+            <div class="qb-title">Surveys</div>
+            <div class="qb-desc">Answer active surveys</div>
+          </a>
+          <a href="hr-dashboard.html" class="quick-btn">
+            <div class="qb-icon">📊</div>
+            <div class="qb-title">HR Dashboard</div>
+            <div class="qb-desc">View all leave charts</div>
+          </a>
+        </div>
+      </div>
+
+      <!-- ② Survey section -->
+      <div class="section-panel" id="section-survey">
+        <div class="page-heading">
+          <h2>Surveys</h2>
+          <p>Your survey activity and response history.</p>
+        </div>
+        <div id="surveyContent">
+          <div class="card" style="text-align:center;padding:48px;color:var(--muted);">
+            <div style="font-size:2rem;margin-bottom:12px;">📋</div>
+            <div>No survey responses yet.</div>
+            <a href="survey.html" style="display:inline-block;margin-top:14px;padding:9px 20px;background:var(--accent);color:#fff;border-radius:8px;font-size:0.875rem;font-weight:500;text-decoration:none;">Take a survey →</a>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
   <script type="module" src="js/dashboard.js"></script>
 </body>
 </html>
