@@ -44,44 +44,60 @@
     .table-scroll { overflow-x: auto; }
 
     /* ── Table ── */
-    .leave-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; min-width: 900px; }
+    .leave-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.8125rem; min-width: 960px;
+    }
     .leave-table thead tr {
-      background: #fafaf9; border-bottom: 1.5px solid var(--border);
+      background: #fafaf9;
+    }
+    .leave-table thead tr:first-child {
+      border-bottom: none;
+    }
+    .leave-table thead tr:last-child {
+      border-bottom: 1.5px solid var(--border);
     }
     .leave-table th {
-      padding: 10px 10px; text-align: center;
+      padding: 10px 8px; text-align: center;
       font-size: 0.69rem; font-weight: 600; color: var(--muted);
       text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
     }
-    .leave-table th.col-name { text-align: left; padding-left: 16px; min-width: 160px; }
-    .leave-table th.col-dept { text-align: left; min-width: 110px; }
-
-    /* month group header */
+    .leave-table th.col-name {
+      text-align: left; padding-left: 16px; min-width: 160px;
+    }
+    .leave-table th.col-dept {
+      text-align: left; min-width: 110px;
+    }
     .leave-table th.month-header {
       border-left: 1px solid var(--border);
-      font-size: 0.72rem; font-weight: 700; color: var(--text);
-      text-transform: none; letter-spacing: 0;
-      padding: 8px 6px;
+      font-size: 0.75rem; font-weight: 700;
+      color: var(--text); text-transform: none; letter-spacing: 0;
     }
     .leave-table th.sub-header {
-      border-left: 1px solid #f0f0ee;
-      font-size: 0.65rem; padding: 6px 4px;
+      border-left: 1px solid #ebebea;
+      font-size: 0.65rem; color: var(--muted); padding: 5px 4px;
     }
-    .leave-table th.sub-header:first-of-type { border-left: 1px solid var(--border); }
+    .leave-table th.sub-header:first-of-type {
+      border-left: 1px solid var(--border);
+    }
 
     .leave-table td {
-      padding: 7px 8px; border-bottom: 1px solid #f0f0ee; vertical-align: middle;
-      text-align: center;
+      padding: 6px 6px; border-bottom: 1px solid #f0f0ee;
+      vertical-align: middle; text-align: center;
     }
     .leave-table tr:last-child td { border-bottom: none; }
     .leave-table tr:hover td { background: #fafaf9; }
-    .leave-table td.col-name { text-align: left; padding-left: 16px; font-weight: 500; }
-    .leave-table td.col-dept { text-align: left; color: var(--muted); font-size: 0.78rem; }
+    .leave-table td.col-name {
+      text-align: left; padding-left: 16px; font-weight: 500;
+    }
+    .leave-table td.col-dept {
+      text-align: left; color: var(--muted); font-size: 0.78rem;
+    }
     .leave-table td.month-sep { border-left: 1px solid var(--border); }
 
     /* ── Input ── */
     .leave-input {
-      width: 52px; padding: 5px 4px;
+      width: 54px; padding: 5px 4px;
       border: 1.5px solid var(--border); border-radius: 6px;
       font-family: inherit; font-size: 0.8125rem; font-weight: 500;
       color: var(--text); background: #fafaf9;
@@ -92,9 +108,9 @@
       border-color: var(--accent); background: #fff;
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
-    /* highlight own row */
-    tr.own-row td { background: #fffdf5; }
-    tr.own-row:hover td { background: #fffbea; }
+    .leave-input:not(:placeholder-shown) {
+      background: #fff;
+    }
 
     /* ── Save bar ── */
     .save-bar {
@@ -102,34 +118,22 @@
       padding: 16px 20px; border-top: 1px solid var(--border);
       flex-wrap: wrap; gap: 12px;
     }
-    .save-bar .message { margin: 0; font-size: 0.875rem; color: var(--muted); }
+    .save-bar .message { margin: 0; font-size: 0.8125rem; }
     .save-btn { width: auto; padding: 10px 28px; }
 
-    /* ── Loading / empty ── */
-    .table-loading { text-align: center; padding: 56px; color: var(--muted); font-size: 0.9rem; }
-
-    /* ── Last updated ── */
-    .last-updated {
-      font-size: 0.75rem; color: var(--muted);
-      padding: 7px 20px; border-top: 1px solid var(--border);
-      background: #fafaf9;
-    }
-
-    /* ── Legend ── */
-    .legend {
-      display: flex; gap: 20px; align-items: center;
+    /* ── Info bar ── */
+    .info-bar {
+      display: flex; align-items: center; gap: 8px;
       padding: 10px 20px; border-top: 1px solid var(--border);
       background: #fafaf9; font-size: 0.75rem; color: var(--muted);
-      flex-wrap: wrap;
     }
-    .legend-dot {
-      display: inline-block; width: 8px; height: 8px;
-      border-radius: 50%; margin-right: 5px;
+    .info-bar svg { flex-shrink: 0; }
+
+    /* ── Loading ── */
+    .table-loading {
+      text-align: center; padding: 56px;
+      color: var(--muted); font-size: 0.9rem;
     }
-    .legend-dot.plan { background: #6366f1; }
-    .legend-dot.actual { background: #16a34a; }
-    .legend-own { background: #fffdf5; border: 1px solid #fde68a;
-      border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; color: #92400e; }
   </style>
 </head>
 <body class="leave-body">
@@ -157,7 +161,7 @@
     <div class="leave-header">
       <div>
         <h1>Leave: Plan vs Actual</h1>
-        <p>You can only edit your own row. All rows are visible to everyone.</p>
+        <p>Enter planned and actual leave days per employee per month. Any user can update.</p>
       </div>
       <div class="year-selector">
         <label for="yearSelect">Year</label>
@@ -168,19 +172,22 @@
     <div class="leave-card">
       <div class="table-scroll">
         <div id="tableArea">
-          <div class="table-loading">Loading employees…</div>
+          <div class="table-loading">Loading…</div>
         </div>
       </div>
-      <div class="legend">
-        <span><span class="legend-dot plan"></span>Plan = intended days off</span>
-        <span><span class="legend-dot actual"></span>Actual = days taken</span>
-        <span class="legend-own">Your row</span> = only you can edit this
+
+      <div class="info-bar">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M8 7v4M8 5.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Any logged-in user can edit any field. Save commits all rows to Firestore. Last save overwrites.
       </div>
-      <div class="last-updated" id="lastUpdated" style="display:none;"></div>
+
       <div class="save-bar">
         <p class="message" id="saveMsg"></p>
         <button class="btn save-btn" id="saveBtn">
-          <span class="btn-label">Save My Row</span>
+          <span class="btn-label">Save All Changes</span>
           <span class="spinner"></span>
         </button>
       </div>
