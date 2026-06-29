@@ -346,6 +346,88 @@
           <div class="chart-wrap"><canvas id="yeepBarChart"></canvas></div>
         </div>
       </div>
+
+      <!-- ⑥ Health Checkup -->
+      <div class="section-title">🏥 Health Checkup (YTD)</div>
+      <div class="yeep-stat-row">
+        <div class="yeep-stat">
+          <div class="yst-label">Target Group</div>
+          <div class="yst-value" id="hcTarget">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">YTD Completed</div>
+          <div class="yst-value" style="color:#166534;" id="hcCompleted">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">YTD Achievement</div>
+          <div class="yst-value" id="hcPct">—</div>
+          <div class="yst-sub" id="hcPctSub"></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div><h2>Monthly Completed vs Target Pace</h2><p>Checkups completed each month against equal-pace target</p></div>
+          </div>
+          <div class="chart-wrap"><canvas id="hcBarChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ⑦ Food Quality -->
+      <div class="section-title">🍽️ Monthly Food Quality Survey</div>
+      <div class="yeep-stat-row">
+        <div class="yeep-stat">
+          <div class="yst-label">Total Surveys</div>
+          <div class="yst-value" id="fqTotal">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">Positive (VG + Good)</div>
+          <div class="yst-value" style="color:#166534;" id="fqPositive">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">Negative (Bad + VB)</div>
+          <div class="yst-value" style="color:#991b1b;" id="fqNegative">—</div>
+        </div>
+      </div>
+      <div class="yeep-grid">
+        <div class="chart-card">
+          <div class="chart-header"><div><h2>Rating Distribution</h2><p>All months combined</p></div></div>
+          <div class="pie-wrap"><canvas id="fqPieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><div><h2>Monthly Breakdown</h2><p>Stacked by rating per month</p></div></div>
+          <div class="chart-wrap"><canvas id="fqBarChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ⑧ Welfare -->
+      <div class="section-title">🤝 Welfare / Workplace Issue Resolution</div>
+      <div class="yeep-stat-row">
+        <div class="yeep-stat">
+          <div class="yst-label">Total Issues</div>
+          <div class="yst-value" id="wfTotal">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">Solved</div>
+          <div class="yst-value" style="color:#166534;" id="wfSolved">—</div>
+        </div>
+        <div class="yeep-stat">
+          <div class="yst-label">Follow-up</div>
+          <div class="yst-value" style="color:#b45309;" id="wfFollowup">—</div>
+          <div class="yst-sub" id="wfPct"></div>
+        </div>
+      </div>
+      <div class="yeep-grid">
+        <div class="chart-card">
+          <div class="chart-header"><div><h2>Resolution Split</h2><p>Solved vs Follow-up (all months)</p></div></div>
+          <div class="pie-wrap"><canvas id="wfPieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
+          <div class="chart-wrap"><canvas id="wfBarChart"></canvas></div>
+        </div>
+      </div>
+
     </div><!-- /mainContent -->
   </main>
 
