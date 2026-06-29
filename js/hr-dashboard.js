@@ -31,6 +31,54 @@ function fmtShort(n) {
   if (!n && n !== 0) return "";
   return Math.abs(n) >= 1000 ? (n / 1000).toFixed(1) + "k" : n;
 }
+
+// Shared: draw value labels on top of every bar in a bar chart
+function barLabelPlugin(color = "rgba(17,17,17,0.8)") {
+  return {
+    onComplete() {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.font = "600 11px Inter,system-ui,sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      this.data.datasets.forEach((ds, di) => {
+        this.getDatasetMeta(di).data.forEach((bar, idx) => {
+          const v = ds.data[idx];
+          if (!v || v === 0) return;
+          ctx.fillStyle = color;
+          ctx.fillText(fmtShort(v), bar.x, bar.y - 3);
+        });
+      });
+      ctx.restore();
+    }
+  };
+}
+
+// Shared: draw percentage labels on doughnut slices
+function pieLabelPlugin() {
+  return {
+    id: "pieLabels",
+    afterDatasetsDraw(chart) {
+      const { ctx, data } = chart;
+      const total = data.datasets[0].data.reduce((a,b) => a+b, 0);
+      if (!total) return;
+      ctx.save();
+      ctx.font = "bold 12px Inter,system-ui,sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      chart.getDatasetMeta(0).data.forEach((arc, i) => {
+        const val = data.datasets[0].data[i];
+        if (!val) return;
+        const pct = (val / total * 100).toFixed(1) + "%";
+        const angle  = (arc.startAngle + arc.endAngle) / 2;
+        const radius = (arc.innerRadius + arc.outerRadius) / 2;
+        const x = arc.x + Math.cos(angle) * radius;
+        const y = arc.y + Math.sin(angle) * radius;
+        ctx.fillStyle = "#fff";
+        ctx.fillText(pct, x, y);
+      });
+      ctx.restore();
+    }
+  };
+}
 function destroyCharts() {
   [chartBar, chartYTD, chartYeepPie, chartYeepBar,
    chartHCBar, chartFQPie, chartFQBar, chartWFPie, chartWFBar]
@@ -204,23 +252,7 @@ function renderBarChart(plan, consumed) {
         y: { beginAtZero:true, grid:{ color:"#f0f0ee" },
              ticks:{ callback: v => fmtShort(v), font:{ size:11 } } }
       },
-      animation: {
-        onComplete() {
-          const ctx = this.ctx;
-          ctx.save();
-          ctx.font = "600 11px Inter,system-ui,sans-serif";
-          ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-          this.data.datasets.forEach((ds, di) => {
-            this.getDatasetMeta(di).data.forEach((bar, idx) => {
-              const v = ds.data[idx];
-              if (!v) return;
-              ctx.fillStyle = di === 0 ? "rgba(17,17,17,0.45)" : "rgba(17,17,17,0.9)";
-              ctx.fillText(fmtShort(v), bar.x, bar.y - 4);
-            });
-          });
-          ctx.restore();
-        }
-      }
+      animation: barLabelPlugin()
     }
   });
 }
@@ -234,7 +266,7 @@ function renderYTDChart(ytdPlan, ytdConsumed) {
     data: {
       labels: MONTHS,
       datasets: [
-        { label:"YTD Plan",     data:ytdPlan,     borderColor:"rgba(17,17,17,0.25)", backgroundColor:"transparent", borderWidth:2, borderDash:[6,4], pointRadius:4, pointBackgroundColor:"rgba(17,17,17,0.25)", tension:0.3, fill:false },
+        { label:"YTD Plan",     data:ytdPlan,     borderColor:"rgba(17,17,17,0.25)", backgroundColor:"transparent", borderWidth:2, borderDash:[6,4], pointRadius:4, pointBackgroundColor:"rgba(17,17,17,0.25)", tension:0.3, fill:false, datalabels:{ display:false } },
         { label:"YTD Consumed", data:ytdConsumed, borderColor:"#111", backgroundColor:"rgba(17,17,17,0.06)", borderWidth:2.5, pointRadius:5, pointBackgroundColor:"#111", tension:0.3, fill:true }
       ]
     },
@@ -248,6 +280,23 @@ function renderYTDChart(ytdPlan, ytdConsumed) {
         x: { grid:{ display:false }, ticks:{ font:{ size:12 } } },
         y: { beginAtZero:true, grid:{ color:"#f0f0ee" },
              ticks:{ callback: v => fmtShort(v), font:{ size:11 } } }
+      },
+      animation: {
+        onComplete() {
+          const ctx = this.ctx;
+          ctx.save();
+          ctx.font = "600 10px Inter,system-ui,sans-serif";
+          ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+          ctx.fillStyle = "#111";
+          // Only label YTD Consumed (dataset 1)
+          const meta = this.getDatasetMeta(1);
+          meta.data.forEach((pt, idx) => {
+            const v = ytdConsumed[idx];
+            if (!v) return;
+            ctx.fillText(fmtShort(v), pt.x, pt.y - 8);
+          });
+          ctx.restore();
+        }
       }
     }
   });
@@ -331,18 +380,12 @@ async function loadYEEP() {
             hoverOffset: 6,
           }]
         },
+        plugins: [pieLabelPlugin()],
         options: {
           responsive: true, maintainAspectRatio: false,
           plugins: {
             legend: { position: "bottom", labels: { usePointStyle: true, pointStyle: "circle", padding: 20, font: { size: 12 } } },
-            tooltip: {
-              callbacks: {
-                label: c => {
-                  const pct = total > 0 ? (c.raw / total * 100).toFixed(1) : 0;
-                  return ` ${c.label}: ${c.raw.toLocaleString()} (${pct}%)`;
-                }
-              }
-            }
+            tooltip: { callbacks: { label: c => { const pct=total>0?(c.raw/total*100).toFixed(1):0; return ` ${c.label}: ${c.raw.toLocaleString()} (${pct}%)`; } } }
           },
           cutout: "60%",
         }
@@ -368,9 +411,10 @@ async function loadYEEP() {
             tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString()}` } }
           },
           scales: {
-            x: { grid:{ display:false }, ticks:{ font:{ size:11 } }, stacked: false },
+            x: { grid:{ display:false }, ticks:{ font:{ size:11 } } },
             y: { beginAtZero:true, grid:{ color:"#f0f0ee" }, ticks:{ font:{ size:11 } } }
-          }
+          },
+          animation: barLabelPlugin()
         }
       });
     }
@@ -460,6 +504,7 @@ async function loadFoodQuality() {
     if (pieCanvas) {
       chartFQPie = new Chart(pieCanvas.getContext("2d"), {
         type: "doughnut",
+        plugins: [pieLabelPlugin()],
         data: {
           labels: FOOD_LABELS,
           datasets: [{ data: FOOD_FIELDS.map(f=>totals[f]), backgroundColor:FOOD_COLORS, borderWidth:2, hoverOffset:6 }]
@@ -492,7 +537,8 @@ async function loadFoodQuality() {
           scales: {
             x: { stacked:true, grid:{display:false} },
             y: { stacked:true, beginAtZero:true, grid:{color:"#f0f0ee"} }
-          }
+          },
+          animation: barLabelPlugin()
         }
       });
     }
@@ -526,6 +572,7 @@ async function loadWelfare() {
     if (pieCanvas) {
       chartWFPie = new Chart(pieCanvas.getContext("2d"), {
         type: "doughnut",
+        plugins: [pieLabelPlugin()],
         data: {
           labels: ["Solved","Follow-up"],
           datasets: [{ data:[grandSolved,grandFollow],
@@ -559,7 +606,8 @@ async function loadWelfare() {
           responsive:true, maintainAspectRatio:false,
           plugins: { legend:{ position:"top", labels:{ usePointStyle:true, pointStyle:"circle", padding:14, font:{size:12} } },
             tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.raw}` } } },
-          scales: { x:{ grid:{display:false} }, y:{ beginAtZero:true, grid:{color:"#f0f0ee"} } }
+          scales: { x:{ grid:{display:false} }, y:{ beginAtZero:true, grid:{color:"#f0f0ee"} } },
+          animation: barLabelPlugin()
         }
       });
     }
