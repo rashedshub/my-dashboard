@@ -15,7 +15,8 @@ const MONTHS_FULL = ["January","February","March","April","May","June",
                      "July","August","September","October","November","December"];
 
 let currentYear = new Date().getFullYear();
-let chartBar, chartYTD, chartYeepPie, chartYeepBar;
+let chartBar, chartYTD, chartYeepPie, chartYeepBar,
+    chartHCBar, chartFQPie, chartFQBar, chartWFPie, chartWFBar;
 
 function el(id)           { return document.getElementById(id); }
 function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
@@ -31,10 +32,11 @@ function fmtShort(n) {
   return Math.abs(n) >= 1000 ? (n / 1000).toFixed(1) + "k" : n;
 }
 function destroyCharts() {
-  try { if (chartBar)     { chartBar.destroy();     chartBar     = null; } } catch(e) {}
-  try { if (chartYTD)     { chartYTD.destroy();     chartYTD     = null; } } catch(e) {}
-  try { if (chartYeepPie) { chartYeepPie.destroy(); chartYeepPie = null; } } catch(e) {}
-  try { if (chartYeepBar) { chartYeepBar.destroy(); chartYeepBar = null; } } catch(e) {}
+  [chartBar, chartYTD, chartYeepPie, chartYeepBar,
+   chartHCBar, chartFQPie, chartFQBar, chartWFPie, chartWFBar]
+    .forEach(c => { try { if (c) c.destroy(); } catch(e){} });
+  chartBar = chartYTD = chartYeepPie = chartYeepBar =
+  chartHCBar = chartFQPie = chartFQBar = chartWFPie = chartWFBar = null;
 }
 function diffHTML(diff) {
   if (!diff || diff === 0) return `<span class="diff-z">0</span>`;
@@ -166,6 +168,11 @@ async function loadData() {
 
     // ⑤ YEEP
     await loadYEEP();
+
+    // ⑥⑦⑧ Welfare sections
+    await loadHealthCheckup();
+    await loadFoodQuality();
+    await loadWelfare();
 
   } catch(e) {
     console.error(e);
@@ -371,6 +378,192 @@ async function loadYEEP() {
   } catch(e) {
     console.error("YEEP load error:", e);
   }
+}
+
+// ── ⑥ Health Checkup ─────────────────────────────────────────────────────────
+async function loadHealthCheckup() {
+  try {
+    const snap = await getDoc(doc(db, "health_data", String(currentYear)));
+    if (!snap.exists()) { setText("hcTarget","No data"); return; }
+    const data   = snap.data();
+    const months = data.months || {};
+    const target = Number(data.target) || 0;
+    const MK     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const completed = MK.map(m => Number(months[m]?.completed) || 0);
+    const ytd    = completed.reduce((a,b) => a+b, 0);
+    const pct    = target > 0 ? (ytd/target*100).toFixed(1) : "—";
+    const monthlyTarget = target > 0 ? (target/12).toFixed(1) : 0;
+    const pace   = MK.map(() => Number(monthlyTarget));
+
+    setText("hcTarget",    target > 0 ? target.toLocaleString() : "—");
+    setText("hcCompleted", ytd.toLocaleString());
+    const pctEl = el("hcPct");
+    if (pctEl) {
+      pctEl.textContent = pct !== "—" ? pct+"%" : "—";
+      pctEl.style.color = pct !== "—" && Number(pct) >= 100 ? "#166534" : "#991b1b";
+    }
+    setText("hcPctSub", pct !== "—" ? (Number(pct) >= 100 ? "On track ✓" : `${(target-ytd).toLocaleString()} remaining`) : "");
+
+    const canvas = el("hcBarChart");
+    if (!canvas) return;
+    chartHCBar = new Chart(canvas.getContext("2d"), {
+      type: "bar",
+      data: {
+        labels: MONTHS,
+        datasets: [
+          { label:"Completed", data:completed, backgroundColor:"rgba(22,101,52,0.75)", borderRadius:4 },
+          { label:"Monthly Pace", data:pace, backgroundColor:"rgba(17,17,17,0.1)", borderRadius:4 }
+        ]
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: { legend:{ position:"top", labels:{ usePointStyle:true, pointStyle:"circle", padding:16, font:{size:12} } },
+          tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` } } },
+        scales: { x:{ grid:{display:false} }, y:{ beginAtZero:true, grid:{color:"#f0f0ee"} } }
+      }
+    });
+  } catch(e) { console.error("HC error:", e); }
+}
+
+// ── ⑦ Food Quality ───────────────────────────────────────────────────────────
+async function loadFoodQuality() {
+  const FOOD_FIELDS  = ["vg","g","s","b","vb"];
+  const FOOD_LABELS  = ["Very Good","Good","Satisfactory","Bad","Very Bad"];
+  const FOOD_COLORS  = ["rgba(22,101,52,0.8)","rgba(74,222,128,0.7)","rgba(250,204,21,0.7)","rgba(249,115,22,0.7)","rgba(153,27,27,0.8)"];
+  const MK = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+  try {
+    const snap = await getDoc(doc(db, "food_data", String(currentYear)));
+    if (!snap.exists()) { setText("fqTotal","No data"); return; }
+    const months = snap.data().months || {};
+
+    const totals = { vg:0, g:0, s:0, b:0, vb:0 };
+    const byMonth = { vg:[], g:[], s:[], b:[], vb:[] };
+    MK.forEach(m => {
+      FOOD_FIELDS.forEach(f => {
+        const v = Number(months[m]?.[f]) || 0;
+        totals[f]      += v;
+        byMonth[f].push(v);
+      });
+    });
+
+    const grandTotal = Object.values(totals).reduce((a,b)=>a+b,0);
+    const positive   = totals.vg + totals.g;
+    const negative   = totals.b  + totals.vb;
+
+    setText("fqTotal",    grandTotal.toLocaleString());
+    setText("fqPositive", positive.toLocaleString());
+    setText("fqNegative", negative.toLocaleString());
+
+    // Pie
+    const pieCanvas = el("fqPieChart");
+    if (pieCanvas) {
+      chartFQPie = new Chart(pieCanvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: FOOD_LABELS,
+          datasets: [{ data: FOOD_FIELDS.map(f=>totals[f]), backgroundColor:FOOD_COLORS, borderWidth:2, hoverOffset:6 }]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false, cutout:"55%",
+          plugins: {
+            legend:{ position:"bottom", labels:{ usePointStyle:true, pointStyle:"circle", padding:12, font:{size:11} } },
+            tooltip:{ callbacks:{ label: c => { const pct = grandTotal>0?(c.raw/grandTotal*100).toFixed(1):0; return ` ${c.label}: ${c.raw} (${pct}%)`; } } }
+          }
+        }
+      });
+    }
+
+    // Stacked bar
+    const barCanvas = el("fqBarChart");
+    if (barCanvas) {
+      chartFQBar = new Chart(barCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: MONTHS,
+          datasets: FOOD_FIELDS.map((f,i) => ({
+            label: FOOD_LABELS[i], data: byMonth[f],
+            backgroundColor: FOOD_COLORS[i], borderRadius:0
+          }))
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          plugins: { legend:{ position:"top", labels:{ usePointStyle:true, pointStyle:"circle", padding:10, font:{size:11} } } },
+          scales: {
+            x: { stacked:true, grid:{display:false} },
+            y: { stacked:true, beginAtZero:true, grid:{color:"#f0f0ee"} }
+          }
+        }
+      });
+    }
+  } catch(e) { console.error("FQ error:", e); }
+}
+
+// ── ⑧ Welfare ────────────────────────────────────────────────────────────────
+async function loadWelfare() {
+  const MK = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  try {
+    const snap = await getDoc(doc(db, "welfare_data", String(currentYear)));
+    if (!snap.exists()) { setText("wfTotal","No data"); return; }
+    const months = snap.data().months || {};
+
+    const totalArr    = MK.map(m => Number(months[m]?.total)    || 0);
+    const solvedArr   = MK.map(m => Number(months[m]?.solved)   || 0);
+    const followupArr = MK.map(m => Number(months[m]?.followup) || 0);
+
+    const grandTotal  = totalArr.reduce((a,b)=>a+b,0);
+    const grandSolved = solvedArr.reduce((a,b)=>a+b,0);
+    const grandFollow = followupArr.reduce((a,b)=>a+b,0);
+    const pct         = grandTotal > 0 ? (grandSolved/grandTotal*100).toFixed(1) : "—";
+
+    setText("wfTotal",    grandTotal.toLocaleString());
+    setText("wfSolved",   grandSolved.toLocaleString());
+    setText("wfFollowup", grandFollow.toLocaleString());
+    setText("wfPct", pct !== "—" ? `${pct}% resolved` : "—");
+
+    // Pie
+    const pieCanvas = el("wfPieChart");
+    if (pieCanvas) {
+      chartWFPie = new Chart(pieCanvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["Solved","Follow-up"],
+          datasets: [{ data:[grandSolved,grandFollow],
+            backgroundColor:["rgba(22,101,52,0.8)","rgba(180,83,9,0.7)"],
+            borderColor:["#166534","#b45309"], borderWidth:2, hoverOffset:6 }]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false, cutout:"55%",
+          plugins: {
+            legend:{ position:"bottom", labels:{ usePointStyle:true, pointStyle:"circle", padding:20, font:{size:12} } },
+            tooltip:{ callbacks:{ label: c => { const pct=grandTotal>0?(c.raw/grandTotal*100).toFixed(1):0; return ` ${c.label}: ${c.raw} (${pct}%)`; } } }
+          }
+        }
+      });
+    }
+
+    // Bar
+    const barCanvas = el("wfBarChart");
+    if (barCanvas) {
+      chartWFBar = new Chart(barCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: MONTHS,
+          datasets: [
+            { label:"Total",    data:totalArr,    backgroundColor:"rgba(17,17,17,0.12)", borderRadius:4 },
+            { label:"Solved",   data:solvedArr,   backgroundColor:"rgba(22,101,52,0.75)", borderRadius:4 },
+            { label:"Follow-up",data:followupArr, backgroundColor:"rgba(180,83,9,0.65)",  borderRadius:4 }
+          ]
+        },
+        options: {
+          responsive:true, maintainAspectRatio:false,
+          plugins: { legend:{ position:"top", labels:{ usePointStyle:true, pointStyle:"circle", padding:14, font:{size:12} } },
+            tooltip:{ callbacks:{ label: c => ` ${c.dataset.label}: ${c.raw}` } } },
+          scales: { x:{ grid:{display:false} }, y:{ beginAtZero:true, grid:{color:"#f0f0ee"} } }
+        }
+      });
+    }
+  } catch(e) { console.error("Welfare error:", e); }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
