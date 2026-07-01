@@ -7,175 +7,121 @@
   <link rel="stylesheet" href="style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    .hr-body { background: var(--bg); }
-    .hr-main {
-      max-width: 1000px; margin: 0 auto; padding: 40px 24px;
-      animation: fadeUp 400ms 80ms var(--ease) both;
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #F0F2F5; --surface: #ffffff; --border: #DDE1E7;
+      --text: #0F1923; --muted: #64748B; --radius: 12px;
+      --navy: #1E3A5F; --steel: #2E5B88; --teal: #1B6B6B;
+      --sage: #3A6B4A; --gold: #8B6914; --rust: #8B3A2A;
+      --ease: cubic-bezier(0.65,0,0.35,1);
     }
-    .hr-top {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
-    }
-    .hr-top h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
-    .hr-top p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
-    .year-pick { display: flex; align-items: center; gap: 10px; }
-    .year-pick label { font-size: 0.875rem; font-weight: 500; color: var(--muted); }
-    .year-pick select {
-      padding: 8px 14px; border: 1.5px solid var(--border);
-      border-radius: 8px; font-family: inherit; font-size: 0.9375rem;
-      font-weight: 600; color: var(--text); background: var(--surface);
-      outline: none; cursor: pointer; width: auto;
-      transition: border-color 200ms, box-shadow 200ms;
-    }
-    .year-pick select:focus {
-      border-color: var(--accent); box-shadow: 0 0 0 3px rgba(17,17,17,.07);
-    }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
-    /* Loading */
-    .loading-state {
-      text-align: center; padding: 80px; color: var(--muted); font-size: 0.9rem;
-    }
-    .loading-state .icon { font-size: 2.5rem; margin-bottom: 14px; }
+    /* ── Topbar ── */
+    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:58px; }
+    .topbar-brand { display:flex; align-items:center; gap:10px; }
+    .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+    .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
+    .topbar-right { display:flex; align-items:center; gap:14px; }
+    .user-badge { font-size:0.8rem; color:var(--muted); }
+    .logout-btn { background:none; border:1.5px solid var(--border); border-radius:7px; padding:6px 14px; font-family:inherit; font-size:0.8rem; font-weight:500; cursor:pointer; color:var(--text); transition:all 180ms; }
+    .logout-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
 
-    .section { margin-bottom: 24px; }
+    /* ── Layout ── */
+    .hr-main { max-width:1060px; margin:0 auto; padding:36px 24px 72px; animation:fadeUp 400ms var(--ease) both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Page header ── */
+    .page-top { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
+    .page-top h1 { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; }
+    .page-top p  { font-size:0.875rem; color:var(--muted); margin-top:4px; }
+    .year-pick { display:flex; align-items:center; gap:10px; }
+    .year-pick label { font-size:0.8rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .year-pick select { padding:8px 14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; font-weight:600; color:var(--text); background:var(--surface); outline:none; cursor:pointer; transition:border-color 200ms, box-shadow 200ms; }
+    .year-pick select:focus { border-color:var(--navy); box-shadow:0 0 0 3px rgba(30,58,95,.1); }
+
+    /* ── Loading ── */
+    .loading-state { text-align:center; padding:80px; color:var(--muted); font-size:0.9rem; }
+    .loading-state .icon { font-size:2.5rem; margin-bottom:14px; }
+
+    /* ── Section divider ── */
+    .section-title {
+      display:flex; align-items:center; gap:10px;
+      font-size:0.95rem; font-weight:700; letter-spacing:-0.01em;
+      color:var(--text); margin:36px 0 18px;
+    }
+    .section-title::before { content:''; flex:none; width:4px; height:18px; background:var(--navy); border-radius:2px; }
+    .section-title::after  { content:''; flex:1; height:1px; background:var(--border); }
+
+    /* ── Stat row ── */
+    .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+    .stat-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:20px; }
+    .stat-card .sc-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; }
+    .stat-card .sc-value { font-size:1.6rem; font-weight:700; letter-spacing:-0.03em; line-height:1; }
+    .stat-card .sc-sub   { font-size:0.75rem; color:var(--muted); margin-top:6px; }
+    .sc-navy { color:var(--navy); }
+    .sc-teal { color:var(--teal); }
+    .sc-sage { color:var(--sage); }
+    .sc-gold { color:var(--gold); }
+    .sc-rust { color:var(--rust); }
 
     /* ── Pct card ── */
-    .pct-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); padding: 28px 24px;
-      display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
-    }
-    .pct-left { flex: 0 0 auto; }
-    .pct-label {
-      font-size: 0.75rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
-    }
-    .pct-value {
-      font-size: 3rem; font-weight: 700; letter-spacing: -0.05em; line-height: 1;
-    }
-    .pct-value.over  { color: #991b1b; }
-    .pct-value.under { color: #166534; }
-    .pct-value.exact { color: var(--text); }
-    .pct-right { flex: 1; min-width: 200px; }
-    .pct-bar-track {
-      height: 8px; background: #f0f0ee; border-radius: 99px;
-      overflow: hidden; margin-bottom: 14px;
-    }
-    .pct-bar-fill {
-      height: 100%; border-radius: 99px;
-      transition: width 700ms cubic-bezier(0.65,0,0.35,1);
-    }
-    .pct-bar-fill.over  { background: #991b1b; }
-    .pct-bar-fill.under { background: #166534; }
-    .pct-bar-fill.exact { background: var(--accent); }
-    .pct-stats { display: flex; gap: 24px; flex-wrap: wrap; }
-    .pct-stat .s-label {
-      font-size: 0.72rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;
-    }
-    .pct-stat .s-val { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
-    .pct-stat .s-val.pos { color: #991b1b; }
-    .pct-stat .s-val.neg { color: #166534; }
+    .pct-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:24px 28px; display:flex; align-items:center; gap:36px; flex-wrap:wrap; margin-bottom:20px; }
+    .pct-left { flex:0 0 auto; }
+    .pct-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }
+    .pct-value { font-size:3.2rem; font-weight:800; letter-spacing:-0.06em; line-height:1; }
+    .pct-value.over  { color:var(--rust); }
+    .pct-value.under { color:var(--steel); }
+    .pct-value.exact { color:var(--sage); }
+    .pct-right { flex:1; min-width:220px; }
+    .pct-bar-track { height:8px; background:#EDF0F4; border-radius:99px; overflow:hidden; margin-bottom:16px; }
+    .pct-bar-fill  { height:100%; border-radius:99px; transition:width 800ms var(--ease); }
+    .pct-bar-fill.over  { background:var(--rust); }
+    .pct-bar-fill.under { background:var(--steel); }
+    .pct-bar-fill.exact { background:var(--sage); }
+    .pct-stats { display:flex; gap:28px; flex-wrap:wrap; }
+    .pct-stat .ps-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px; }
+    .pct-stat .ps-val   { font-size:1.1rem; font-weight:700; letter-spacing:-0.02em; }
+    .ps-val.pos { color:var(--rust); }
+    .ps-val.neg { color:var(--steel); }
 
     /* ── Chart cards ── */
-    .chart-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); padding: 28px 24px;
-    }
-    .chart-header {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
-    }
-    .chart-header h2 { font-size: 1rem; font-weight: 600; }
-    .chart-header p  { font-size: 0.8rem; color: var(--muted); margin-top: 3px; }
-    .legend { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 500; color: var(--muted); }
-    .legend-dot  { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-    .dot-plan     { background: #d0d0cc; }
-    .dot-consumed { background: #111; }
-    .chart-wrap     { position: relative; height: 300px; }
-    .chart-wrap-ytd { position: relative; height: 260px; }
+    .chart-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:24px; }
+    .chart-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+    .chart-head h2 { font-size:0.95rem; font-weight:700; }
+    .chart-head p  { font-size:0.78rem; color:var(--muted); margin-top:3px; }
+    .chart-wrap     { position:relative; height:300px; }
+    .chart-wrap-md  { position:relative; height:260px; }
+    .chart-wrap-pie { position:relative; height:270px; }
 
-    /* YTD stat chips */
-    .ytd-stats { display: flex; gap: 28px; flex-wrap: wrap; }
-    .ytd-stat .ys-label { font-size: 0.72rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
-    .ytd-stat .ys-val   { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
-    .ytd-stat .ys-val.pos { color: #991b1b; }
-    .ytd-stat .ys-val.neg { color: #166534; }
+    /* Grid layouts */
+    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+    @media(max-width:640px){ .grid-2{grid-template-columns:1fr;} }
+    .mb-18 { margin-bottom:18px; }
 
-    /* ── Monthly table ── */
-    .table-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); overflow: hidden;
-    }
-    .table-card-header {
-      padding: 18px 24px 16px; border-bottom: 1px solid var(--border);
-      font-size: 0.875rem; font-weight: 600;
-    }
-    .hr-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    .hr-table th {
-      padding: 11px 20px; text-align: left;
-      font-size: 0.72rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em;
-      background: #fafaf9; border-bottom: 1px solid var(--border);
-    }
-    .hr-table th:not(:first-child) { text-align: right; }
-    .hr-table td {
-      padding: 12px 20px; border-bottom: 1px solid #f0f0ee; vertical-align: middle;
-    }
-    .hr-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-    .hr-table tr:last-child td { border-bottom: none; }
-    .hr-table tr:hover td { background: #fafaf9; }
-    .hr-table .total-row td {
-      font-weight: 700; background: #fafaf9;
-      border-top: 1.5px solid var(--border); border-bottom: none;
-    }
-    .diff-p { color: #991b1b; font-weight: 600; }
-    .diff-n { color: #166534; font-weight: 600; }
-    .diff-z { color: var(--muted); }
+    /* YTD chip row */
+    .ytd-chips { display:flex; gap:24px; flex-wrap:wrap; }
+    .ytd-chip .yc-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px; }
+    .ytd-chip .yc-val   { font-size:1.05rem; font-weight:700; letter-spacing:-0.02em; }
+    .yc-val.pos { color:var(--rust); }
+    .yc-val.neg { color:var(--steel); }
 
     /* Last updated */
-    .last-updated {
-      font-size: 0.75rem; color: var(--muted);
-      padding: 8px 0; margin-bottom: 16px; display: none;
-    }
+    .last-updated { font-size:0.73rem; color:var(--muted); margin-bottom:20px; display:none; }
 
-    /* ── YEEP section ── */
-    .section-title {
-      font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em;
-      margin: 36px 0 16px; padding-top: 20px;
-      border-top: 1.5px solid var(--border);
-    }
-    .yeep-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
-      margin-bottom: 24px;
-    }
-    @media (max-width: 640px) { .yeep-grid { grid-template-columns: 1fr; } }
-    .pie-wrap { position: relative; height: 260px; }
-    .yeep-stat-row {
-      display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
-      margin-bottom: 24px;
-    }
-    .yeep-stat {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); padding: 18px 16px;
-    }
-    .yeep-stat .yst-label {
-      font-size: 0.72rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px;
-    }
-    .yeep-stat .yst-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
-    .yeep-stat .yst-sub   { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
-    .es-color { color: #3730a3; }
-    .er-color { color: #166534; }
+    /* Diff */
+    .diff-p { color:var(--rust);  font-weight:600; }
+    .diff-n { color:var(--steel); font-weight:600; }
+    .diff-z { color:var(--muted); }
   </style>
 </head>
-<body class="hr-body">
+<body>
 
   <header class="topbar">
     <div class="topbar-brand">
       <div class="brand-icon">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
           <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
           <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
@@ -185,17 +131,18 @@
       <span class="brand-name">EMS</span>
     </div>
     <div class="topbar-right">
-      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
+      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
   </header>
 
   <main class="hr-main">
-    <div class="hr-top">
+
+    <div class="page-top">
       <div>
         <h1>HR Dashboard</h1>
-        <p>Leave plan vs consumed — shared data.</p>
+        <p>Consolidated view — Leave, YEEP, Health, Food Quality & Welfare.</p>
       </div>
       <div class="year-pick">
         <label for="yearSelect">Year</label>
@@ -212,199 +159,122 @@
       <!-- Last updated -->
       <div class="last-updated" id="lastUpdated"></div>
 
-      <!-- ① % card -->
-      <div class="section">
-        <div class="pct-card">
-          <div class="pct-left">
-            <div class="pct-label">% of Consumed over Plan</div>
-            <div class="pct-value" id="pctValue">—</div>
-          </div>
-          <div class="pct-right">
-            <div class="pct-bar-track">
-              <div class="pct-bar-fill" id="pctBar" style="width:0%"></div>
+      <!-- ════════ LEAVE ════════ -->
+      <div class="section-title">Leave Plan vs Consumed</div>
+
+      <!-- Pct card -->
+      <div class="pct-card">
+        <div class="pct-left">
+          <div class="pct-label">% Consumed of Plan</div>
+          <div class="pct-value" id="pctValue">—</div>
+        </div>
+        <div class="pct-right">
+          <div class="pct-bar-track"><div class="pct-bar-fill" id="pctBar" style="width:0%"></div></div>
+          <div class="pct-stats">
+            <div class="pct-stat">
+              <div class="ps-label">Total Plan</div>
+              <div class="ps-val" id="pctPlan">—</div>
             </div>
-            <div class="pct-stats">
-              <div class="pct-stat">
-                <div class="s-label">Total Plan</div>
-                <div class="s-val" id="pctPlan">—</div>
-              </div>
-              <div class="pct-stat">
-                <div class="s-label">Total Consumed</div>
-                <div class="s-val" id="pctConsumed">—</div>
-              </div>
-              <div class="pct-stat">
-                <div class="s-label">Difference</div>
-                <div class="s-val" id="pctDiff">—</div>
-              </div>
+            <div class="pct-stat">
+              <div class="ps-label">Total Consumed</div>
+              <div class="ps-val" id="pctConsumed">—</div>
+            </div>
+            <div class="pct-stat">
+              <div class="ps-label">Difference</div>
+              <div class="ps-val" id="pctDiff">—</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ② Monthly column chart -->
-      <div class="section">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <h2>Monthly Plan vs Consumed</h2>
-              <p>Leave hours per month</p>
-            </div>
-            <div class="legend">
-              <div class="legend-item"><div class="legend-dot dot-plan"></div>Plan</div>
-              <div class="legend-item"><div class="legend-dot dot-consumed"></div>Consumed</div>
-            </div>
-          </div>
-          <div class="chart-wrap">
-            <canvas id="barChart"></canvas>
-          </div>
+      <!-- Leave bar chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>Monthly Plan vs Consumed</h2><p>Leave hours per month</p></div>
         </div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
       </div>
 
-      <!-- ③ YTD cumulative -->
-      <div class="section">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div>
-              <h2>YTD Cumulative</h2>
-              <p>Running total of plan vs consumed through the year</p>
-            </div>
-            <div class="ytd-stats">
-              <div class="ytd-stat">
-                <div class="ys-label">YTD Plan</div>
-                <div class="ys-val" id="ytdPlanVal">—</div>
-              </div>
-              <div class="ytd-stat">
-                <div class="ys-label">YTD Consumed</div>
-                <div class="ys-val" id="ytdConsumedVal">—</div>
-              </div>
-              <div class="ytd-stat">
-                <div class="ys-label">YTD Diff</div>
-                <div class="ys-val" id="ytdDiffVal">—</div>
-              </div>
-            </div>
-          </div>
-          <div class="chart-wrap-ytd">
-            <canvas id="ytdChart"></canvas>
+      <!-- YTD line chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>YTD Cumulative</h2><p>Running total through the year</p></div>
+          <div class="ytd-chips">
+            <div class="ytd-chip"><div class="yc-label">YTD Plan</div><div class="yc-val" id="ytdPlanVal">—</div></div>
+            <div class="ytd-chip"><div class="yc-label">YTD Consumed</div><div class="yc-val" id="ytdConsumedVal">—</div></div>
+            <div class="ytd-chip"><div class="yc-label">YTD Diff</div><div class="yc-val" id="ytdDiffVal">—</div></div>
           </div>
         </div>
+        <div class="chart-wrap-md"><canvas id="ytdChart"></canvas></div>
       </div>
 
-      <!-- ⑤ YEEP Section -->
+      <!-- ════════ YEEP ════════ -->
       <div class="section-title">YEEP Installation</div>
 
-      <!-- Stat cards -->
-      <div class="yeep-stat-row">
-        <div class="yeep-stat">
-          <div class="yst-label">Total Installations</div>
-          <div class="yst-value" id="yeepTotal">—</div>
-          <div class="yst-sub">ES + ER combined</div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="sc-label">Total Installations</div><div class="sc-value sc-navy" id="yeepTotal">—</div><div class="sc-sub">ES + ER combined</div></div>
+        <div class="stat-card"><div class="sc-label">ES Team</div><div class="sc-value" style="color:#1E3A5F" id="yeepES">—</div><div class="sc-sub" id="yeepESPct">—</div></div>
+        <div class="stat-card"><div class="sc-label">ER Team</div><div class="sc-value" style="color:#1B6B6B" id="yeepER">—</div><div class="sc-sub" id="yeepERPct">—</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>ES vs ER Split</h2><p>Total by team</p></div></div>
+          <div class="chart-wrap-pie"><canvas id="yeepPieChart"></canvas></div>
         </div>
-        <div class="yeep-stat">
-          <div class="yst-label">ES Team</div>
-          <div class="yst-value es-color" id="yeepES">—</div>
-          <div class="yst-sub" id="yeepESPct">—% of total</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">ER Team</div>
-          <div class="yst-value er-color" id="yeepER">—</div>
-          <div class="yst-sub" id="yeepERPct">—% of total</div>
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>Monthly ES vs ER</h2><p>Installations per month</p></div></div>
+          <div class="chart-wrap-md"><canvas id="yeepBarChart"></canvas></div>
         </div>
       </div>
 
-      <!-- Pie charts -->
-      <div class="yeep-grid">
+      <!-- ════════ HEALTH CHECKUP ════════ -->
+      <div class="section-title">Health Checkup (YTD)</div>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="sc-label">Annual Target</div><div class="sc-value sc-navy" id="hcTarget">—</div></div>
+        <div class="stat-card"><div class="sc-label">YTD Completed</div><div class="sc-value sc-sage" id="hcCompleted">—</div></div>
+        <div class="stat-card"><div class="sc-label">Achievement</div><div class="sc-value" id="hcPct">—</div><div class="sc-sub" id="hcPctSub"></div></div>
+      </div>
+      <div class="chart-card mb-18">
+        <div class="chart-head"><div><h2>Monthly Completed vs Target Pace</h2><p>Checkups completed vs equal-monthly pace</p></div></div>
+        <div class="chart-wrap"><canvas id="hcBarChart"></canvas></div>
+      </div>
+
+      <!-- ════════ FOOD QUALITY ════════ -->
+      <div class="section-title">Monthly Food Quality Survey</div>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="sc-label">Total Surveys</div><div class="sc-value sc-navy" id="fqTotal">—</div></div>
+        <div class="stat-card"><div class="sc-label">Positive (VG + Good)</div><div class="sc-value sc-sage" id="fqPositive">—</div></div>
+        <div class="stat-card"><div class="sc-label">Negative (Bad + VB)</div><div class="sc-value sc-rust" id="fqNegative">—</div></div>
+      </div>
+      <div class="grid-2">
         <div class="chart-card">
-          <div class="chart-header">
-            <div><h2>ES vs ER Split</h2><p>Total installations by team</p></div>
-          </div>
-          <div class="pie-wrap"><canvas id="yeepPieChart"></canvas></div>
+          <div class="chart-head"><div><h2>Rating Distribution</h2><p>All months combined</p></div></div>
+          <div class="chart-wrap-pie"><canvas id="fqPieChart"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-header">
-            <div><h2>Monthly ES vs ER</h2><p>Installations per month by team</p></div>
-          </div>
-          <div class="chart-wrap"><canvas id="yeepBarChart"></canvas></div>
+          <div class="chart-head"><div><h2>Monthly by Rating</h2><p>Stacked count per month</p></div></div>
+          <div class="chart-wrap-md"><canvas id="fqBarChart"></canvas></div>
         </div>
       </div>
 
-      <!-- ⑥ Health Checkup -->
-      <div class="section-title">🏥 Health Checkup (YTD)</div>
-      <div class="yeep-stat-row">
-        <div class="yeep-stat">
-          <div class="yst-label">Target Group</div>
-          <div class="yst-value" id="hcTarget">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">YTD Completed</div>
-          <div class="yst-value" style="color:#166534;" id="hcCompleted">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">YTD Achievement</div>
-          <div class="yst-value" id="hcPct">—</div>
-          <div class="yst-sub" id="hcPctSub"></div>
-        </div>
-      </div>
-      <div class="section">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div><h2>Monthly Completed vs Target Pace</h2><p>Checkups completed each month against equal-pace target</p></div>
-          </div>
-          <div class="chart-wrap"><canvas id="hcBarChart"></canvas></div>
-        </div>
-      </div>
+      <!-- ════════ WELFARE ════════ -->
+      <div class="section-title">Welfare / Workplace Issue Resolution</div>
 
-      <!-- ⑦ Food Quality -->
-      <div class="section-title">🍽️ Monthly Food Quality Survey</div>
-      <div class="yeep-stat-row">
-        <div class="yeep-stat">
-          <div class="yst-label">Total Surveys</div>
-          <div class="yst-value" id="fqTotal">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">Positive (VG + Good)</div>
-          <div class="yst-value" style="color:#166534;" id="fqPositive">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">Negative (Bad + VB)</div>
-          <div class="yst-value" style="color:#991b1b;" id="fqNegative">—</div>
-        </div>
+      <div class="stat-row">
+        <div class="stat-card"><div class="sc-label">Total Issues</div><div class="sc-value sc-navy" id="wfTotal">—</div></div>
+        <div class="stat-card"><div class="sc-label">Solved</div><div class="sc-value sc-sage" id="wfSolved">—</div></div>
+        <div class="stat-card"><div class="sc-label">Follow-up</div><div class="sc-value sc-gold" id="wfFollowup">—</div><div class="sc-sub" id="wfPct"></div></div>
       </div>
-      <div class="yeep-grid">
+      <div class="grid-2">
         <div class="chart-card">
-          <div class="chart-header"><div><h2>Rating Distribution</h2><p>All months combined</p></div></div>
-          <div class="pie-wrap"><canvas id="fqPieChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header"><div><h2>Monthly Breakdown</h2><p>Stacked by rating per month</p></div></div>
-          <div class="chart-wrap"><canvas id="fqBarChart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ⑧ Welfare -->
-      <div class="section-title">🤝 Welfare / Workplace Issue Resolution</div>
-      <div class="yeep-stat-row">
-        <div class="yeep-stat">
-          <div class="yst-label">Total Issues</div>
-          <div class="yst-value" id="wfTotal">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">Solved</div>
-          <div class="yst-value" style="color:#166534;" id="wfSolved">—</div>
-        </div>
-        <div class="yeep-stat">
-          <div class="yst-label">Follow-up</div>
-          <div class="yst-value" style="color:#b45309;" id="wfFollowup">—</div>
-          <div class="yst-sub" id="wfPct"></div>
-        </div>
-      </div>
-      <div class="yeep-grid">
-        <div class="chart-card">
-          <div class="chart-header"><div><h2>Resolution Split</h2><p>Solved vs Follow-up (all months)</p></div></div>
-          <div class="pie-wrap"><canvas id="wfPieChart"></canvas></div>
+          <div class="chart-head"><div><h2>Resolution Split</h2><p>Solved vs follow-up total</p></div></div>
+          <div class="chart-wrap-pie"><canvas id="wfPieChart"></canvas></div>
         </div>
         <div class="chart-card">
-          <div class="chart-header"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
-          <div class="chart-wrap"><canvas id="wfBarChart"></canvas></div>
+          <div class="chart-head"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
+          <div class="chart-wrap-md"><canvas id="wfBarChart"></canvas></div>
         </div>
       </div>
 
