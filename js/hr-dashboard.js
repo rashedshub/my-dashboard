@@ -24,6 +24,7 @@ const P = {
   navyFade:  "rgba(30,58,95,0.12)",
   navySoft:  "rgba(30,58,95,0.55)",
   steel:     "#2E5B88",
+  steelFade: "rgba(46,91,136,0.18)",
   steelFade: "rgba(46,91,136,0.12)",
   teal:      "#1B6B6B",
   tealFade:  "rgba(27,107,107,0.15)",
@@ -549,7 +550,9 @@ async function buildDisc() {
   try {
     // Monthly outstanding numbers
     const outSnap = await getDoc(doc(db,"disciplinary_out",String(currentYear)));
-    const monthly = outSnap.exists() ? (outSnap.data().monthly||{}) : {};
+    const outFull  = outSnap.exists() ? outSnap.data() : {};
+    const monthly  = outFull.monthly || {};
+    const weekly   = outFull.weekly  || {};
     const monthArr = MONTHS.map(m => Number(monthly[m])||0);
     const total    = monthArr.reduce((a,b)=>a+b,0);
     const avg      = total>0 ? (total/monthArr.filter(v=>v>0).length).toFixed(1) : "—";
@@ -559,6 +562,23 @@ async function buildDisc() {
     set("discTotal", total>0?total.toLocaleString():"No data");
     set("discPeak",  peak);
     set("discAvg",   avg!=="—"?avg:"—");
+
+    // Populate weekly month selector
+    const sel = el("discWeekMonthSelect");
+    if (sel && sel.options.length === 0) {
+      MONTHS_FULL.forEach((m,i) => {
+        const o = document.createElement("option");
+        o.value = i; o.textContent = m;
+        if (i === new Date().getMonth()) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    // Store weekly data globally for refresh
+    window._discWeekly = weekly;
+    window._discCurrentYear = currentYear;
+    renderDiscWeekly(weekly);
+
 
     // Monthly bar chart
     const barCanvas=el("discBarChart");
@@ -658,6 +678,86 @@ async function buildDisc() {
 
   } catch(e){console.error("Disc:",e);}
 }
+
+// ── Disciplinary weekly chart helpers ────────────────────────────────────────
+function getWeeksInMonth(year, monthIdx) {
+  const weeks = []; const last = new Date(year, monthIdx+1, 0);
+  let d = new Date(year, monthIdx, 1); let n = 1;
+  while (d <= last) {
+    const s = new Date(d), e = new Date(d); e.setDate(e.getDate()+6);
+    if (e > last) e.setDate(last.getDate());
+    weeks.push({
+      label: `Wk${n} (${s.toLocaleDateString("en-US",{month:"short",day:"numeric"})})`,
+      key: `w${n}`
+    });
+    d.setDate(d.getDate()+7); n++;
+  }
+  return weeks;
+}
+
+function renderDiscWeekly(weeklyData) {
+  const sel        = el("discWeekMonthSelect"); if (!sel) return;
+  const monthIdx   = Number(sel.value);
+  const mKey       = MONTHS[monthIdx];
+  const monthData  = weeklyData?.[mKey] || {};
+  const weeks      = getWeeksInMonth(window._discCurrentYear || new Date().getFullYear(), monthIdx);
+  const values     = weeks.map(w => Number(monthData[w.key]) || 0);
+  const hasData    = values.some(v => v > 0);
+
+  const emptyEl = el("discWeeklyEmpty");
+  const wrapEl  = el("discWeeklyWrap");
+
+  if (!hasData) {
+    if (emptyEl) emptyEl.style.display = "block";
+    if (wrapEl)  wrapEl.style.display  = "none";
+    if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = "none";
+  if (wrapEl)  wrapEl.style.display  = "block";
+
+  if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
+
+  const canvas = el("discWeeklyChart"); if (!canvas) return;
+  const wData  = [...values];
+  charts.discWeekly = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [{
+        label: "Outstanding Cases",
+        data: wData,
+        backgroundColor: P.steelFade || "rgba(46,91,136,0.18)",
+        borderColor: P.steel,
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` Week ${c.dataIndex+1}: ${c.raw} cases` } }
+      },
+      scales: {
+        x: xCfg(),
+        y: yCfg({ suggestedMax: Math.max(...wData)*1.4 || 5, ticks: { stepSize: 1 } })
+      },
+      animation: {
+        onComplete(evt) {
+          if (evt.initial) return;
+          labelBars(evt.chart, [0], P.steel);
+        }
+      }
+    }
+  });
+}
+
+window.refreshDiscWeekly = function() {
+  renderDiscWeekly(window._discWeekly || {});
+};
 
 // ── Logout ────────────────────────────────────────────────────────────────────
 el("logoutBtn")?.addEventListener("click", async()=>{
