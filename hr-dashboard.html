@@ -303,6 +303,19 @@
         </div>
       </div>
 
+      <!-- Weekly outstanding chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>Weekly Outstanding Cases</h2><p>Week-by-week breakdown for selected month</p></div>
+          <div>
+            <select id="discWeekMonthSelect" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;font-weight:600;color:var(--text);background:var(--surface);outline:none;cursor:pointer;transition:border-color 200ms;" onchange="refreshDiscWeekly()">
+            </select>
+          </div>
+        </div>
+        <div id="discWeeklyEmpty" style="text-align:center;padding:40px;color:var(--muted);font-size:0.875rem;display:none;">No weekly data for this month.</div>
+        <div class="chart-wrap" style="display:none;" id="discWeeklyWrap"><canvas id="discWeeklyChart"></canvas></div>
+      </div>
+
     </div><!-- /mainContent -->
   </main>
 
