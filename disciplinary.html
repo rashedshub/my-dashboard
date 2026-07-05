@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Outstanding Disciplinary — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .disc-body { background: var(--bg); }
+    .disc-main {
+      max-width: 1300px; margin: 0 auto; padding: 36px 20px 72px;
+      animation: fadeUp 400ms 80ms var(--ease) both;
+    }
+
+    /* ── Header ── */
+    .disc-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 28px; flex-wrap: wrap; gap: 16px;
+    }
+    .disc-header h1 { font-size: 1.4rem; letter-spacing: -0.02em; font-weight: 700; }
+    .disc-header p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
+
+    .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .ctrl-select {
+      padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      color: var(--text); background: var(--surface); outline: none; cursor: pointer;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .ctrl-select:focus { border-color: #1E3A5F; box-shadow: 0 0 0 3px rgba(30,58,95,.1); }
+
+    /* ── Tabs: Case Table / Outstanding Number ── */
+    .page-tabs {
+      display: flex; border-bottom: 1.5px solid var(--border); margin-bottom: 24px;
+    }
+    .page-tab {
+      background: none; border: none; font-family: inherit;
+      font-size: 0.875rem; font-weight: 500; color: var(--muted);
+      padding: 10px 20px 10px 0; cursor: pointer; position: relative;
+      margin-right: 12px; transition: color 200ms;
+    }
+    .page-tab::after {
+      content: ''; position: absolute; bottom: -1.5px; left: 0; right: 0;
+      height: 2px; background: #1E3A5F; border-radius: 2px;
+      transform: scaleX(0); transition: transform 280ms var(--ease);
+    }
+    .page-tab.active { color: var(--text); }
+    .page-tab.active::after { transform: scaleX(1); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Summary stats ── */
+    .summary-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+      gap: 12px; margin-bottom: 24px;
+    }
+    .sum-card {
+      background: var(--surface); border-radius: 10px;
+      border: 1px solid var(--border); padding: 16px 18px;
+    }
+    .sum-card .sc-lbl {
+      font-size: 0.7rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
+    }
+    .sum-card .sc-val { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; color: #1E3A5F; }
+
+    /* ── Disciplinary table ── */
+    .disc-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px;
+    }
+    .disc-reason-header {
+      padding: 12px 16px; background: #1E3A5F; color: #fff;
+      font-size: 0.875rem; font-weight: 700; letter-spacing: 0.02em;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .add-row-btn {
+      background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
+      color: #fff; border-radius: 6px; padding: 4px 12px;
+      font-family: inherit; font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: background 160ms;
+    }
+    .add-row-btn:hover { background: rgba(255,255,255,0.3); }
+
+    .disc-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .disc-table thead tr { background: #f5f6f8; border-bottom: 1px solid var(--border); }
+    .disc-table th {
+      padding: 9px 10px; text-align: left;
+      font-size: 0.68rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+    }
+    .disc-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0ee; vertical-align: middle; }
+    .disc-table tr:last-child td { border-bottom: none; }
+    .disc-table tr:hover td { background: #fafaf9; }
+
+    /* Inputs inside table */
+    .di {
+      width: 100%; padding: 6px 8px; border: 1.5px solid var(--border);
+      border-radius: 6px; font-family: inherit; font-size: 0.8rem;
+      color: var(--text); background: #fafaf9; outline: none;
+      transition: border-color 180ms, box-shadow 180ms, background 180ms;
+    }
+    .di:focus { border-color: #1E3A5F; background: #fff; box-shadow: 0 0 0 2px rgba(30,58,95,.08); }
+    .di.di-sm  { width: 70px; }
+    .di.di-md  { width: 110px; }
+    .di.di-lg  { width: 160px; }
+    .di.di-xl  { width: 200px; }
+    .di.di-date{ width: 130px; }
+
+    .del-btn {
+      background: none; border: none; cursor: pointer; color: #ccc;
+      font-size: 1rem; padding: 4px; border-radius: 4px;
+      transition: color 160ms, background 160ms;
+    }
+    .del-btn:hover { color: #991b1b; background: #fee2e2; }
+
+    .empty-reason {
+      padding: 16px; text-align: center; color: var(--muted);
+      font-size: 0.8rem; font-style: italic;
+    }
+
+    /* ── Outstanding Number tab ── */
+    .out-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px;
+    }
+    .out-card-head {
+      padding: 14px 20px; background: #f5f6f8;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem; font-weight: 700;
+    }
+    .out-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .out-table th {
+      padding: 10px 16px; text-align: left;
+      font-size: 0.72rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      background: #f5f6f8; border-bottom: 1px solid var(--border);
+    }
+    .out-table th:not(:first-child) { text-align: center; }
+    .out-table td { padding: 8px 16px; border-bottom: 1px solid #f0f0ee; vertical-align: middle; }
+    .out-table td:first-child { font-weight: 500; }
+    .out-table td:not(:first-child) { text-align: center; }
+    .out-table tr:last-child td { border-bottom: none; }
+    .out-table tr:hover td { background: #fafaf9; }
+    .out-input {
+      width: 90px; padding: 7px 10px; border: 1.5px solid var(--border);
+      border-radius: 7px; font-family: inherit; font-size: 0.875rem; font-weight: 500;
+      color: var(--text); background: #fafaf9; text-align: center; outline: none;
+      transition: border-color 200ms, box-shadow 200ms, background 200ms;
+    }
+    .out-input:focus { border-color: #1E3A5F; background: #fff; box-shadow: 0 0 0 3px rgba(30,58,95,.1); }
+    .total-row td { font-weight: 700; background: #f5f6f8; border-top: 1.5px solid var(--border); }
+
+    /* ── Mode selector for outstanding ── */
+    .mode-bar {
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .mode-btn {
+      padding: 7px 18px; border-radius: 7px; border: 1.5px solid var(--border);
+      background: var(--surface); font-family: inherit; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; color: var(--muted); transition: all 160ms;
+    }
+    .mode-btn.active { background: #1E3A5F; color: #fff; border-color: #1E3A5F; }
+    .month-picker { display: flex; align-items: center; gap: 8px; }
+    .month-picker label { font-size: 0.8rem; font-weight: 500; color: var(--muted); }
+
+    /* ── Save bar ── */
+    .save-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;
+    }
+    .save-bar .message { margin: 0; font-size: 0.875rem; }
+    .save-btn { width: auto; padding: 10px 28px; background: #1E3A5F; }
+    .save-btn:hover { background: #2E5B88; }
+
+    .last-saved {
+      font-size: 0.73rem; color: var(--muted); padding: 8px 20px;
+      border-top: 1px solid var(--border); background: #fafaf9; display: none;
+    }
+  </style>
+</head>
+<body class="disc-body">
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="disc-main">
+
+    <div class="disc-header">
+      <div>
+        <h1>Outstanding Disciplinary</h1>
+        <p>Shared — any user can view and update. Last save overwrites.</p>
+      </div>
+      <div class="controls">
+        <select class="ctrl-select" id="yearSelect"></select>
+      </div>
+    </div>
+
+    <!-- Page tabs -->
+    <div class="page-tabs">
+      <button class="page-tab active" data-tab="cases">📋 Case Records</button>
+      <button class="page-tab" data-tab="outstanding">📊 Outstanding Number</button>
+    </div>
+
+    <!-- ═══ TAB 1: CASE RECORDS ═══ -->
+    <div class="tab-content active" id="tab-cases">
+
+      <!-- Summary -->
+      <div class="summary-row">
+        <div class="sum-card"><div class="sc-lbl">Total Cases</div><div class="sc-val" id="sumTotal">0</div></div>
+        <div class="sum-card"><div class="sc-lbl">Reasons Active</div><div class="sc-val" id="sumReasons">0</div></div>
+        <div class="sum-card"><div class="sc-lbl">Last Updated</div><div class="sc-val" style="font-size:0.9rem;margin-top:4px;" id="sumUpdated">—</div></div>
+      </div>
+
+      <!-- Reason tables -->
+      <div id="reasonTables"></div>
+
+      <!-- Save -->
+      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;">
+        <div class="last-saved" id="caseLastSaved"></div>
+        <div class="save-bar">
+          <p class="message" id="caseMsg"></p>
+          <button class="btn save-btn" id="caseSaveBtn">
+            <span class="btn-label">Save All Cases</span>
+            <span class="spinner"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ TAB 2: OUTSTANDING NUMBER ═══ -->
+    <div class="tab-content" id="tab-outstanding">
+
+      <div class="mode-bar">
+        <button class="mode-btn active" id="modeMonthly" onclick="setMode('monthly')">Monthly</button>
+        <button class="mode-btn" id="modeWeekly" onclick="setMode('weekly')">Weekly</button>
+        <div class="month-picker" id="weekMonthPicker" style="display:none;">
+          <label>Month:</label>
+          <select class="ctrl-select" id="weekMonthSelect"></select>
+        </div>
+      </div>
+
+      <div class="out-card">
+        <div class="out-card-head" id="outTableTitle">Monthly Outstanding Numbers</div>
+        <div id="outTableArea"></div>
+        <div class="last-saved" id="outLastSaved"></div>
+        <div class="save-bar">
+          <p class="message" id="outMsg"></p>
+          <button class="btn save-btn" id="outSaveBtn">
+            <span class="btn-label">Save</span>
+            <span class="spinner"></span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/disciplinary.js"></script>
+</body>
+</html>
