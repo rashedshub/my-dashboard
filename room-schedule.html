@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Room Schedule — EMS</title>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --navy:#1E3A5F; --steel:#2E5B88; --bg:#F0F2F5;
+      --surface:#fff; --border:#DDE1E7; --text:#0F1923; --muted:#64748B;
+      --radius:12px; --ease:cubic-bezier(0.65,0,0.35,1);
+    }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+    /* ── Topbar ── */
+    .topbar {
+      background:#fff; border-bottom:1px solid var(--border);
+      padding:0 28px; height:58px; display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+    }
+    .topbar-brand { display:flex; align-items:center; gap:10px; }
+    .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+    .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
+    .book-btn {
+      padding:9px 20px; background:var(--navy); color:#fff; border:none;
+      border-radius:8px; font-family:inherit; font-size:0.875rem; font-weight:600;
+      cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:7px;
+      transition:background 180ms;
+    }
+    .book-btn:hover { background:var(--steel); }
+
+    /* ── Main ── */
+    .main { max-width:900px; margin:0 auto; padding:36px 20px 72px; }
+
+    /* ── Page header ── */
+    .page-head { margin-bottom:32px; }
+    .page-head h1 { font-size:1.5rem; font-weight:800; letter-spacing:-0.03em; }
+    .page-head p  { font-size:0.875rem; color:var(--muted); margin-top:5px; }
+    .page-head .date-badge {
+      display:inline-block; margin-top:12px; padding:6px 14px;
+      background:#EEF3FA; color:var(--navy); border-radius:99px;
+      font-size:0.8rem; font-weight:700; letter-spacing:0.02em;
+    }
+
+    /* ── Day section ── */
+    .day-section { margin-bottom:36px; }
+    .day-label {
+      display:flex; align-items:center; gap:10px;
+      font-size:1rem; font-weight:800; letter-spacing:-0.01em;
+      margin-bottom:14px;
+    }
+    .day-label .dl-tag {
+      padding:3px 10px; border-radius:99px; font-size:0.7rem; font-weight:700;
+      letter-spacing:0.05em; text-transform:uppercase;
+    }
+    .dl-tag.today { background:#1E3A5F; color:#fff; }
+    .dl-tag.tomorrow { background:#e0e8f4; color:#1E3A5F; }
+    .day-date { font-size:0.875rem; color:var(--muted); font-weight:500; }
+
+    /* ── Room column layout ── */
+    .rooms-grid {
+      display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px;
+    }
+    .room-col { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
+    .room-col-head {
+      padding:12px 16px; display:flex; align-items:center; gap:10px;
+      border-bottom:1px solid var(--border);
+    }
+    .room-col-stripe { width:5px; height:36px; border-radius:3px; flex-shrink:0; }
+    .room-col-name { font-size:0.875rem; font-weight:700; }
+    .room-col-cap  { font-size:0.75rem; color:var(--muted); margin-top:1px; }
+
+    /* Booking slots */
+    .slots { padding:10px 0; }
+    .slot {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:10px 16px; border-bottom:1px solid #f0f0ee;
+      transition:background 130ms;
+    }
+    .slot:last-child { border-bottom:none; }
+    .slot:hover { background:#fafbfc; }
+    .slot-time {
+      font-size:0.72rem; font-weight:700; color:var(--muted);
+      white-space:nowrap; min-width:80px; margin-top:2px;
+    }
+    .slot-info { flex:1; min-width:0; }
+    .slot-title { font-size:0.875rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .slot-by    { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+
+    /* Empty state per room */
+    .no-bookings {
+      padding:20px 16px; text-align:center; color:var(--muted); font-size:0.8rem;
+    }
+    .no-bookings .nb-icon { font-size:1.4rem; margin-bottom:6px; }
+
+    /* ── Live badge ── */
+    .live-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      font-size:0.72rem; font-weight:600; color:#3A6B4A;
+      background:#dcfce7; padding:4px 10px; border-radius:99px; margin-left:10px;
+    }
+    .live-dot { width:7px; height:7px; border-radius:50%; background:#3A6B4A; animation:pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    /* ── Loading ── */
+    .loading { text-align:center; padding:60px; color:var(--muted); font-size:0.9rem; }
+    .loading .li { font-size:2rem; margin-bottom:14px; }
+
+    /* ── CTA banner ── */
+    .cta-banner {
+      background:linear-gradient(135deg,#1E3A5F 0%,#2E5B88 100%);
+      border-radius:var(--radius); padding:24px 28px;
+      display:flex; align-items:center; justify-content:space-between;
+      flex-wrap:wrap; gap:16px; margin-bottom:32px;
+    }
+    .cta-banner h2 { font-size:1rem; font-weight:700; color:#fff; }
+    .cta-banner p  { font-size:0.8rem; color:rgba(255,255,255,.7); margin-top:4px; }
+    .cta-book {
+      padding:10px 22px; background:#fff; color:var(--navy);
+      border:none; border-radius:8px; font-family:inherit; font-size:0.875rem;
+      font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap;
+      transition:all 160ms; display:inline-block;
+    }
+    .cta-book:hover { background:#EEF3FA; }
+
+    /* ── Refresh bar ── */
+    .refresh-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+    .last-refresh { font-size:0.75rem; color:var(--muted); }
+    .refresh-btn {
+      background:none; border:1.5px solid var(--border); border-radius:7px;
+      padding:5px 12px; font-family:inherit; font-size:0.78rem; font-weight:500;
+      cursor:pointer; color:var(--muted); transition:all 160ms;
+    }
+    .refresh-btn:hover { border-color:var(--navy); color:var(--navy); }
+
+    /* ── Now indicator ── */
+    .now-chip {
+      display:inline-block; padding:2px 8px; border-radius:99px;
+      background:#dcfce7; color:#166534; font-size:0.68rem; font-weight:700;
+      margin-left:6px; text-transform:uppercase; letter-spacing:0.05em;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <a href="login.html?redirect=room-booking.html" class="book-btn">
+      📅 Book a Room
+    </a>
+  </header>
+
+  <main class="main">
+
+    <div class="page-head">
+      <h1>Training Room Schedule <span class="live-badge"><span class="live-dot"></span>Live</span></h1>
+      <p>Today and tomorrow's room availability — no login required.</p>
+      <div class="date-badge" id="headerDate"></div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-banner">
+      <div>
+        <h2>Want to book a room?</h2>
+        <p>Log in with your EMS account to make or cancel bookings.</p>
+      </div>
+      <a href="login.html?redirect=room-booking.html" class="cta-book">Log in to Book →</a>
+    </div>
+
+    <!-- Refresh bar -->
+    <div class="refresh-bar">
+      <span class="last-refresh" id="lastRefresh">Loading…</span>
+      <button class="refresh-btn" onclick="loadSchedule()">↻ Refresh</button>
+    </div>
+
+    <!-- Schedule -->
+    <div id="scheduleArea">
+      <div class="loading"><div class="li">📋</div>Loading schedule…</div>
+    </div>
+
+  </main>
+
+  <script type="module" src="js/room-schedule.js"></script>
+</body>
+</html>
