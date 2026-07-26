@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manage Rooms — EMS</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    :root {
+      --navy:#1E3A5F; --steel:#2E5B88; --bg:#F0F2F5;
+      --surface:#fff; --border:#DDE1E7; --text:#0F1923; --muted:#64748B;
+      --radius:12px; --ease:cubic-bezier(0.65,0,0.35,1);
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+
+    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 24px; height:56px; }
+    .topbar-brand { display:flex; align-items:center; gap:9px; }
+    .brand-icon { width:30px; height:30px; background:var(--navy); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+    .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; }
+    .topbar-right { display:flex; align-items:center; gap:12px; }
+    .user-badge { font-size:0.8rem; color:var(--muted); }
+    .logout-btn { background:none; border:1.5px solid var(--border); border-radius:7px; padding:6px 14px; font-family:inherit; font-size:0.8rem; font-weight:500; cursor:pointer; color:var(--text); transition:all 180ms; }
+    .logout-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
+
+    .rm-main { max-width:780px; margin:0 auto; padding:36px 20px 60px; animation:fadeUp 400ms var(--ease) both; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+    .rm-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:16px; }
+    .rm-header h1 { font-size:1.4rem; font-weight:700; letter-spacing:-0.02em; }
+    .rm-header p  { font-size:0.875rem; color:var(--muted); margin-top:4px; }
+
+    /* Add room form */
+    .form-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:24px; margin-bottom:24px; }
+    .form-card h2 { font-size:0.95rem; font-weight:700; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--border); }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+    .form-grid.full { grid-template-columns:1fr; }
+    .field { display:flex; flex-direction:column; gap:6px; }
+    .field label { font-size:0.75rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .field input, .field select {
+      padding:10px 13px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:inherit; font-size:0.9rem; color:var(--text);
+      background:#fafaf9; outline:none;
+      transition:border-color 200ms, box-shadow 200ms, background 200ms;
+    }
+    .field input:focus, .field select:focus {
+      border-color:var(--navy); background:#fff;
+      box-shadow:0 0 0 3px rgba(30,58,95,.1);
+    }
+
+    /* Color picker row */
+    .color-row { display:flex; gap:10px; flex-wrap:wrap; }
+    .color-swatch {
+      width:32px; height:32px; border-radius:8px; cursor:pointer;
+      border:3px solid transparent; transition:transform 160ms, border-color 160ms;
+    }
+    .color-swatch:hover { transform:scale(1.12); }
+    .color-swatch.selected { border-color:var(--text); transform:scale(1.12); }
+
+    .btn-primary {
+      padding:10px 24px; border-radius:8px; background:var(--navy); color:#fff;
+      border:none; font-family:inherit; font-size:0.875rem; font-weight:600;
+      cursor:pointer; transition:background 180ms; display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn-primary:hover { background:var(--steel); }
+    .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+    .spin { width:15px; height:15px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin 0.7s linear infinite; display:none; }
+    .btn-primary.loading .spin { display:block; }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .message { font-size:0.875rem; margin-top:12px; min-height:20px; }
+    .message.success { color:#3A6B4A; }
+    .message.error   { color:#8B3A2A; }
+
+    /* Rooms list */
+    .list-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
+    .list-head { padding:16px 20px; background:#f8f9fb; border-bottom:1px solid var(--border); font-size:0.875rem; font-weight:700; display:flex; align-items:center; justify-content:space-between; }
+    .room-count { font-size:0.78rem; color:var(--muted); font-weight:500; }
+
+    .room-row {
+      display:flex; align-items:center; gap:14px;
+      padding:14px 20px; border-bottom:1px solid #f0f0ee;
+      transition:background 140ms;
+    }
+    .room-row:last-child { border-bottom:none; }
+    .room-row:hover { background:#fafbfc; }
+    .room-color-badge { width:14px; height:36px; border-radius:4px; flex-shrink:0; }
+    .room-info { flex:1; min-width:0; }
+    .room-name { font-size:0.9rem; font-weight:600; }
+    .room-meta { font-size:0.78rem; color:var(--muted); margin-top:2px; }
+    .room-actions { display:flex; gap:8px; flex-shrink:0; }
+    .btn-icon-sm {
+      width:32px; height:32px; border-radius:7px; border:1.5px solid var(--border);
+      background:var(--surface); font-size:0.9rem; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; transition:all 160ms;
+    }
+    .btn-icon-sm.del:hover { border-color:#8B3A2A; background:#fee2e2; }
+    .btn-icon-sm.edit:hover { border-color:var(--navy); background:#EEF3FA; }
+
+    .empty-state { padding:48px; text-align:center; color:var(--muted); font-size:0.875rem; }
+    .empty-state .ei { font-size:2rem; margin-bottom:12px; }
+
+    .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--navy); color:#fff; padding:12px 22px; border-radius:10px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 20px rgba(0,0,0,.18); transition:all 320ms var(--ease); z-index:999; white-space:nowrap; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.success { background:#3A6B4A; }
+    .toast.error   { background:#8B3A2A; }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">EMS</span>
+    </div>
+    <div class="topbar-right">
+      <a href="admin.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:8px;">← Admin</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <main class="rm-main">
+
+    <div class="rm-header">
+      <div>
+        <h1>🏢 Manage Training Rooms</h1>
+        <p>Add, edit or remove rooms. Changes reflect immediately in the booking calendar.</p>
+      </div>
+    </div>
+
+    <!-- Add / Edit form -->
+    <div class="form-card">
+      <h2 id="formTitle">Add New Room</h2>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Room Name</label>
+          <input type="text" id="roomName" placeholder="e.g. Training Room A"/>
+        </div>
+        <div class="field">
+          <label>Capacity (persons)</label>
+          <input type="number" id="roomCapacity" min="1" placeholder="e.g. 30"/>
+        </div>
+      </div>
+
+      <div class="form-grid full">
+        <div class="field">
+          <label>Location / Floor (optional)</label>
+          <input type="text" id="roomLocation" placeholder="e.g. 3rd Floor, Block B"/>
+        </div>
+      </div>
+
+      <div class="field" style="margin-bottom:18px;">
+        <label>Colour</label>
+        <div class="color-row" id="colorRow"></div>
+        <input type="hidden" id="roomColor" value="#2E5B88"/>
+      </div>
+
+      <input type="hidden" id="editingId" value=""/>
+
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <button class="btn-primary" id="saveRoomBtn">
+          <span id="saveBtnLabel">Add Room</span>
+          <span class="spin"></span>
+        </button>
+        <button id="cancelEditBtn" style="display:none;background:none;border:none;font-family:inherit;font-size:0.875rem;color:var(--muted);cursor:pointer;text-decoration:underline;">Cancel edit</button>
+      </div>
+      <p class="message" id="formMsg"></p>
+    </div>
+
+    <!-- Rooms list -->
+    <div class="list-card">
+      <div class="list-head">
+        <span>Training Rooms</span>
+        <span class="room-count" id="roomCount">Loading…</span>
+      </div>
+      <div id="roomsList">
+        <div class="empty-state"><div class="ei">⏳</div>Loading rooms…</div>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <script type="module" src="js/rooms-admin.js"></script>
+</body>
+</html>
