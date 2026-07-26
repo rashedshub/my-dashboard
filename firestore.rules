@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    match /users/{userId} {
+      allow read: if isLoggedIn();
+      allow write: if isLoggedIn() && (request.auth.uid == userId || isAdmin());
+    }
+    match /surveys/{surveyId} {
+      allow read:  if isLoggedIn();
+      allow write: if isAdmin();
+    }
+    match /responses/{responseId} {
+      allow create: if isLoggedIn();
+      allow read: if isLoggedIn() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow update, delete: if isAdmin();
+    }
+    match /leave_data/{docId}         { allow read, write: if isLoggedIn(); }
+    match /yeep_data/{docId}          { allow read, write: if isLoggedIn(); }
+    match /health_data/{docId}        { allow read, write: if isLoggedIn(); }
+    match /food_data/{docId}          { allow read, write: if isLoggedIn(); }
+    match /welfare_data/{docId}       { allow read, write: if isLoggedIn(); }
+    match /disciplinary_cases/{docId} { allow read, write: if isLoggedIn(); }
+    match /disciplinary_out/{docId}   { allow read, write: if isLoggedIn(); }
+
+    // Training rooms — public read so schedule page works without login
+    // Only admin can add/edit/delete rooms
+    match /training_rooms/{roomId} {
+      allow read:  if true;
+      allow write: if isAdmin();
+    }
+
+    // Room bookings — public read for schedule page, login required to book
+    // Only the person who booked can cancel
+    match /room_bookings/{bookingId} {
+      allow read:   if true;
+      allow create: if isLoggedIn();
+      allow delete: if isLoggedIn() && resource.data.bookedBy == request.auth.uid;
+      allow update: if false;
+    }
+
+  }
+}
