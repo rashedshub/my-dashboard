@@ -14,6 +14,9 @@ const db   = getFirestore(app);
 const btn  = document.getElementById("loginBtn");
 const msg  = document.getElementById("message");
 
+// Check for ?redirect= param
+const redirectTo = new URLSearchParams(window.location.search).get("redirect") || null;
+
 function setLoading(on) {
   btn.disabled = on;
   btn.classList.toggle("loading", on);
@@ -48,20 +51,20 @@ async function login() {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    // Check role in Firestore and redirect accordingly
+    // Check role
     const snap = await getDoc(doc(db, "users", user.uid));
-    if (snap.exists()) {
-      const role = snap.data().role;
-      msg.className   = "message success";
-      msg.textContent = "Signed in — redirecting…";
-      setTimeout(() => {
+    const role = snap.exists() ? snap.data().role : "user";
+
+    msg.className   = "message success";
+    msg.textContent = "Signed in — redirecting…";
+
+    setTimeout(() => {
+      if (redirectTo) {
+        window.location.href = redirectTo;
+      } else {
         window.location.href = role === "admin" ? "admin.html" : "dashboard.html";
-      }, 600);
-    } else {
-      msg.className   = "message success";
-      msg.textContent = "Signed in — redirecting…";
-      setTimeout(() => window.location.href = "dashboard.html", 600);
-    }
+      }
+    }, 600);
 
   } catch (error) {
     msg.textContent = friendlyError(error.code);
@@ -69,4 +72,4 @@ async function login() {
   }
 }
 
-btn.addEventListener("click", login);
+document.getElementById("loginBtn").addEventListener("click", login);
