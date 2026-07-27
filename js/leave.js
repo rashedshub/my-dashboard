@@ -1,189 +1,220 @@
-/**
- * leave.js
- *
- * Firestore structure:
- *   leave_data/{year}  →  {
- *     year: 2026,
- *     months: {
- *       Jan: { plan: 5, consumed: 3 },
- *       Feb: { plan: 2, consumed: 2 },
- *       … (all 12 months)
- *     },
- *     updatedAt, updatedByEmail
- *   }
- *
- * One shared doc per year. Any logged-in user can read or overwrite.
- */
-
 import { app } from "./firebase.js";
-
-import { getAuth, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-
+import { guardRole } from "./guard.js";
+import {
+  getAuth, onAuthStateChanged, signOut
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
   getFirestore,
-  doc, getDoc, setDoc,
-  serverTimestamp
+  doc, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
-                "Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
+];
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let currentUser  = null;
-let selectedYear = new Date().getFullYear();
-let monthData    = {};   // { Jan: {plan, consumed}, … }
+let currentYear = new Date().getFullYear();
+let currentUser = null;
 
-// ── DOM refs ──────────────────────────────────────────────────────────────────
-const yearSelect  = document.getElementById("yearSelect");
-const tableBody   = document.getElementById("tableBody");
-const saveBtn     = document.getElementById("saveBtn");
-const saveMsg     = document.getElementById("saveMsg");
-const lastUpdated = document.getElementById("lastUpdated");
-const topbarEmail = document.getElementById("topbarEmail");
-const logoutBtn   = document.getElementById("logoutBtn");
-const toast       = document.getElementById("toast");
-
-// ── Year selector ─────────────────────────────────────────────────────────────
-function populateYears() {
-  const current = new Date().getFullYear();
-  for (let y = current - 2; y <= current + 2; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    if (y === current) opt.selected = true;
-    yearSelect.appendChild(opt);
-  }
-}
-
-yearSelect.addEventListener("change", () => {
-  selectedYear = parseInt(yearSelect.value, 10);
-  loadData();
-});
+function el(id)           { return document.getElementById(id); }
+function setText(id, val) { const n = el(id); if (n) n.textContent = val; }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, user => {
-  if (!user) { window.location.href = "index.html"; return; }
+guardRole(["admin","data_entry"]).then(({ user }) => {
   currentUser = user;
-  topbarEmail.textContent = user.email;
-  populateYears();
+  setText("topbarEmail", user.email);
+  buildYearSelector();
   loadData();
 });
 
-logoutBtn.addEventListener("click", () => signOut(auth));
-
-// ── Load shared doc for selected year ─────────────────────────────────────────
-async function loadData() {
-  saveMsg.textContent = "";
-  lastUpdated.textContent = "";
-  renderRows({}); // clear while loading
-
-  try {
-    const snap = await getDoc(doc(db, "leave_data", String(selectedYear)));
-    monthData = snap.exists() ? (snap.data().months || {}) : {};
-
-    if (snap.exists() && snap.data().updatedAt) {
-      const ts = snap.data().updatedAt.toDate();
-      lastUpdated.textContent =
-        `Last updated: ${ts.toLocaleString()}  ·  by ${snap.data().updatedByEmail || "—"}`;
-    } else {
-      lastUpdated.textContent = "No data saved yet for this year.";
-    }
-  } catch (err) {
-    console.error("loadData:", err);
-    showToast("Failed to load data.", "error");
+// ── Year selector ─────────────────────────────────────────────────────────────
+function buildYearSelector() {
+  const sel  = el("yearSelect");
+  const base = new Date().getFullYear();
+  for (let y = base - 2; y <= base + 5; y++) {
+    const opt = document.createElement("option");
+    opt.value = y; opt.textContent = y;
+    if (y === base) opt.selected = true;
+    sel.appendChild(opt);
   }
-
-  renderRows(monthData);
+  sel.addEventListener("change", () => {
+    currentYear = Number(sel.value);
+    loadData();
+  });
 }
 
-// ── Render table rows ─────────────────────────────────────────────────────────
-function renderRows(data) {
-  tableBody.innerHTML = MONTHS.map(m => {
-    const plan     = data[m]?.plan     ?? "";
-    const consumed = data[m]?.consumed ?? "";
-    return `<tr>
-      <td class="month-cell">${m}</td>
-      <td>
-        <input class="leave-input" type="number" min="0" max="365" step="0.5"
-          data-month="${m}" data-field="plan"
-          value="${plan}" placeholder="—" aria-label="${m} plan">
-      </td>
-      <td>
-        <input class="leave-input" type="number" min="0" max="365" step="0.5"
-          data-month="${m}" data-field="consumed"
-          value="${consumed}" placeholder="—" aria-label="${m} consumed">
-      </td>
-    </tr>`;
+// ── Load shared data ──────────────────────────────────────────────────────────
+async function loadData() {
+  el("tableArea").innerHTML = `<div class="table-loading">Loading ${currentYear} data…</div>`;
+  const lu = el("lastUpdated");
+  if (lu) lu.style.display = "none";
+
+  let months = {};
+  try {
+    const snap = await getDoc(doc(db, "leave_shared", `${currentYear}`));
+    if (snap.exists()) {
+      const data = snap.data();
+      months = data.months || {};
+      if (data.updatedAt && lu) {
+        const by   = data.updatedByName || data.updatedBy || "someone";
+        const time = new Date(data.updatedAt).toLocaleString();
+        lu.textContent   = `Last saved by ${by} on ${time}`;
+        lu.style.display = "block";
+      }
+    }
+  } catch(e) { console.error("Load error:", e); }
+
+  renderTable(months);
+}
+
+// ── Render table ──────────────────────────────────────────────────────────────
+function renderTable(months) {
+  let totalPlan = 0, totalActual = 0;
+
+  const rows = MONTHS.map((month, i) => {
+    const plan   = months[i]?.plan   ?? "";
+    const actual = months[i]?.actual ?? "";
+    if (plan   !== "") totalPlan   += Number(plan)   || 0;
+    if (actual !== "") totalActual += Number(actual) || 0;
+    return `
+      <tr>
+        <td>${month}</td>
+        <td style="text-align:center;">
+          <input class="leave-input" type="number" min="0" step="0.5"
+            id="plan-${i}" value="${plan}" placeholder="0"
+            oninput="updateTotals()"/>
+        </td>
+        <td style="text-align:center;">
+          <input class="leave-input" type="number" min="0" step="0.5"
+            id="actual-${i}" value="${actual}" placeholder="0"
+            oninput="updateTotals()"/>
+        </td>
+        <td style="text-align:center;" id="diff-${i}">${diffHTML(Number(plan)||0, Number(actual)||0)}</td>
+      </tr>
+    `;
   }).join("");
 
-  // Mark unsaved on any change
-  tableBody.querySelectorAll(".leave-input").forEach(inp => {
-    inp.addEventListener("input", () => {
-      saveMsg.textContent = "Unsaved changes…";
-      saveMsg.style.color = "#b45309";
-    });
+  const totalDiff = totalActual - totalPlan;
+
+  el("tableArea").innerHTML = `
+    <table class="leave-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th style="text-align:center;">Plan Leave</th>
+          <th style="text-align:center;">Actual Leave</th>
+          <th style="text-align:center;">Difference</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Total</td>
+          <td style="text-align:center;" id="totalPlan">${fmt(totalPlan)}</td>
+          <td style="text-align:center;" id="totalActual">${fmt(totalActual)}</td>
+          <td style="text-align:center;" id="totalDiff">${diffHTML(totalPlan, totalActual)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  // Attach live diff update per row
+  MONTHS.forEach((_, i) => {
+    el(`plan-${i}`)?.addEventListener("input",   () => updateRowDiff(i));
+    el(`actual-${i}`)?.addEventListener("input", () => updateRowDiff(i));
   });
+}
+
+// ── Live updates ──────────────────────────────────────────────────────────────
+window.updateTotals = function() {
+  let totalPlan = 0, totalActual = 0;
+  MONTHS.forEach((_, i) => {
+    totalPlan   += Number(el(`plan-${i}`)?.value)   || 0;
+    totalActual += Number(el(`actual-${i}`)?.value) || 0;
+  });
+  setText("totalPlan",   fmt(totalPlan));
+  setText("totalActual", fmt(totalActual));
+  const td = el("totalDiff");
+  if (td) td.innerHTML = diffHTML(totalPlan, totalActual);
+};
+
+function updateRowDiff(i) {
+  const p = Number(el(`plan-${i}`)?.value)   || 0;
+  const a = Number(el(`actual-${i}`)?.value) || 0;
+  const d = el(`diff-${i}`);
+  if (d) d.innerHTML = diffHTML(p, a);
+  updateTotals();
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────────
-saveBtn.addEventListener("click", async () => {
-  if (!currentUser) return;
+el("saveBtn").addEventListener("click", async () => {
+  const btn = el("saveBtn");
+  const msg = el("saveMsg");
+  msg.className = "message"; msg.textContent = "";
+  btn.disabled  = true; btn.classList.add("loading");
 
-  // Collect all values
   const months = {};
-  MONTHS.forEach(m => { months[m] = { plan: null, consumed: null }; });
-
-  tableBody.querySelectorAll(".leave-input").forEach(inp => {
-    const m     = inp.dataset.month;
-    const field = inp.dataset.field;
-    const val   = inp.value.trim();
-    months[m][field] = val === "" ? null : parseFloat(val);
+  MONTHS.forEach((_, i) => {
+    months[i] = {
+      plan:   parseFloat(el(`plan-${i}`)?.value)   || 0,
+      actual: parseFloat(el(`actual-${i}`)?.value) || 0,
+    };
   });
 
-  setBtnLoading(true);
-  saveMsg.textContent = "";
-  saveMsg.style.color = "";
-
   try {
-    await setDoc(doc(db, "leave_data", String(selectedYear)), {
-      year:           selectedYear,
+    await setDoc(doc(db, "leave_shared", `${currentYear}`), {
+      year:          currentYear,
       months,
-      updatedAt:      serverTimestamp(),
-      updatedByEmail: currentUser.email,
+      updatedAt:     new Date().toISOString(),
+      updatedBy:     currentUser.uid,
+      updatedByName: currentUser.email
     });
 
-    monthData = months;
-    const now = new Date().toLocaleString();
-    showToast("Saved successfully.", "success");
-    saveMsg.textContent = `Saved at ${now}`;
-    saveMsg.style.color = "#166534";
-    lastUpdated.textContent =
-      `Last updated: ${now}  ·  by ${currentUser.email}`;
-  } catch (err) {
-    console.error("Save error:", err);
-    showToast("Save failed — check your connection.", "error");
-    saveMsg.textContent = "Save failed.";
-    saveMsg.style.color = "#991b1b";
-  } finally {
-    setBtnLoading(false);
+    msg.className   = "message success";
+    msg.textContent = `✓ Data saved for ${currentYear}.`;
+
+    const lu = el("lastUpdated");
+    if (lu) {
+      lu.textContent   = `Last saved by ${currentUser.email} on ${new Date().toLocaleString()}`;
+      lu.style.display = "block";
+    }
+
+    showToast("Leave data saved!");
+  } catch(e) {
+    msg.textContent = "Save failed: " + e.message;
   }
+
+  btn.disabled = false; btn.classList.remove("loading");
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function setBtnLoading(on) {
-  saveBtn.classList.toggle("loading", on);
-  saveBtn.disabled = on;
+function diffHTML(plan, actual) {
+  const diff = (Number(actual) || 0) - (Number(plan) || 0);
+  if (!plan && !actual) return `<span class="diff-zer">—</span>`;
+  if (diff === 0)       return `<span class="diff-zer">0</span>`;
+  const cls = diff > 0 ? "diff-pos" : "diff-neg";
+  return `<span class="${cls}">${diff > 0 ? "+" : ""}${fmt(diff)}</span>`;
 }
 
-let toastTimer;
-function showToast(msg, type = "info") {
-  toast.textContent = msg;
-  toast.className   = `toast toast-${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove("show"), 3500);
+function fmt(n) {
+  if (!n && n !== 0) return "—";
+  return Number.isInteger(n)
+    ? n.toLocaleString()
+    : parseFloat(n).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
+
+function showToast(text, error = false) {
+  const toast = document.getElementById("toast");
+  toast.textContent = text;
+  toast.className   = "toast" + (error ? " error" : "");
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+el("logoutBtn")?.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "login.html";
+});
