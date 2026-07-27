@@ -1,4 +1,5 @@
 import { app } from "./firebase.js";
+import { guardRole } from "./guard.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc }
@@ -52,8 +53,7 @@ function fmt(n) { return (!n&&n!==0)?"—":Number(n).toLocaleString(); }
 function reasonKey(r) { return r.replace(/[^a-zA-Z0-9]/g,"_"); }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async user => {
-  if (!user) { window.location.href="login.html"; return; }
+guardRole(["admin","data_entry"]).then(async ({ user }) => {
   currentUser = user;
   set("topbarEmail", user.email);
   buildControls();
