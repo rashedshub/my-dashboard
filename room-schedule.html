@@ -3,194 +3,167 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Room Schedule — EMS</title>
+  <title>Room Book Schedule — EMS</title>
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
       --navy:#1E3A5F; --steel:#2E5B88; --bg:#F0F2F5;
-      --surface:#fff; --border:#DDE1E7; --text:#0F1923; --muted:#64748B;
-      --radius:12px; --ease:cubic-bezier(0.65,0,0.35,1);
+      --surface:#fff; --border:#bcc5d0; --text:#0F1923; --muted:#64748B;
     }
-    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+    body { font-family:'Calibri',Arial,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
     /* ── Topbar ── */
     .topbar {
-      background:#fff; border-bottom:1px solid var(--border);
-      padding:0 28px; height:58px; display:flex; align-items:center; justify-content:space-between;
-      position:sticky; top:0; z-index:50; backdrop-filter:blur(10px);
+      background:var(--navy); padding:0 24px; height:52px;
+      display:flex; align-items:center; justify-content:space-between;
     }
-    .topbar-brand { display:flex; align-items:center; gap:10px; }
-    .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
-    .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
+    .brand { display:flex; align-items:center; gap:9px; }
+    .brand-name { font-size:0.85rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:#fff; }
     .book-btn {
-      padding:9px 20px; background:var(--navy); color:#fff; border:none;
-      border-radius:8px; font-family:inherit; font-size:0.875rem; font-weight:600;
-      cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:7px;
-      transition:background 180ms;
+      padding:8px 18px; background:#fff; color:var(--navy);
+      border:none; border-radius:6px; font-family:inherit; font-size:0.82rem;
+      font-weight:700; cursor:pointer; text-decoration:none; transition:opacity 160ms;
     }
-    .book-btn:hover { background:var(--steel); }
+    .book-btn:hover { opacity:0.88; }
 
-    /* ── Main ── */
-    .main { max-width:900px; margin:0 auto; padding:36px 20px 72px; }
+    /* ── Page layout ── */
+    .page { max-width:1180px; margin:0 auto; padding:24px 16px 60px; }
 
-    /* ── Page header ── */
-    .page-head { margin-bottom:32px; }
-    .page-head h1 { font-size:1.5rem; font-weight:800; letter-spacing:-0.03em; }
-    .page-head p  { font-size:0.875rem; color:var(--muted); margin-top:5px; }
-    .page-head .date-badge {
-      display:inline-block; margin-top:12px; padding:6px 14px;
-      background:#EEF3FA; color:var(--navy); border-radius:99px;
-      font-size:0.8rem; font-weight:700; letter-spacing:0.02em;
+    /* ── Controls bar ── */
+    .controls {
+      display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;
     }
-
-    /* ── Day section ── */
-    .day-section { margin-bottom:36px; }
-    .day-label {
-      display:flex; align-items:center; gap:10px;
-      font-size:1rem; font-weight:800; letter-spacing:-0.01em;
-      margin-bottom:14px;
+    .room-label { font-size:0.8rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .room-sel {
+      padding:7px 14px; border:1.5px solid var(--border); border-radius:7px;
+      font-family:inherit; font-size:0.875rem; font-weight:600; color:var(--text);
+      background:var(--surface); outline:none; cursor:pointer; min-width:200px;
+      transition:border-color 180ms;
     }
-    .day-label .dl-tag {
-      padding:3px 10px; border-radius:99px; font-size:0.7rem; font-weight:700;
-      letter-spacing:0.05em; text-transform:uppercase;
+    .room-sel:focus { border-color:var(--navy); }
+    .nav-btn {
+      padding:7px 14px; border:1.5px solid var(--border); border-radius:7px;
+      background:var(--surface); font-family:inherit; font-size:0.875rem; font-weight:600;
+      cursor:pointer; color:var(--text); transition:all 160ms;
     }
-    .dl-tag.today { background:#1E3A5F; color:#fff; }
-    .dl-tag.tomorrow { background:#e0e8f4; color:#1E3A5F; }
-    .day-date { font-size:0.875rem; color:var(--muted); font-weight:500; }
-
-    /* ── Room column layout ── */
-    .rooms-grid {
-      display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px;
+    .nav-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .today-btn {
+      padding:7px 14px; border:1.5px solid var(--navy); border-radius:7px;
+      background:var(--navy); color:#fff; font-family:inherit; font-size:0.875rem;
+      font-weight:600; cursor:pointer; transition:opacity 160ms;
     }
-    .room-col { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
-    .room-col-head {
-      padding:12px 16px; display:flex; align-items:center; gap:10px;
-      border-bottom:1px solid var(--border);
-    }
-    .room-col-stripe { width:5px; height:36px; border-radius:3px; flex-shrink:0; }
-    .room-col-name { font-size:0.875rem; font-weight:700; }
-    .room-col-cap  { font-size:0.75rem; color:var(--muted); margin-top:1px; }
-
-    /* Booking slots */
-    .slots { padding:10px 0; }
-    .slot {
-      display:flex; align-items:flex-start; gap:10px;
-      padding:10px 16px; border-bottom:1px solid #f0f0ee;
-      transition:background 130ms;
-    }
-    .slot:last-child { border-bottom:none; }
-    .slot:hover { background:#fafbfc; }
-    .slot-time {
-      font-size:0.72rem; font-weight:700; color:var(--muted);
-      white-space:nowrap; min-width:80px; margin-top:2px;
-    }
-    .slot-info { flex:1; min-width:0; }
-    .slot-title { font-size:0.875rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .slot-by    { font-size:0.75rem; color:var(--muted); margin-top:2px; }
-
-    /* Empty state per room */
-    .no-bookings {
-      padding:20px 16px; text-align:center; color:var(--muted); font-size:0.8rem;
-    }
-    .no-bookings .nb-icon { font-size:1.4rem; margin-bottom:6px; }
+    .today-btn:hover { opacity:0.85; }
 
     /* ── Live badge ── */
     .live-badge {
-      display:inline-flex; align-items:center; gap:6px;
-      font-size:0.72rem; font-weight:600; color:#3A6B4A;
-      background:#dcfce7; padding:4px 10px; border-radius:99px; margin-left:10px;
+      display:inline-flex; align-items:center; gap:5px;
+      font-size:0.72rem; font-weight:700; color:#166534;
+      background:#dcfce7; padding:4px 10px; border-radius:99px; margin-left:auto;
     }
-    .live-dot { width:7px; height:7px; border-radius:50%; background:#3A6B4A; animation:pulse 1.8s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .live-dot { width:6px; height:6px; border-radius:50%; background:#166534; animation:pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    /* ── Loading ── */
-    .loading { text-align:center; padding:60px; color:var(--muted); font-size:0.9rem; }
-    .loading .li { font-size:2rem; margin-bottom:14px; }
+    /* ── Schedule table ── */
+    .schedule-wrap { overflow-x:auto; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,.08); }
 
-    /* ── CTA banner ── */
-    .cta-banner {
-      background:linear-gradient(135deg,#1E3A5F 0%,#2E5B88 100%);
-      border-radius:var(--radius); padding:24px 28px;
-      display:flex; align-items:center; justify-content:space-between;
-      flex-wrap:wrap; gap:16px; margin-bottom:32px;
-    }
-    .cta-banner h2 { font-size:1rem; font-weight:700; color:#fff; }
-    .cta-banner p  { font-size:0.8rem; color:rgba(255,255,255,.7); margin-top:4px; }
-    .cta-book {
-      padding:10px 22px; background:#fff; color:var(--navy);
-      border:none; border-radius:8px; font-family:inherit; font-size:0.875rem;
-      font-weight:700; cursor:pointer; text-decoration:none; white-space:nowrap;
-      transition:all 160ms; display:inline-block;
-    }
-    .cta-book:hover { background:#EEF3FA; }
+    .sched-table { width:100%; border-collapse:collapse; min-width:700px; background:#fff; }
 
-    /* ── Refresh bar ── */
-    .refresh-bar { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
-    .last-refresh { font-size:0.75rem; color:var(--muted); }
-    .refresh-btn {
-      background:none; border:1.5px solid var(--border); border-radius:7px;
-      padding:5px 12px; font-family:inherit; font-size:0.78rem; font-weight:500;
-      cursor:pointer; color:var(--muted); transition:all 160ms;
-    }
-    .refresh-btn:hover { border-color:var(--navy); color:var(--navy); }
+    /* Title row */
+    .title-row td { background:var(--navy); color:#fff; font-weight:700; font-size:1rem; text-align:center; padding:10px 12px; letter-spacing:0.02em; }
+    .title-date { background:#FFD700; color:#0F1923; font-weight:800; font-size:1rem; text-align:center; padding:10px 14px; white-space:nowrap; }
 
-    /* ── Now indicator ── */
-    .now-chip {
-      display:inline-block; padding:2px 8px; border-radius:99px;
-      background:#dcfce7; color:#166534; font-size:0.68rem; font-weight:700;
-      margin-left:6px; text-transform:uppercase; letter-spacing:0.05em;
+    /* Week label row */
+    .week-row td { background:#fff; text-align:center; font-weight:700; font-size:0.875rem; padding:6px; border:1px solid var(--border); }
+
+    /* Header rows (date + day) */
+    .header-date td, .header-day td {
+      background:#D6E4F0; text-align:center; font-weight:700;
+      font-size:0.82rem; padding:7px 6px; border:1px solid var(--border);
     }
+    .header-day td { background:#C5D9EA; font-size:0.8rem; font-weight:600; }
+    .time-col { width:80px !important; }
+
+    /* Time rows */
+    .sched-table tbody tr td {
+      border:1px solid var(--border); font-size:0.78rem; vertical-align:top;
+      padding:0; height:28px; min-width:120px;
+    }
+    .sched-table tbody tr td.time-cell {
+      background:#D6E4F0; font-weight:700; font-size:0.78rem; text-align:right;
+      padding:4px 8px 4px 4px; white-space:nowrap; color:#0F1923;
+      min-width:80px; width:80px;
+    }
+    .sched-table tbody tr td.empty-cell { background:#fff; }
+
+    /* Booked cell */
+    .booked-cell {
+      background:#FFD700; vertical-align:middle; text-align:center;
+      padding:4px 6px; cursor:pointer; transition:background 140ms;
+    }
+    .booked-cell:hover { background:#f0c800; }
+    .booked-purpose { font-weight:700; font-size:0.76rem; color:#0F1923; line-height:1.3; }
+    .booked-by      { font-size:0.7rem; color:#333; margin-top:1px; }
+
+    /* Current time highlight */
+    .current-time-row td.empty-cell { background:#fff8e1; }
+
+    /* ── Empty state ── */
+    .empty-state { text-align:center; padding:48px; color:var(--muted); font-size:0.9rem; }
+
+    /* ── Legend ── */
+    .legend { display:flex; align-items:center; gap:18px; margin-top:12px; flex-wrap:wrap; font-size:0.78rem; color:var(--muted); }
+    .leg-item { display:flex; align-items:center; gap:6px; }
+    .leg-box  { width:14px; height:14px; border-radius:3px; border:1px solid #ccc; }
+
+    /* Toast */
+    .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--navy); color:#fff; padding:11px 20px; border-radius:9px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 20px rgba(0,0,0,.18); transition:all 320ms; z-index:999; white-space:nowrap; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
 
   <header class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-icon">
-        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
-          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
-        </svg>
-      </div>
-      <span class="brand-name">EMS</span>
+    <div class="brand">
+      <svg width="20" height="20" viewBox="0 0 18 18" fill="none">
+        <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+        <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+        <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+        <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+      </svg>
+      <span class="brand-name">EMS — Room Schedule</span>
     </div>
-    <a href="login.html?redirect=room-booking.html" class="book-btn">
-      📅 Book a Room
-    </a>
+    <a href="login.html?redirect=room-booking.html" class="book-btn">📅 Book a Room</a>
   </header>
 
-  <main class="main">
+  <div class="page">
 
-    <div class="page-head">
-      <h1>Training Room Schedule <span class="live-badge"><span class="live-dot"></span>Live</span></h1>
-      <p>Today and tomorrow's room availability — no login required.</p>
-      <div class="date-badge" id="headerDate"></div>
+    <!-- Controls -->
+    <div class="controls">
+      <span class="room-label">Room:</span>
+      <select class="room-sel" id="roomSel" onchange="renderSchedule()">
+        <option value="">Loading rooms…</option>
+      </select>
+      <button class="nav-btn" id="prevWeek">‹ Prev</button>
+      <button class="today-btn" id="thisWeek">This Week</button>
+      <button class="nav-btn" id="nextWeek">Next ›</button>
+      <span class="live-badge"><span class="live-dot"></span>Live</span>
     </div>
 
-    <!-- CTA -->
-    <div class="cta-banner">
-      <div>
-        <h2>Want to book a room?</h2>
-        <p>Log in with your EMS account to make or cancel bookings.</p>
-      </div>
-      <a href="login.html?redirect=room-booking.html" class="cta-book">Log in to Book →</a>
+    <!-- Schedule table -->
+    <div class="schedule-wrap" id="scheduleWrap">
+      <div class="empty-state">Loading schedule…</div>
     </div>
 
-    <!-- Refresh bar -->
-    <div class="refresh-bar">
-      <span class="last-refresh" id="lastRefresh">Loading…</span>
-      <button class="refresh-btn" onclick="loadSchedule()">↻ Refresh</button>
+    <!-- Legend -->
+    <div class="legend">
+      <div class="leg-item"><div class="leg-box" style="background:#FFD700;"></div>Booked</div>
+      <div class="leg-item"><div class="leg-box" style="background:#fff;"></div>Available</div>
+      <div class="leg-item"><div class="leg-box" style="background:#fff8e1;"></div>Current time slot</div>
     </div>
 
-    <!-- Schedule -->
-    <div id="scheduleArea">
-      <div class="loading"><div class="li">📋</div>Loading schedule…</div>
-    </div>
+  </div>
 
-  </main>
-
+  <div class="toast" id="toast"></div>
   <script type="module" src="js/room-schedule.js"></script>
 </body>
 </html>
