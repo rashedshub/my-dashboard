@@ -1,4 +1,5 @@
 import { app } from "./firebase.js";
+import { guardRole } from "./guard.js";
 import {
   getAuth, onAuthStateChanged, signOut
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
@@ -46,8 +47,7 @@ function setLastUpdated(elId, data) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { window.location.href = "login.html"; return; }
+guardRole(["admin","data_entry"]).then(({ user }) => {
   currentUser = user;
   setText("topbarEmail", user.email);
   buildYearSelector();
