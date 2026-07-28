@@ -133,7 +133,8 @@
     <div class="topbar-right">
       <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
       <span class="user-badge" id="topbarEmail"></span>
-      <button class="logout-btn" id="logoutBtn">Log out</button>
+      <a href="login.html?redirect=hr-dashboard.html" id="loginBtn" style="padding:7px 16px;border:1.5px solid var(--border);border-radius:7px;font-size:0.8rem;font-weight:600;color:var(--text);text-decoration:none;display:none;">Log in</a>
+      <button class="logout-btn" id="logoutBtn" style="display:none;">Log out</button>
     </div>
   </header>
 
@@ -276,43 +277,6 @@
           <div class="chart-head"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
           <div class="chart-wrap-md"><canvas id="wfBarChart"></canvas></div>
         </div>
-      </div>
-
-      <!-- ════════ OUTSTANDING DISCIPLINARY ════════ -->
-      <div class="section-title">Outstanding Disciplinary</div>
-
-      <div class="stat-row">
-        <div class="stat-card"><div class="sc-label">Peak Month</div><div class="sc-value sc-rust" id="discPeak">—</div></div>
-        <div class="stat-card"><div class="sc-label">Monthly Avg</div><div class="sc-value sc-teal" id="discAvg">—</div></div>
-      </div>
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>Monthly Outstanding Cases</h2><p>Number of outstanding disciplinary cases per month</p></div>
-        </div>
-        <div class="chart-wrap"><canvas id="discBarChart"></canvas></div>
-      </div>
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Cases by Reason</h2><p>Distribution across disciplinary categories</p></div></div>
-          <div class="chart-wrap-pie"><canvas id="discPieChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Trend</h2><p>Monthly outstanding case trend</p></div></div>
-          <div class="chart-wrap-md"><canvas id="discLineChart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- Weekly outstanding chart -->
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>Weekly Outstanding Cases</h2><p>Week-by-week breakdown for selected month</p></div>
-          <div>
-            <select id="discWeekMonthSelect" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;font-weight:600;color:var(--text);background:var(--surface);outline:none;cursor:pointer;transition:border-color 200ms;" onchange="refreshDiscWeekly()">
-            </select>
-          </div>
-        </div>
-        <div id="discWeeklyEmpty" style="text-align:center;padding:40px;color:var(--muted);font-size:0.875rem;display:none;">No weekly data for this month.</div>
-        <div class="chart-wrap" style="display:none;" id="discWeeklyWrap"><canvas id="discWeeklyChart"></canvas></div>
       </div>
 
     </div><!-- /mainContent -->
