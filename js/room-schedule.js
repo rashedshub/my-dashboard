@@ -1,37 +1,39 @@
 import { app } from "./firebase.js";
-import { getAuth, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
   getFirestore, collection, getDocs, onSnapshot, addDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const db = getFirestore(app);
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const SLOT_START = 8 * 60;
-const SLOT_END   = 18 * 60;
-const SLOT_STEP  = 30;
+const SLOT_START = 8 * 60;   // 8:00 AM
+const SLOT_END   = 18 * 60;  // 6:00 PM
+const SLOT_STEP  = 30;       // 30-min slots
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let rooms        = [];
-let bookings     = [];
-let weekOffset   = 0;
-let selectedRoom = "";
-let currentUser  = null;
-let currentUserName = "";
+let rooms         = [];
+let bookings      = [];
+let weekOffset    = 0;
+let selectedRoom  = "";
 let unsubBookings = null;
+let activePopup   = null; // currently visible slot popup
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const el  = id => document.getElementById(id);
 function fmtTime(mins) {
-  const h=Math.floor(mins/60), m=mins%60, suffix=h>=12?"PM":"AM", hh=h%12||12;
-  return `${hh}:${String(m).padStart(2,"0")} ${suffix}`;
+  const h=Math.floor(mins/60), m=mins%60, s=h>=12?"PM":"AM", hh=h%12||12;
+  return `${hh}:${String(m).padStart(2,"0")} ${s}`;
 }
-function toHHMM(mins) { return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`; }
-function dateKey(d)   { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-function toMins(t)    { const [h,m]=t.split(":").map(Number); return h*60+m; }
+function toHHMM(mins) {
+  return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;
+}
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function toMins(t) { const [h,m]=t.split(":").map(Number); return h*60+m; }
 function fmtDayMonth(d){ return d.toLocaleDateString("en-US",{day:"numeric",month:"short"}); }
+function fmtDateLong(d) { return d.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
+
 function getWeekStart(offset=0) {
   const today=new Date(), day=today.getDay(), diff=(day+1)%7;
   const sat=new Date(today); sat.setDate(today.getDate()-diff+offset*7); sat.setHours(0,0,0,0);
@@ -41,26 +43,14 @@ function getWeekDates(offset=0) {
   const sat=getWeekStart(offset);
   return Array.from({length:7},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
 }
+
 function showToast(msg, type="success") {
   const t=el("toast"); if(!t) return;
   t.textContent=msg; t.className=`toast ${type} show`;
   clearTimeout(t._tmr); t._tmr=setTimeout(()=>t.classList.remove("show"),3500);
 }
 function closeModal() { el("bookModal")?.classList.remove("open"); }
-
-// ── Auth ──────────────────────────────────────────────────────────────────────
-onAuthStateChanged(auth, async user => {
-  currentUser = user;
-  if (user) {
-    currentUserName = user.displayName || user.email;
-    // Try get name from Firestore
-    try {
-      const { getDoc, doc } = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js");
-      const snap = await getDoc(doc(db,"users",user.uid));
-      if (snap.exists()) currentUserName = snap.data().name || user.email;
-    } catch(e){}
-  }
-});
+function removePopup() { if(activePopup){ activePopup.remove(); activePopup=null; } }
 
 // ── Load rooms ────────────────────────────────────────────────────────────────
 async function loadRooms() {
@@ -69,16 +59,17 @@ async function loadRooms() {
     rooms = snap.docs.map(d=>({id:d.id,...d.data()}))
       .sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
 
-    const sel = el("roomSel"); sel.innerHTML="";
-    const modalSel = el("modalRoom"); if(modalSel) modalSel.innerHTML="";
+    const selEl = el("roomSel");
+    const modalSel = el("modalRoom");
+    selEl.innerHTML = ""; if(modalSel) modalSel.innerHTML="";
 
-    if (!rooms.length) { sel.innerHTML="<option value=''>No rooms configured</option>"; return; }
+    if (!rooms.length) { selEl.innerHTML="<option>No rooms configured</option>"; return; }
 
     rooms.forEach((r,i) => {
       const o=document.createElement("option");
       o.value=r.id; o.textContent=`${r.name} (cap. ${r.capacity})`;
       if(i===0){ o.selected=true; selectedRoom=r.id; }
-      sel.appendChild(o);
+      selEl.appendChild(o);
       if(modalSel) modalSel.appendChild(o.cloneNode(true));
     });
   } catch(e){ console.error("Rooms:",e); }
@@ -95,24 +86,24 @@ function subscribeBookings() {
 
 // ── Render schedule ───────────────────────────────────────────────────────────
 window.renderSchedule = function() {
+  removePopup();
   const selEl=el("roomSel"); selectedRoom=selEl?.value||"";
   const room=rooms.find(r=>r.id===selectedRoom);
   const roomName=room?room.name:"—";
   const dates=getWeekDates(weekOffset);
   const monthYearStr=dates[0].toLocaleDateString("en-US",{month:"short",year:"2-digit"}).replace(" ","-");
   const weekKeys=dates.map(dateKey);
-  const roomBookings=bookings.filter(b=>b.roomId===selectedRoom&&weekKeys.includes(b.date));
+  const roomBks=bookings.filter(b=>b.roomId===selectedRoom&&weekKeys.includes(b.date));
 
   const slots=[];
   for(let m=SLOT_START;m<SLOT_END;m+=SLOT_STEP) slots.push(m);
 
   function getSlotInfo(dateStr,slotMins){
-    for(const b of roomBookings){
+    for(const b of roomBks){
       if(b.date!==dateStr) continue;
       const bs=toMins(b.startTime),be=toMins(b.endTime);
-      if(slotMins>=bs&&slotMins<be){
+      if(slotMins>=bs&&slotMins<be)
         return{booking:b,isStart:slotMins===bs,spanCount:Math.ceil((be-bs)/SLOT_STEP)};
-      }
     }
     return null;
   }
@@ -144,26 +135,25 @@ window.renderSchedule = function() {
     <tbody>`;
 
   slots.forEach((slotMins,si)=>{
-    const isCurrentSlot=todayKey&&slotMins<=nowMins&&nowMins<slotMins+SLOT_STEP;
-    html+=`<tr class="${isCurrentSlot?"current-time-row":""}">`;
+    const isCurrent=todayKey&&slotMins<=nowMins&&nowMins<slotMins+SLOT_STEP;
+    html+=`<tr class="${isCurrent?"current-time-row":""}">`;
     html+=`<td class="time-cell">${fmtTime(slotMins)}</td>`;
     dates.forEach((d,di)=>{
-      const dKey=dateKey(d);
-      const cellKey=`${di}-${si}`;
+      const dKey=dateKey(d), cellKey=`${di}-${si}`;
       if(skip[cellKey]) return;
       const info=getSlotInfo(dKey,slotMins);
       if(info&&info.isStart){
-        for(let span=1;span<info.spanCount;span++) skip[`${di}-${si+span}`]=true;
+        for(let s=1;s<info.spanCount;s++) skip[`${di}-${si+s}`]=true;
         const b=info.booking;
         html+=`<td class="booked-cell" rowspan="${info.spanCount}"
-          title="${b.title} — ${fmtTime(toMins(b.startTime))} to ${fmtTime(toMins(b.endTime))}">
+          title="Booked: ${b.title}">
           <div class="booked-purpose">${b.title}</div>
           <div class="booked-by">👤 ${b.bookedByName||b.bookedByEmail||"—"}</div>
         </td>`;
       } else if(!info){
-        // Empty cell — clickable to book
-        const dStr=dKey, tStr=toHHMM(slotMins), tEndStr=toHHMM(slotMins+SLOT_STEP);
-        html+=`<td class="empty-cell" data-date="${dStr}" data-start="${tStr}" data-end="${tEndStr}"></td>`;
+        html+=`<td class="empty-cell" data-date="${dKey}" data-start="${toHHMM(slotMins)}" data-end="${toHHMM(slotMins+SLOT_STEP)}">
+          <span class="slot-hint">📅 Book this slot</span>
+        </td>`;
       }
     });
     html+=`</tr>`;
@@ -173,54 +163,78 @@ window.renderSchedule = function() {
   el("scheduleWrap").innerHTML=html;
   el("scheduleWrap").querySelector(".title-main")?.setAttribute("colspan","8");
 
-  // Attach click listeners to empty cells
+  // Attach click to empty cells
   el("scheduleWrap").querySelectorAll(".empty-cell").forEach(cell=>{
-    cell.addEventListener("click",()=>{
-      openBookModal(cell.dataset.date, cell.dataset.start, cell.dataset.end);
+    cell.addEventListener("click", e=>{
+      e.stopPropagation();
+      showSlotPopup(cell, cell.dataset.date, cell.dataset.start, cell.dataset.end);
     });
   });
 };
 
-// ── Book modal ────────────────────────────────────────────────────────────────
+// ── Step 1: Slot popup — "Book this slot?" ────────────────────────────────────
+function showSlotPopup(cell, date, start, end) {
+  removePopup();
+
+  const popup = document.createElement("div");
+  popup.className = "slot-popup";
+
+  // Position near the cell
+  const rect = cell.getBoundingClientRect();
+  const top  = rect.bottom + window.scrollY + 6;
+  const left = Math.min(rect.left + window.scrollX, window.innerWidth - 240);
+  popup.style.cssText = `top:${top}px;left:${left}px;`;
+
+  // Parse date for display
+  const dateObj   = new Date(date + "T00:00:00");
+  const dateLabel = fmtDateLong(dateObj);
+
+  popup.innerHTML = `
+    <div class="slot-popup-head">📅 ${fmtTime(toMins(start))} – ${fmtTime(toMins(end))}</div>
+    <div class="slot-popup-sub">${dateLabel}<br>${rooms.find(r=>r.id===selectedRoom)?.name||""}</div>
+    <button class="slot-popup-btn" id="popupBookBtn">Book this slot</button>
+    <span class="slot-popup-cancel" id="popupCancelBtn">Cancel</span>
+  `;
+
+  document.body.appendChild(popup);
+  activePopup = popup;
+
+  el("popupBookBtn").addEventListener("click", e=>{
+    e.stopPropagation();
+    removePopup();
+    openBookModal(date, start, end);
+  });
+  el("popupCancelBtn").addEventListener("click", e=>{
+    e.stopPropagation();
+    removePopup();
+  });
+}
+
+// Close popup on outside click
+document.addEventListener("click", ()=>removePopup());
+
+// ── Step 2: Booking modal ─────────────────────────────────────────────────────
 function openBookModal(date, start, end) {
-  // Set values
-  if(el("modalDate"))  el("modalDate").value  = date;
-  if(el("modalStart")) el("modalStart").value = start;
-  if(el("modalEnd"))   el("modalEnd").value   = end;
+  if(el("modalDate"))   el("modalDate").value   = date;
+  if(el("modalStart"))  el("modalStart").value  = start;
+  if(el("modalEnd"))    el("modalEnd").value    = end;
   if(el("modalTitle2")) el("modalTitle2").value = "";
   if(el("modalNotes"))  el("modalNotes").value  = "";
-  el("conflictBanner")?.classList.remove("show");
+  if(el("modalName"))   el("modalName").value   = "";
 
-  // Sync room select to current schedule room
+  // Sync room
   const modalSel=el("modalRoom");
-  if(modalSel && selectedRoom) modalSel.value=selectedRoom;
+  if(modalSel&&selectedRoom) modalSel.value=selectedRoom;
 
-  // Check if logged in
-  if (!currentUser) {
-    // Show login prompt instead of form
-    el("bookForm") && (el("bookForm").style.display="none");
-    el("modalFooter") && (el("modalFooter").style.display="none");
-    el("loginBanner") && (el("loginBanner").style.display="block");
-    // Set login link to return to this page
-    const loginLink=el("loginLink");
-    if(loginLink) loginLink.href=`login.html?redirect=${encodeURIComponent(window.location.pathname.split('/').pop()||'room-schedule.html')}`;
-    el("modalTitle") && (el("modalTitle").textContent="📅 Book Room");
-  } else {
-    el("bookForm") && (el("bookForm").style.display="block");
-    el("modalFooter") && (el("modalFooter").style.display="flex");
-    el("loginBanner") && (el("loginBanner").style.display="none");
-  }
-
-  // Check conflict
+  el("conflictBanner")?.classList.remove("show");
   checkConflict();
-
   el("bookModal")?.classList.add("open");
 }
 
 function checkConflict() {
   const roomId=el("modalRoom")?.value, date=el("modalDate")?.value,
         start=el("modalStart")?.value, end=el("modalEnd")?.value;
-  if(!roomId||!date||!start||!end) return;
+  if(!roomId||!date||!start||!end) return false;
   const s=toMins(start), e=toMins(end);
   const conflict=bookings.some(b=>{
     if(b.roomId!==roomId||b.date!==date) return false;
@@ -231,16 +245,18 @@ function checkConflict() {
 }
 
 async function submitBooking() {
-  const btn=el("modalSubmit");
-  const roomId=el("modalRoom")?.value;
-  const title=el("modalTitle2")?.value.trim();
-  const date=el("modalDate")?.value;
-  const startTime=el("modalStart")?.value;
-  const endTime=el("modalEnd")?.value;
-  const notes=el("modalNotes")?.value.trim();
+  const btn       = el("modalSubmit");
+  const roomId    = el("modalRoom")?.value;
+  const title     = el("modalTitle2")?.value.trim();
+  const bookerName= el("modalName")?.value.trim();
+  const date      = el("modalDate")?.value;
+  const startTime = el("modalStart")?.value;
+  const endTime   = el("modalEnd")?.value;
+  const notes     = el("modalNotes")?.value.trim();
 
-  if(!title)   { showToast("Please enter a title.","error"); return; }
-  if(!date)    { showToast("Please select a date.","error"); return; }
+  if(!bookerName){ showToast("Please enter your name.","error"); return; }
+  if(!title)     { showToast("Please enter a purpose/title.","error"); return; }
+  if(!date)      { showToast("Please select a date.","error"); return; }
   if(!startTime||!endTime){ showToast("Please set times.","error"); return; }
   if(toMins(endTime)<=toMins(startTime)){ showToast("End must be after start.","error"); return; }
   if(checkConflict()){ showToast("⚠️ Room already booked for that time!","error"); return; }
@@ -249,25 +265,25 @@ async function submitBooking() {
   try {
     await addDoc(collection(db,"room_bookings"),{
       roomId, title, date, startTime, endTime, notes,
-      bookedBy:currentUser.uid,
-      bookedByName:currentUserName,
-      bookedByEmail:currentUser.email,
-      createdAt:new Date().toISOString()
+      bookedBy:    "guest_"+Date.now(),
+      bookedByName: bookerName,
+      bookedByEmail:"",
+      createdAt:   new Date().toISOString()
     });
     closeModal();
-    showToast(`✓ Booked! ${fmtTime(toMins(startTime))} – ${fmtTime(toMins(endTime))}`,"success");
+    showToast(`✓ Room booked for ${fmtTime(toMins(startTime))} – ${fmtTime(toMins(endTime))}`,"success");
   } catch(e){ showToast("Booking failed: "+e.message,"error"); }
   btn.disabled=false; btn.classList.remove("loading");
 }
 
-// ── Nav ───────────────────────────────────────────────────────────────────────
+// ── Nav + modal buttons ───────────────────────────────────────────────────────
 el("prevWeek")?.addEventListener("click",  ()=>{ weekOffset--; renderSchedule(); });
 el("nextWeek")?.addEventListener("click",  ()=>{ weekOffset++; renderSchedule(); });
 el("thisWeek")?.addEventListener("click",  ()=>{ weekOffset=0; renderSchedule(); });
 el("roomSel")?.addEventListener("change",  ()=>renderSchedule());
-el("modalClose")?.addEventListener("click", closeModal);
-el("modalCancel")?.addEventListener("click",closeModal);
-el("modalSubmit")?.addEventListener("click",submitBooking);
+el("modalClose")?.addEventListener("click",  closeModal);
+el("modalCancel")?.addEventListener("click", closeModal);
+el("modalSubmit")?.addEventListener("click", submitBooking);
 el("bookModal")?.addEventListener("click", e=>{ if(e.target===el("bookModal")) closeModal(); });
 ["modalRoom","modalDate","modalStart","modalEnd"].forEach(id=>{
   el(id)?.addEventListener("change", checkConflict);
