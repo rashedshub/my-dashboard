@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Leave Plan — EMS</title>
+  <title>Leave Planning — EMS</title>
   <link rel="stylesheet" href="style.css"/>
   <style>
     .leave-body { background: var(--bg); }
+
     .leave-main {
-      max-width: 560px; margin: 0 auto; padding: 40px 24px 60px;
+      max-width: 780px; margin: 0 auto; padding: 40px 24px;
       animation: fadeUp 400ms 80ms var(--ease) both;
     }
 
-    /* ── Header ── */
     .leave-header {
       display: flex; align-items: flex-end; justify-content: space-between;
       margin-bottom: 28px; flex-wrap: wrap; gap: 16px;
@@ -20,13 +20,15 @@
     .leave-header h1 { font-size: 1.5rem; letter-spacing: -0.02em; }
     .leave-header p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
 
-    .year-selector { display: flex; align-items: center; gap: 10px; }
+    .year-selector {
+      display: flex; align-items: center; gap: 10px;
+    }
     .year-selector label { font-size: 0.875rem; font-weight: 500; color: var(--muted); }
     .year-selector select {
       padding: 8px 14px; border: 1.5px solid var(--border);
       border-radius: 8px; font-family: inherit; font-size: 0.9375rem;
       font-weight: 600; color: var(--text); background: var(--surface);
-      outline: none; cursor: pointer;
+      outline: none; cursor: pointer; width: auto;
       transition: border-color 200ms, box-shadow 200ms;
     }
     .year-selector select:focus {
@@ -34,68 +36,83 @@
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
 
-    /* ── Card ── */
+    /* Table card */
     .leave-card {
       background: var(--surface); border-radius: var(--radius);
       border: 1px solid var(--border); overflow: hidden;
     }
 
-    /* ── Table ── */
-    .leave-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .leave-table {
+      width: 100%; border-collapse: collapse; font-size: 0.9rem;
+    }
 
     .leave-table thead tr {
-      background: #f5f5f3; border-bottom: 1.5px solid var(--border);
+      background: #fafaf9; border-bottom: 1.5px solid var(--border);
     }
     .leave-table th {
-      padding: 12px 20px; font-size: 0.75rem; font-weight: 700;
-      color: var(--text); text-transform: uppercase;
-      letter-spacing: 0.06em; white-space: nowrap;
+      padding: 13px 20px; text-align: left;
+      font-size: 0.75rem; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
     }
-    .leave-table th:first-child { text-align: left; width: 35%; }
     .leave-table th:not(:first-child) { text-align: center; }
 
+    .leave-table tbody tr {
+      border-bottom: 1px solid #f0f0ee;
+      transition: background 140ms;
+    }
+    .leave-table tbody tr:last-child { border-bottom: none; }
+    .leave-table tbody tr:hover { background: #fafaf9; }
+
     .leave-table td {
-      padding: 8px 20px; border-bottom: 1px solid #f0f0ee;
-      vertical-align: middle;
+      padding: 10px 20px; vertical-align: middle;
     }
-    .leave-table tr:last-child td { border-bottom: none; }
-    .leave-table tr:hover td { background: #fafaf9; }
-
-    .month-cell {
-      font-weight: 600; color: var(--text); text-align: left;
+    .leave-table td:first-child {
+      font-weight: 500; color: var(--text); width: 160px;
     }
-    .leave-table td:not(.month-cell) { text-align: center; }
+    .leave-table td:not(:first-child) { text-align: center; }
 
-    /* ── Input ── */
+    /* Number inputs */
     .leave-input {
-      width: 90px; padding: 7px 10px;
+      width: 110px; padding: 8px 12px;
       border: 1.5px solid var(--border); border-radius: 7px;
-      font-family: inherit; font-size: 0.875rem; font-weight: 500;
+      font-family: inherit; font-size: 0.9rem; font-weight: 500;
       color: var(--text); background: #fafaf9;
-      text-align: center; outline: none;
+      text-align: right; outline: none;
       transition: border-color 200ms, box-shadow 200ms, background 200ms;
     }
     .leave-input:focus {
       border-color: var(--accent); background: #fff;
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
-    .leave-input:not(:placeholder-shown) { background: #fff; }
+    .leave-input.plan  { }
+    .leave-input.actual { }
 
-    /* ── Last updated ── */
-    .last-updated {
-      font-size: 0.75rem; color: var(--muted);
-      padding: 9px 20px; border-top: 1px solid var(--border);
-      background: #fafaf9; min-height: 34px;
+    /* Diff column */
+    .diff-cell { font-size: 0.85rem; font-weight: 600; }
+    .diff-pos  { color: #166534; }
+    .diff-neg  { color: #991b1b; }
+    .diff-zero { color: var(--muted); }
+
+    /* Footer row */
+    .totals-row td {
+      padding: 13px 20px;
+      background: #fafaf9;
+      border-top: 1.5px solid var(--border) !important;
+      font-weight: 600; font-size: 0.875rem;
     }
+    .totals-row td:first-child { color: var(--muted); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.06em; }
 
-    /* ── Save bar ── */
+    /* Save bar */
     .save-bar {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-top: 1px solid var(--border);
-      flex-wrap: wrap; gap: 12px;
+      padding: 20px 24px; flex-wrap: wrap; gap: 12px;
     }
-    .save-bar .message { margin: 0; font-size: 0.8125rem; }
-    .save-btn { width: auto; padding: 10px 28px; }
+    .save-bar .message { margin: 0; font-size: 0.875rem; }
+
+    /* Loading overlay */
+    .table-loading {
+      text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem;
+    }
   </style>
 </head>
 <body class="leave-body">
@@ -113,6 +130,7 @@
       <span class="brand-name">EMS</span>
     </div>
     <div class="topbar-right">
+      <a href="index.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Home</a>
       <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
@@ -122,8 +140,8 @@
   <main class="leave-main">
     <div class="leave-header">
       <div>
-        <h1>Leave Plan vs Actual</h1>
-        <p>Any user can update. Last save overwrites.</p>
+        <h1>Leave: Plan vs Actual</h1>
+        <p>Enter planned and actual leave hours for each month.</p>
       </div>
       <div class="year-selector">
         <label for="yearSelect">Year</label>
@@ -132,23 +150,13 @@
     </div>
 
     <div class="leave-card">
-      <table class="leave-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Plan</th>
-            <th>Consumed</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
-
-      <div class="last-updated" id="lastUpdated"></div>
-
+      <div id="tableArea">
+        <div class="table-loading">Loading…</div>
+      </div>
       <div class="save-bar">
         <p class="message" id="saveMsg"></p>
-        <button class="btn save-btn" id="saveBtn">
-          <span class="btn-label">Save</span>
+        <button class="btn" id="saveBtn" style="width:auto;padding:11px 28px;">
+          <span class="btn-label">Save Data</span>
           <span class="spinner"></span>
         </button>
       </div>
