@@ -171,9 +171,33 @@
     @keyframes spin { to{transform:rotate(360deg)} }
 
     /* Clickable empty cells */
-    .empty-cell { cursor:pointer; transition:background 120ms; }
-    .empty-cell:hover { background:#dbeafe !important; }
-    .empty-cell:hover::after { content:'+ Book'; font-size:0.65rem; font-weight:700; color:#1E3A5F; display:block; text-align:center; padding-top:2px; }
+    .empty-cell { cursor:pointer; transition:background 120ms; position:relative; }
+    .empty-cell:hover { background:#EEF3FA !important; }
+    .empty-cell .slot-hint {
+      display:none; font-size:0.68rem; font-weight:700; color:#1E3A5F;
+      text-align:center; padding:2px 0; width:100%;
+    }
+    .empty-cell:hover .slot-hint { display:block; }
+
+    /* Slot confirm popup */
+    .slot-popup {
+      position:fixed; z-index:150; background:#fff;
+      border:1.5px solid #1E3A5F; border-radius:10px;
+      box-shadow:0 8px 28px rgba(30,58,95,.18);
+      padding:16px 18px; min-width:220px;
+      animation:popIn 180ms cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes popIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+    .slot-popup-head { font-size:0.8rem; font-weight:700; color:#1E3A5F; margin-bottom:4px; }
+    .slot-popup-sub  { font-size:0.72rem; color:#64748B; margin-bottom:12px; }
+    .slot-popup-btn  {
+      width:100%; padding:9px; border-radius:7px; border:none;
+      background:#1E3A5F; color:#fff; font-family:inherit; font-size:0.82rem;
+      font-weight:700; cursor:pointer; transition:background 160ms;
+    }
+    .slot-popup-btn:hover { background:#2E5B88; }
+    .slot-popup-cancel { display:block; text-align:center; margin-top:8px; font-size:0.75rem; color:#64748B; cursor:pointer; }
+    .slot-popup-cancel:hover { color:#0F1923; }
 
   </style>
 </head>
@@ -226,13 +250,10 @@
   <div class="modal-overlay" id="bookModal">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="modalTitle">📅 Book Room</h2>
+        <h2>📅 Book Room</h2>
         <button class="modal-close" id="modalClose">✕</button>
       </div>
       <div class="modal-body">
-        <div class="login-banner" id="loginBanner" style="display:none;">
-          You need to <a href="#" id="loginLink">log in</a> to book a room.
-        </div>
         <div class="conflict-banner" id="conflictBanner">⚠️ This slot is already booked.</div>
         <div id="bookForm">
           <div class="field">
@@ -240,7 +261,11 @@
             <select id="modalRoom"></select>
           </div>
           <div class="field">
-            <label>Title / Purpose</label>
+            <label>Your Name</label>
+            <input type="text" id="modalName" placeholder="e.g. Ahmad Rizal"/>
+          </div>
+          <div class="field">
+            <label>Purpose / Title</label>
             <input type="text" id="modalTitle2" placeholder="e.g. Team Meeting"/>
           </div>
           <div class="field">
