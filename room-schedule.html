@@ -170,34 +170,14 @@
     .btn-primary.loading .spin { display:block; }
     @keyframes spin { to{transform:rotate(360deg)} }
 
-    /* Clickable empty cells — multi-select */
-    .empty-cell {
-      cursor:pointer; transition:background 120ms; position:relative; user-select:none;
-    }
+    /* Clickable empty cells */
+    .empty-cell { cursor:pointer; transition:background 120ms; position:relative; }
     .empty-cell:hover { background:#EEF3FA !important; }
     .empty-cell .slot-hint {
-      display:none; font-size:0.65rem; font-weight:700; color:#1E3A5F;
+      display:none; font-size:0.68rem; font-weight:700; color:#1E3A5F;
       text-align:center; padding:2px 0; width:100%;
     }
     .empty-cell:hover .slot-hint { display:block; }
-    /* Selected slot highlight */
-    .empty-cell.selected {
-      background:#BFDBFE !important;
-      border-top:2px solid #1E3A5F;
-      border-bottom:2px solid #1E3A5F;
-    }
-    .empty-cell.sel-start { border-top:2px solid #1E3A5F; border-radius:4px 4px 0 0; }
-    .empty-cell.sel-end   { border-bottom:2px solid #1E3A5F; border-radius:0 0 4px 4px; }
-    .empty-cell.selecting { background:#DBEAFE !important; }
-    /* Selection bar at top of column when selecting */
-    .sel-label {
-      position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
-      background:#1E3A5F; color:#fff; padding:9px 20px; border-radius:99px;
-      font-size:0.82rem; font-weight:700; box-shadow:0 4px 16px rgba(30,58,95,.3);
-      z-index:120; display:none; white-space:nowrap; animation:popIn 200ms both;
-    }
-    .sel-label.show { display:block; }
-    .sel-label span { opacity:.75; font-weight:400; margin-left:8px; }
 
     /* Slot confirm popup */
     .slot-popup {
@@ -219,6 +199,51 @@
     .slot-popup-cancel { display:block; text-align:center; margin-top:8px; font-size:0.75rem; color:#64748B; cursor:pointer; }
     .slot-popup-cancel:hover { color:#0F1923; }
 
+
+    /* ── Today's bookings summary ── */
+    .today-section {
+      margin-bottom: 24px;
+      background: #fff; border-radius: 10px;
+      border: 1.5px solid #1E3A5F; overflow: hidden;
+    }
+    .today-head {
+      background: #1E3A5F; color: #fff;
+      padding: 12px 20px; display: flex; align-items: center;
+      justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    }
+    .today-head h2 { font-size: 0.95rem; font-weight: 700; }
+    .today-head .today-date { font-size: 0.8rem; opacity: .75; }
+    .today-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 0; 
+    }
+    .today-room {
+      border-right: 1px solid #DDE1E7;
+      border-bottom: 1px solid #DDE1E7;
+    }
+    .today-room:last-child { border-right: none; }
+    .today-room-head {
+      padding: 9px 14px; background: #f8f9fb;
+      border-bottom: 1px solid #DDE1E7;
+      font-size: 0.78rem; font-weight: 700;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .today-room-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .today-slot {
+      padding: 8px 14px; border-bottom: 1px solid #f0f0ee;
+      font-size: 0.78rem;
+    }
+    .today-slot:last-child { border-bottom: none; }
+    .today-slot-time { font-weight: 700; color: #1E3A5F; margin-bottom: 2px; }
+    .today-slot-title { font-weight: 600; color: #0F1923; }
+    .today-slot-by { color: #64748B; font-size: 0.72rem; margin-top: 1px; }
+    .today-slot.active-now { background: #FFF9E6; border-left: 3px solid #FFD700; }
+    .today-slot.active-now .today-slot-time::after {
+      content: ' ● NOW'; color: #8B6914; font-size: 0.65rem; font-weight: 800;
+    }
+    .today-empty { padding: 16px 14px; color: #94a3b8; font-size: 0.78rem; text-align: center; }
+
   </style>
 </head>
 <body>
@@ -233,12 +258,24 @@
       </svg>
       <span class="brand-name">EMS — Room Schedule</span>
     </div>
-    <a href="login.html?redirect=room-booking.html" class="book-btn">📅 Book a Room</a>
+
   </header>
 
   <div class="page">
 
-    <!-- Controls -->
+  
+  <!-- Today's Bookings Summary -->
+  <div class="today-section" id="todaySection">
+    <div class="today-head">
+      <h2>📋 Today's Bookings</h2>
+      <span class="today-date" id="todayDateLabel"></span>
+    </div>
+    <div class="today-grid" id="todayGrid">
+      <div style="padding:20px;color:#94a3b8;font-size:0.875rem;">Loading…</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
     <div class="controls">
       <span class="room-label">Room:</span>
       <select class="room-sel" id="roomSel" onchange="renderSchedule()">
@@ -264,7 +301,6 @@
 
   </div>
 
-  <div class="sel-label" id="selLabel"></div>
   <div class="toast" id="toast"></div>
 
   <!-- Booking Modal -->
