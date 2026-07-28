@@ -170,14 +170,34 @@
     .btn-primary.loading .spin { display:block; }
     @keyframes spin { to{transform:rotate(360deg)} }
 
-    /* Clickable empty cells */
-    .empty-cell { cursor:pointer; transition:background 120ms; position:relative; }
+    /* Clickable empty cells — multi-select */
+    .empty-cell {
+      cursor:pointer; transition:background 120ms; position:relative; user-select:none;
+    }
     .empty-cell:hover { background:#EEF3FA !important; }
     .empty-cell .slot-hint {
-      display:none; font-size:0.68rem; font-weight:700; color:#1E3A5F;
+      display:none; font-size:0.65rem; font-weight:700; color:#1E3A5F;
       text-align:center; padding:2px 0; width:100%;
     }
     .empty-cell:hover .slot-hint { display:block; }
+    /* Selected slot highlight */
+    .empty-cell.selected {
+      background:#BFDBFE !important;
+      border-top:2px solid #1E3A5F;
+      border-bottom:2px solid #1E3A5F;
+    }
+    .empty-cell.sel-start { border-top:2px solid #1E3A5F; border-radius:4px 4px 0 0; }
+    .empty-cell.sel-end   { border-bottom:2px solid #1E3A5F; border-radius:0 0 4px 4px; }
+    .empty-cell.selecting { background:#DBEAFE !important; }
+    /* Selection bar at top of column when selecting */
+    .sel-label {
+      position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+      background:#1E3A5F; color:#fff; padding:9px 20px; border-radius:99px;
+      font-size:0.82rem; font-weight:700; box-shadow:0 4px 16px rgba(30,58,95,.3);
+      z-index:120; display:none; white-space:nowrap; animation:popIn 200ms both;
+    }
+    .sel-label.show { display:block; }
+    .sel-label span { opacity:.75; font-weight:400; margin-left:8px; }
 
     /* Slot confirm popup */
     .slot-popup {
@@ -244,6 +264,7 @@
 
   </div>
 
+  <div class="sel-label" id="selLabel"></div>
   <div class="toast" id="toast"></div>
 
   <!-- Booking Modal -->
