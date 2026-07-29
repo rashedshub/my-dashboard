@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>EMS — Employee Management System</title>
+  <title>E&C Portal — Employee & Culture</title>
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
@@ -19,18 +19,20 @@
     .topbar {
       position:fixed; top:0; left:0; right:0; z-index:50;
       height:58px; padding:0 28px;
-      background:rgba(255,255,255,.88); backdrop-filter:blur(12px);
+      background:rgba(255,255,255,.9); backdrop-filter:blur(12px);
       border-bottom:1px solid var(--border);
       display:flex; align-items:center; justify-content:space-between;
     }
     .brand { display:flex; align-items:center; gap:10px; }
     .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-    .brand-name { font-size:0.8rem; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:var(--text); }
+    .brand-text { display:flex; flex-direction:column; }
+    .brand-name { font-size:0.82rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--text); line-height:1.1; }
+    .brand-sub  { font-size:0.68rem; color:var(--muted); font-weight:500; letter-spacing:0.02em; }
     .topbar-right { display:flex; align-items:center; gap:10px; }
     .btn-login {
       padding:8px 18px; border:1.5px solid var(--border); border-radius:8px;
       background:var(--surface); font-family:inherit; font-size:0.8rem; font-weight:600;
-      color:var(--text); text-decoration:none; transition:all 160ms; cursor:pointer;
+      color:var(--text); text-decoration:none; transition:all 160ms;
     }
     .btn-login:hover { border-color:var(--navy); color:var(--navy); }
     .btn-signup {
@@ -42,39 +44,32 @@
 
     /* ── Hero ── */
     .hero {
-      padding-top:58px;
-      min-height:100vh;
+      padding-top:58px; min-height:100vh;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       text-align:center; padding-left:20px; padding-right:20px;
+      animation:fadeUp 500ms var(--ease) both;
     }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
     .hero-eyebrow {
       display:inline-flex; align-items:center; gap:8px;
       background:#EEF3FA; color:var(--navy); border-radius:99px;
-      padding:6px 14px; font-size:0.75rem; font-weight:700;
-      letter-spacing:0.06em; text-transform:uppercase; margin-bottom:20px;
+      padding:6px 16px; font-size:0.72rem; font-weight:700;
+      letter-spacing:0.07em; text-transform:uppercase; margin-bottom:20px;
     }
-    .hero-dot { width:7px; height:7px; border-radius:50%; background:var(--navy); }
+    .eyebrow-dot { width:6px; height:6px; border-radius:50%; background:var(--navy); }
     .hero h1 {
-      font-size:clamp(2rem, 5vw, 3rem); font-weight:800;
-      letter-spacing:-0.04em; line-height:1.1; margin-bottom:14px;
-      max-width:640px;
+      font-size:clamp(1.8rem,5vw,2.8rem); font-weight:800;
+      letter-spacing:-0.04em; line-height:1.1; margin-bottom:14px; max-width:600px;
     }
-    .hero p {
-      font-size:1rem; color:var(--muted); max-width:480px;
-      line-height:1.6; margin-bottom:40px;
-    }
+    .hero h1 span { color:var(--steel); }
+    .hero p { font-size:0.95rem; color:var(--muted); max-width:460px; line-height:1.65; margin-bottom:40px; }
 
     /* ── Matrix grid ── */
-    .matrix {
-      display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
-      gap:16px; width:100%; max-width:900px; margin-bottom:40px;
-    }
+    .matrix { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; width:100%; max-width:920px; margin-bottom:40px; }
     .matrix-card {
-      background:var(--surface); border-radius:var(--radius);
-      border:1px solid var(--border); padding:24px 20px;
-      text-decoration:none; color:var(--text);
-      display:flex; flex-direction:column; gap:12px; text-align:left;
+      background:var(--surface); border-radius:var(--radius); border:1px solid var(--border);
+      padding:22px 18px; text-decoration:none; color:var(--text);
+      display:flex; flex-direction:column; gap:10px; text-align:left;
       transition:transform 160ms var(--ease), box-shadow 160ms, border-color 160ms;
       position:relative; overflow:hidden;
     }
@@ -82,47 +77,26 @@
       content:''; position:absolute; top:0; left:0; right:0; height:3px;
       background:var(--card-color, var(--navy));
     }
-    .matrix-card:hover {
-      transform:translateY(-3px);
-      box-shadow:0 8px 28px rgba(0,0,0,.1);
-      border-color:var(--card-color, var(--navy));
-    }
+    .matrix-card:hover { transform:translateY(-3px); box-shadow:0 8px 28px rgba(0,0,0,.09); border-color:var(--card-color,var(--navy)); }
     .matrix-card:active { transform:translateY(0); }
-    .card-icon { font-size:1.6rem; }
-    .card-title { font-size:0.95rem; font-weight:700; }
-    .card-desc  { font-size:0.78rem; color:var(--muted); line-height:1.5; flex:1; }
-    .card-arrow {
-      font-size:0.8rem; color:var(--muted); font-weight:600;
-      margin-top:4px; transition:color 160ms;
-    }
-    .matrix-card:hover .card-arrow { color:var(--card-color, var(--navy)); }
+    .card-icon  { font-size:1.5rem; }
+    .card-title { font-size:0.9rem; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .card-desc  { font-size:0.75rem; color:var(--muted); line-height:1.5; flex:1; }
+    .card-arrow { font-size:0.75rem; color:var(--muted); font-weight:600; transition:color 160ms; }
+    .matrix-card:hover .card-arrow { color:var(--card-color,var(--navy)); }
+    .card-badge { display:inline-block; padding:2px 8px; border-radius:99px; font-size:0.62rem; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; background:#dcfce7; color:#166534; }
 
-    /* Public card badge */
-    .card-badge {
-      display:inline-block; padding:2px 8px; border-radius:99px;
-      font-size:0.65rem; font-weight:700; letter-spacing:0.05em;
-      text-transform:uppercase; margin-left:6px;
-      background:#dcfce7; color:#166534;
-    }
-
-    /* ── Footer note ── */
-    .footer-note {
-      font-size:0.78rem; color:var(--muted); text-align:center;
-      margin-top:8px;
-    }
+    /* ── Footer ── */
+    .footer-note { font-size:0.75rem; color:var(--muted); }
     .footer-note a { color:var(--navy); text-decoration:none; font-weight:600; }
     .footer-note a:hover { text-decoration:underline; }
 
-    @keyframes fadeUp {
-      from { opacity:0; transform:translateY(18px); }
-      to   { opacity:1; transform:translateY(0); }
-    }
-    .hero { animation:fadeUp 500ms var(--ease) both; }
+    /* ── Dept badge ── */
+    .dept-tag { display:inline-block; margin-top:16px; padding:5px 14px; background:rgba(30,58,95,.08); color:var(--navy); border-radius:99px; font-size:0.72rem; font-weight:700; letter-spacing:0.04em; }
   </style>
 </head>
 <body>
 
-  <!-- Topbar -->
   <header class="topbar">
     <div class="brand">
       <div class="brand-icon">
@@ -133,7 +107,10 @@
           <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
         </svg>
       </div>
-      <span class="brand-name">EMS</span>
+      <div class="brand-text">
+        <span class="brand-name">E&amp;C Portal</span>
+        <span class="brand-sub">Employee &amp; Culture</span>
+      </div>
     </div>
     <div class="topbar-right">
       <a href="login.html"  class="btn-login">Log in</a>
@@ -141,54 +118,45 @@
     </div>
   </header>
 
-  <!-- Hero + Matrix -->
   <main class="hero">
-    <div class="hero-eyebrow"><span class="hero-dot"></span>Employee Management System</div>
-    <h1>Everything your HR team needs in one place</h1>
-    <p>Manage employees, track leave, book rooms, run surveys and monitor welfare — all in one modern platform.</p>
+    <div class="hero-eyebrow"><span class="eyebrow-dot"></span>Interdepartmental Portal</div>
+    <h1>Employee &amp; Culture<br><span>Department Hub</span></h1>
+    <p>Your central platform for leave tracking, room bookings, welfare monitoring, survey management and HR analytics.</p>
 
-    <!-- Matrix of main pages -->
     <div class="matrix">
 
       <a href="hr-dashboard.html" class="matrix-card" style="--card-color:#1E3A5F">
         <div class="card-icon">📊</div>
         <div class="card-title">HR Dashboard <span class="card-badge">Public</span></div>
-        <div class="card-desc">Visualise leave, YEEP, health, food quality, welfare and disciplinary data with live charts.</div>
+        <div class="card-desc">Live charts for leave, YEEP, health checkups, food quality, welfare and disciplinary data.</div>
         <div class="card-arrow">View Dashboard →</div>
       </a>
 
       <a href="login.html?redirect=dashboard.html" class="matrix-card" style="--card-color:#2E5B88">
         <div class="card-icon">📝</div>
         <div class="card-title">Data Entry</div>
-        <div class="card-desc">Enter leave plan, YEEP installations, welfare data and outstanding disciplinary records.</div>
+        <div class="card-desc">Enter leave plan, YEEP installations, welfare records and outstanding disciplinary cases.</div>
         <div class="card-arrow">Open Data Entry →</div>
       </a>
 
-      <a href="room-schedule.html" class="matrix-card" style="--card-color:#1B6B6B">
-        <div class="card-icon">📅</div>
-        <div class="card-title">Room Schedule <span class="card-badge">Public</span></div>
-        <div class="card-desc">See today and tomorrow's training room bookings — no login required.</div>
-        <div class="card-arrow">View Schedule →</div>
-      </a>
-
-      <a href="room-booking.html" class="matrix-card" style="--card-color:#3A6B4A">
+      <a href="room-booking.html" class="matrix-card" style="--card-color:#1B6B6B">
         <div class="card-icon">🏢</div>
         <div class="card-title">Room Booking <span class="card-badge">Public</span></div>
-        <div class="card-desc">View schedule and book a training room — no login required.</div>
-        <div class="card-arrow">View & Book →</div>
+        <div class="card-desc">View today's schedule and book training rooms by clicking any available time slot.</div>
+        <div class="card-arrow">View &amp; Book →</div>
       </a>
 
-      <a href="login.html?redirect=survey.html" class="matrix-card" style="--card-color:#8B6914">
+      <a href="login.html?redirect=survey.html" class="matrix-card" style="--card-color:#3A6B4A">
         <div class="card-icon">📋</div>
         <div class="card-title">Surveys</div>
-        <div class="card-desc">Answer active surveys assigned to you and track your response history.</div>
+        <div class="card-desc">Participate in active surveys assigned by the E&amp;C department and track your responses.</div>
         <div class="card-arrow">Take Survey →</div>
       </a>
 
-      <a href="login.html?redirect=admin.html" class="matrix-card" style="--card-color:#8B3A2A">
+      <a href="login.html?redirect=admin.html" class="matrix-card" style="--card-color:#8B6914">
         <div class="card-icon">🛡️</div>
         <div class="card-title">Admin Panel</div>
-        <div class="card-desc">Approve employees, manage roles, create surveys and configure training rooms.</div>
+        <div class="card-desc">Manage user roles, approve accounts, configure rooms and create surveys.</div>
         <div class="card-arrow">Admin Access →</div>
       </a>
 
@@ -198,6 +166,7 @@
       New here? <a href="signup.html">Create an account</a> &nbsp;·&nbsp;
       Already have one? <a href="login.html">Log in</a>
     </p>
+    <div class="dept-tag">Employee &amp; Culture Department</div>
   </main>
 
 </body>
