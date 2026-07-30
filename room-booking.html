@@ -14,14 +14,14 @@
     body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
     /* ── Topbar ── */
-    .topbar { background:var(--navy); padding:0 24px; height:54px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .topbar { background:rgba(255,255,255,.93); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); padding:0 24px; height:56px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
     .topbar-left { display:flex; align-items:center; gap:10px; }
     .brand-icon { width:30px; height:30px; background:rgba(255,255,255,.15); border-radius:7px; display:flex; align-items:center; justify-content:center; }
-    .brand-name { font-size:0.82rem; font-weight:800; letter-spacing:0.07em; text-transform:uppercase; color:#fff; }
-    .home-link { font-size:0.8rem; color:rgba(255,255,255,.65); text-decoration:none; margin-left:16px; transition:color 160ms; }
-    .home-link:hover { color:#fff; }
+    .brand-name { font-size:0.82rem; font-weight:800; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
+    .home-link { font-size:0.8rem; color:var(--muted); text-decoration:none; margin-left:16px; transition:color 160ms; }
+    .home-link:hover { color:var(--text); }
     .topbar-right { display:flex; align-items:center; gap:10px; }
-    .live-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,.12); color:#fff; padding:5px 12px; border-radius:99px; font-size:0.72rem; font-weight:700; }
+    .live-badge { display:inline-flex; align-items:center; gap:5px; background:#EEF3FA; color:var(--navy); padding:5px 12px; border-radius:99px; font-size:0.72rem; font-weight:700; }
     .live-dot { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse 1.8s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
@@ -63,7 +63,7 @@
     }
     .room-sel:focus, .ctrl-sel:focus { border-color:var(--navy); }
     .nav-btn { padding:7px 14px; border:1.5px solid var(--border); border-radius:7px; background:var(--surface); font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; color:var(--text); transition:all 160ms; }
-    .nav-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .nav-btn:hover { border-color:var(--navy); background:var(--navy); color:var(--text); }
     .today-btn { padding:7px 14px; border:1.5px solid var(--navy); border-radius:7px; background:var(--navy); color:#fff; font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; }
     .today-btn:hover { opacity:.88; }
 
@@ -113,7 +113,7 @@
     .modal-header { padding:18px 22px 16px; border-bottom:1px solid var(--border); background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; }
     .modal-header h2 { font-size:0.95rem; font-weight:700; }
     .modal-close { background:none; border:none; color:rgba(255,255,255,.65); font-size:1.2rem; cursor:pointer; }
-    .modal-close:hover { color:#fff; }
+    .modal-close:hover { color:var(--text); }
     .modal-body { padding:18px 22px; }
     .modal-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
     .field { margin-bottom:13px; }

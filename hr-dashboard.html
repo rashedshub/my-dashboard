@@ -19,7 +19,7 @@
     body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
     /* ── Topbar ── */
-    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:58px; }
+    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:56px; }
     .topbar-brand { display:flex; align-items:center; gap:10px; }
     .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
     .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
@@ -132,7 +132,7 @@
     </div>
     <div class="topbar-right">
       <a href="index.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Home</a>
-      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
+      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← My Portal</a>
       <span class="user-badge" id="topbarEmail"></span>
       <a href="login.html?redirect=hr-dashboard.html" id="loginBtn" style="padding:7px 16px;border:1.5px solid var(--border);border-radius:7px;font-size:0.8rem;font-weight:600;color:var(--text);text-decoration:none;display:none;">Log in</a>
       <button class="logout-btn" id="logoutBtn" style="display:none;">Log out</button>
