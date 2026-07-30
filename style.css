@@ -8,8 +8,8 @@
 
 /* ── Design tokens ── */
 :root {
-  --navy:    #1A2B6D;
-  --steel:   #1E3A5F;
+  --navy:    #1E3A5F;
+  --steel:   #2E5B88;
   --teal:    #1B6B6B;
   --sage:    #3A6B4A;
   --gold:    #8B6914;
@@ -54,24 +54,22 @@ body {
 }
 
 .brand-icon {
+  width: 32px;
+  height: 32px;
+  background: var(--navy);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
-.brand-logo {
-  height: 28px;
-  width: auto;
-  object-fit: contain;
-  display: block;
-}
 
 .brand-name {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text);
 }
 
 .topbar-right {

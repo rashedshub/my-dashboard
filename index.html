@@ -24,7 +24,7 @@
       display:flex; align-items:center; justify-content:space-between;
     }
     .brand { display:flex; align-items:center; gap:10px; }
-    .brand-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .brand-text { display:flex; flex-direction:column; }
     .brand-name { font-size:0.82rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--text); line-height:1.1; }
     .brand-sub  { font-size:0.68rem; color:var(--muted); font-weight:500; letter-spacing:0.02em; }
@@ -99,7 +99,14 @@
 
   <header class="topbar">
     <div class="brand">
-      <div class="brand-icon"><img src="youngone-logo.jpeg" alt="YOUNGONE" class="brand-logo"/></div>
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
       <div class="brand-text">
         <span class="brand-name">E&amp;C Portal</span>
         <span class="brand-sub">Employee &amp; Culture</span>
@@ -112,7 +119,6 @@
   </header>
 
   <main class="hero">
-    <img src="youngone-logo.jpeg" alt="YOUNGONE" style="height:48px;width:auto;margin-bottom:24px;opacity:.9;"/>
     <div class="hero-eyebrow"><span class="eyebrow-dot"></span>Interdepartmental Portal</div>
     <h1>Employee &amp; Culture<br><span>Department Hub</span></h1>
     <p>Your central platform for leave tracking, room bookings, welfare monitoring, survey management and HR analytics.</p>
