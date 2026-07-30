@@ -1,7 +1,11 @@
 import { app } from "./firebase.js";
+import { getAuth, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, collection, getDocs, onSnapshot, addDoc
+  getFirestore, collection, getDocs, onSnapshot, addDoc, deleteDoc, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const auth = getAuth(app);
 
 const db = getFirestore(app);
 
@@ -10,11 +14,21 @@ const SLOT_END   = 18 * 60;
 const SLOT_STEP  = 30;
 
 let rooms        = [];
+let isAdmin      = false;
 let bookings     = [];
 let weekOffset   = 0;
 let selectedRoom = "";
 let unsubBookings = null;
 let activePopup  = null;
+
+// ── Auth — check if admin ─────────────────────────────────────────────────────
+onAuthStateChanged(auth, async user => {
+  if (!user) { isAdmin = false; return; }
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    isAdmin = snap.exists() && snap.data().role === "admin";
+  } catch(e) { isAdmin = false; }
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const el = id => document.getElementById(id);
@@ -185,7 +199,8 @@ window.renderSchedule = function() {
         for(let s=1;s<info.span;s++) skip[`${di}-${si+s}`]=true;
         const b=info.booking;
         const isNow=todayKey===dKey&&nowMins>=toMins(b.startTime)&&nowMins<toMins(b.endTime);
-        html+=`<td class="booked-cell${isNow?" booked-now":""}" rowspan="${info.span}">
+        html+=`<td class="booked-cell${isNow?" booked-now":""}" rowspan="${info.span}"
+          data-id="${b.id}" style="cursor:pointer;" onclick="openBookingDetail(event,'${b.id}')">
           <div class="booked-purpose">${b.title}</div>
           <div class="booked-by">👤 ${b.bookedByName||"—"}</div>
         </td>`;
@@ -305,6 +320,67 @@ async function submitBooking() {
   } catch(e){ showToast("Booking failed: "+e.message,"error"); }
   btn.disabled=false; btn.classList.remove("loading");
 }
+
+
+// ── Booking detail popup (admin can delete) ───────────────────────────────────
+window.openBookingDetail = function(e, bookingId) {
+  e.stopPropagation();
+  removePopup();
+
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  const room = rooms.find(r => r.id === b.roomId);
+  const rect = e.currentTarget.getBoundingClientRect();
+  const top  = rect.bottom + window.scrollY + 8;
+  const left = Math.min(rect.left + window.scrollX, window.innerWidth - 260);
+
+  const dateObj   = new Date(b.date + "T00:00:00");
+  const dateFmt   = dateObj.toLocaleDateString("en-US", {weekday:"short", day:"numeric", month:"short", year:"numeric"});
+
+  const popup = document.createElement("div");
+  popup.className = "slot-popup";
+  popup.style.cssText = `position:absolute;top:${top}px;left:${left}px;min-width:240px;`;
+
+  const deleteBtn = isAdmin
+    ? `<button class="popup-btn" id="deleteBookingBtn"
+         style="background:#8B3A2A;margin-top:8px;">
+         🗑️ Delete Booking
+       </button>`
+    : "";
+
+  popup.innerHTML = `
+    <div class="popup-head">📋 ${b.title}</div>
+    <div class="popup-sub" style="line-height:1.6;">
+      🏢 <strong>${room?.name || "—"}</strong><br>
+      📅 ${dateFmt}<br>
+      ⏰ ${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}<br>
+      👤 ${b.bookedByName || "—"}
+      ${b.notes ? `<br>📝 ${b.notes}` : ""}
+    </div>
+    ${deleteBtn}
+    <span class="popup-dismiss" id="popupDismiss">Close</span>
+  `;
+
+  document.body.appendChild(popup);
+  activePopup = popup;
+
+  el("popupDismiss").addEventListener("click", e => { e.stopPropagation(); removePopup(); });
+
+  if (isAdmin) {
+    el("deleteBookingBtn")?.addEventListener("click", async ev => {
+      ev.stopPropagation();
+      if (!confirm(`Delete booking "${b.title}" by ${b.bookedByName}?`)) return;
+      try {
+        await deleteDoc(doc(db, "room_bookings", bookingId));
+        removePopup();
+        showToast("Booking deleted.", "warn");
+      } catch(err) {
+        showToast("Delete failed: " + err.message, "error");
+      }
+    });
+  }
+};
 
 // ── Wire up buttons ───────────────────────────────────────────────────────────
 el("prevWeek")?.addEventListener("click",  ()=>{ weekOffset--; renderSchedule(); });
