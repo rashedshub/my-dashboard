@@ -54,7 +54,7 @@ async function loadData() {
 
   let months = {};
   try {
-    const snap = await getDoc(doc(db, "leave_shared", `${currentYear}`));
+    const snap = await getDoc(doc(db, "leave_data", `${currentYear}`));
     if (snap.exists()) {
       const data = snap.data();
       months = data.months || {};
@@ -165,7 +165,7 @@ el("saveBtn").addEventListener("click", async () => {
   });
 
   try {
-    await setDoc(doc(db, "leave_shared", `${currentYear}`), {
+    await setDoc(doc(db, "leave_data", `${currentYear}`), {
       year:          currentYear,
       months,
       updatedAt:     new Date().toISOString(),
