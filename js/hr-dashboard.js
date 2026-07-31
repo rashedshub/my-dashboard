@@ -14,6 +14,8 @@ const MONTHS_FULL = ["January","February","March","April","May","June",
 let currentYear = new Date().getFullYear();
 let charts = {};
 
+// disciplinary chart refs tracked inside charts object
+
 // ════════════════════════════════════════
 // COLOR SYSTEM — Muted, sophisticated
 // ════════════════════════════════════════
@@ -22,6 +24,7 @@ const P = {
   navyFade:  "rgba(30,58,95,0.12)",
   navySoft:  "rgba(30,58,95,0.55)",
   steel:     "#2E5B88",
+  steelFade: "rgba(46,91,136,0.18)",
   steelFade: "rgba(46,91,136,0.12)",
   teal:      "#1B6B6B",
   tealFade:  "rgba(27,107,107,0.15)",
@@ -171,25 +174,12 @@ function showContent() {
 // ════════════════════════════════════════
 // AUTH
 // ════════════════════════════════════════
-// Public page — load data regardless of login status
-// Optionally show user email if logged in
-onAuthStateChanged(auth, user => {
-  if (user) {
-    set("topbarEmail", user.email);
-    const logoutBtn = el("logoutBtn");
-    if (logoutBtn) logoutBtn.style.display = "inline-block";
-    const loginBtn = el("loginBtn");
-    if (loginBtn) loginBtn.style.display = "none";
-  } else {
-    const logoutBtn = el("logoutBtn");
-    if (logoutBtn) logoutBtn.style.display = "none";
-    const loginBtn = el("loginBtn");
-    if (loginBtn) loginBtn.style.display = "inline-block";
-  }
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href="login.html"; return; }
+  set("topbarEmail", user.email);
+  buildYearPicker();
+  loadAll();
 });
-
-buildYearPicker();
-loadAll();
 
 function buildYearPicker() {
   const sel=el("yearSelect"); if(!sel) return;
@@ -274,6 +264,7 @@ async function loadAll() {
     await buildHC();
     await buildFQ();
     await buildWF();
+    await buildDisc();
 
   } catch(e){
     console.error(e);
@@ -538,8 +529,240 @@ async function buildWF() {
   } catch(e){console.error("WF:",e);}
 }
 
+// ════════════════════════════════════════
+// OUTSTANDING DISCIPLINARY
+// ════════════════════════════════════════
+async function buildDisc() {
+  const REASONS = [
+    "Negligence_of_Work","Indecent_behaviour","Disobedance",
+    "Damage_to_any_property","Dishonesty","Theft",
+    "Verbal_abuse","Mental_abuse","Physical_harassment","Sexual_Harassement"
+  ];
+  const REASON_LABELS = [
+    "Negligence","Indecent","Disobedance","Damage","Dishonesty",
+    "Theft","Verbal","Mental","Physical","Sexual"
+  ];
+  const DISC_COLORS = [
+    P.navy, P.steel, P.teal, P.sage, P.gold,
+    P.rust, "#5C1A0F", "#3A1B6B", "#1B5B5B", "#6B3A1B"
+  ];
+
+  try {
+    // Monthly outstanding numbers
+    const outSnap = await getDoc(doc(db,"disciplinary_out",String(currentYear)));
+    const outFull  = outSnap.exists() ? outSnap.data() : {};
+    const monthly  = outFull.monthly || {};
+    const weekly   = outFull.weekly  || {};
+    const monthArr = MONTHS.map(m => Number(monthly[m])||0);
+    const total    = monthArr.reduce((a,b)=>a+b,0);
+    const avg      = total>0 ? (total/monthArr.filter(v=>v>0).length).toFixed(1) : "—";
+    const peakIdx  = monthArr.indexOf(Math.max(...monthArr));
+    const peak     = total>0 ? `${MONTHS[peakIdx]} (${monthArr[peakIdx]})` : "—";
+
+    set("discTotal", total>0?total.toLocaleString():"No data");
+    set("discPeak",  peak);
+    set("discAvg",   avg!=="—"?avg:"—");
+
+    // Populate weekly month selector
+    const sel = el("discWeekMonthSelect");
+    if (sel && sel.options.length === 0) {
+      MONTHS_FULL.forEach((m,i) => {
+        const o = document.createElement("option");
+        o.value = i; o.textContent = m;
+        if (i === new Date().getMonth()) o.selected = true;
+        sel.appendChild(o);
+      });
+    }
+
+    // Store weekly data globally for refresh
+    window._discWeekly = weekly;
+    window._discCurrentYear = currentYear;
+    // renderDiscWeekly called after charts are built below
+
+    // Monthly bar chart
+    const barCanvas=el("discBarChart");
+    if(barCanvas) {
+      const barData=[...monthArr];
+      charts.discBar=new Chart(barCanvas.getContext("2d"),{
+        type:"bar",
+        data:{
+          labels:MONTHS,
+          datasets:[{
+            label:"Outstanding Cases",
+            data:barData,
+            backgroundColor:P.navyFade,
+            borderColor:P.navy,
+            borderWidth:2,
+            borderRadius:6,
+            borderSkipped:false
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{label:c=>` Outstanding: ${c.raw}`}}
+          },
+          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
+          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0],P.navy); }}
+        }
+      });
+    }
+
+    // Cases by reason — pie
+    const caseSnap = await getDoc(doc(db,"disciplinary_cases",String(currentYear)));
+    const caseData = caseSnap.exists() ? (caseSnap.data().reasons||{}) : {};
+    const reasonCounts = REASONS.map(r=>{
+      const rows=caseData[r]||[];
+      return rows.filter(row=>row&&(row.name||row.code)).length;
+    });
+    const totalCases=reasonCounts.reduce((a,b)=>a+b,0);
+
+    const pieCanvas=el("discPieChart");
+    if(pieCanvas) {
+      charts.discPie=new Chart(pieCanvas.getContext("2d"),{
+        type:"doughnut",
+        plugins:[PIE_LABEL_PLUGIN],
+        data:{
+          labels:REASON_LABELS,
+          datasets:[{
+            data:reasonCounts,
+            backgroundColor:DISC_COLORS,
+            borderColor:"#fff",
+            borderWidth:3,
+            hoverOffset:8
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false, cutout:"55%",
+          plugins:{
+            legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:8,font:{size:10}}},
+            tooltip:{callbacks:{label:c=>{const p=totalCases>0?(c.raw/totalCases*100).toFixed(1):0;return ` ${c.label}: ${c.raw} (${p}%)`;}}}
+          }
+        }
+      });
+    }
+
+    // Trend line chart
+    const lineCanvas=el("discLineChart");
+    if(lineCanvas) {
+      const lineData=[...monthArr];
+      charts.discLine=new Chart(lineCanvas.getContext("2d"),{
+        type:"line",
+        data:{
+          labels:MONTHS,
+          datasets:[{
+            label:"Outstanding Cases",
+            data:lineData,
+            borderColor:P.navy,
+            backgroundColor:P.navyFade,
+            borderWidth:2.5,
+            pointRadius:5,
+            pointBackgroundColor:P.navy,
+            tension:0.35,
+            fill:true
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{
+            legend:{display:false},
+            tooltip:{callbacks:{label:c=>` Cases: ${c.raw}`}}
+          },
+          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
+          animation:{onComplete(evt){ if(evt.initial) return; labelLine(evt.chart,0,lineData,P.navy); }}
+        }
+      });
+    }
+
+    // Now safe to render weekly chart (after month selector is populated)
+    renderDiscWeekly(weekly);
+
+  } catch(e){console.error("Disc:",e);}
+}
+
+// ── Disciplinary weekly chart helpers ────────────────────────────────────────
+function getWeeksInMonth(year, monthIdx) {
+  const weeks = []; const last = new Date(year, monthIdx+1, 0);
+  let d = new Date(year, monthIdx, 1); let n = 1;
+  while (d <= last) {
+    const s = new Date(d), e = new Date(d); e.setDate(e.getDate()+6);
+    if (e > last) e.setDate(last.getDate());
+    weeks.push({
+      label: `Wk${n} (${s.toLocaleDateString("en-US",{month:"short",day:"numeric"})})`,
+      key: `w${n}`
+    });
+    d.setDate(d.getDate()+7); n++;
+  }
+  return weeks;
+}
+
+function renderDiscWeekly(weeklyData) {
+  const sel        = el("discWeekMonthSelect"); if (!sel) return;
+  const rawVal     = sel.value;
+  const monthIdx   = (rawVal === "" || rawVal === null) ? new Date().getMonth() : Number(rawVal);
+  const mKey       = MONTHS[monthIdx];
+  const monthData  = weeklyData?.[mKey] || {};
+  const weeks      = getWeeksInMonth(window._discCurrentYear || new Date().getFullYear(), monthIdx);
+  const values     = weeks.map(w => Number(monthData[w.key]) || 0);
+  const hasData    = values.some(v => v > 0);
+
+  const emptyEl = el("discWeeklyEmpty");
+  const wrapEl  = el("discWeeklyWrap");
+
+  if (!hasData) {
+    if (emptyEl) emptyEl.style.display = "block";
+    if (wrapEl)  wrapEl.style.display  = "none";
+    if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = "none";
+  if (wrapEl)  wrapEl.style.display  = "block";
+
+  if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
+
+  const canvas = el("discWeeklyChart"); if (!canvas) return;
+  const wData  = [...values];
+  charts.discWeekly = new Chart(canvas.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [{
+        label: "Outstanding Cases",
+        data: wData,
+        backgroundColor: P.steelFade || "rgba(46,91,136,0.18)",
+        borderColor: P.steel,
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` Week ${c.dataIndex+1}: ${c.raw} cases` } }
+      },
+      scales: {
+        x: xCfg(),
+        y: yCfg({ suggestedMax: Math.max(...wData)*1.4 || 5, ticks: { stepSize: 1 } })
+      },
+      animation: {
+        onComplete(evt) {
+          if (evt.initial) return;
+          labelBars(evt.chart, [0], P.steel);
+        }
+      }
+    }
+  });
+}
+
+window.refreshDiscWeekly = function() {
+  renderDiscWeekly(window._discWeekly || {});
+};
+
 // ── Logout ────────────────────────────────────────────────────────────────────
-el("logoutBtn")?.addEventListener("click", async () => {
-  await signOut(auth);
-  window.location.href = "hr-dashboard.html"; // stay on public page
+el("logoutBtn")?.addEventListener("click", async()=>{
+  await signOut(auth); window.location.href="login.html";
 });
