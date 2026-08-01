@@ -15,6 +15,7 @@ const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December"
 ];
+const MKEYS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 let currentYear = new Date().getFullYear();
 let currentUser = null;
@@ -158,9 +159,9 @@ el("saveBtn").addEventListener("click", async () => {
 
   const months = {};
   MONTHS.forEach((_, i) => {
-    months[i] = {
-      plan:   parseFloat(el(`plan-${i}`)?.value)   || 0,
-      actual: parseFloat(el(`actual-${i}`)?.value) || 0,
+    months[MKEYS[i]] = {
+      plan:     parseFloat(el(`plan-${i}`)?.value)   || 0,
+      consumed: parseFloat(el(`actual-${i}`)?.value) || 0,
     };
   });
 
