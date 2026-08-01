@@ -178,6 +178,7 @@ el("saveBtn").addEventListener("click", async () => {
   try {
     await setDoc(doc(db, "leave_data", `${currentYear}`), {
       year:          currentYear,
+      months:        saveData,
       ...saveData,
       updatedAt:     new Date().toISOString(),
       updatedBy:     currentUser.uid,
