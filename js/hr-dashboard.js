@@ -206,7 +206,8 @@ async function loadAll() {
       return;
     }
     const data   = snap.data();
-    const months = data.months||{};
+    // Support both top-level keys (new) and nested months field (old)
+    const months = data.months || data;
     const planArr     = MONTHS.map(m=>Number(months[m]?.plan)||0);
     const consumedArr = MONTHS.map(m=>Number(months[m]?.consumed)||0);
 
@@ -381,7 +382,7 @@ async function buildHC() {
     const snap=await getDoc(doc(db,"health_data",String(currentYear)));
     if(!snap.exists()){set("hcTarget","No data");return;}
     const data=snap.data();
-    const months=data.months||{};
+    const months=data.months||data;
     const target=Number(data.target)||0;
     const completed=MONTHS.map(m=>Number(months[m]?.completed)||0);
     const ytd=completed.reduce((a,b)=>a+b,0);
@@ -438,7 +439,7 @@ async function buildFQ() {
   try {
     const snap=await getDoc(doc(db,"food_data",String(currentYear)));
     if(!snap.exists()){set("fqTotal","No data");return;}
-    const months=snap.data().months||{};
+    const _fd=snap.data(); const months=_fd.months||_fd;
     const totals={vg:0,g:0,s:0,b:0,vb:0};
     const byMonth={vg:[],g:[],s:[],b:[],vb:[]};
     MONTHS.forEach(m=>{
@@ -487,7 +488,7 @@ async function buildWF() {
   try {
     const snap=await getDoc(doc(db,"welfare_data",String(currentYear)));
     if(!snap.exists()){set("wfTotal","No data");return;}
-    const months=snap.data().months||{};
+    const _fd=snap.data(); const months=_fd.months||_fd;
     const totArr=MONTHS.map(m=>Number(months[m]?.total)||0);
     const solArr=MONTHS.map(m=>Number(months[m]?.solved)||0);
     const folArr=MONTHS.map(m=>Number(months[m]?.followup)||0);
