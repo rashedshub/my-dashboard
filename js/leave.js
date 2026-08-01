@@ -58,7 +58,16 @@ async function loadData() {
     const snap = await getDoc(doc(db, "leave_data", `${currentYear}`));
     if (snap.exists()) {
       const data = snap.data();
-      months = data.months || {};
+      // Data stored at top level: { Jan: {plan,consumed}, Feb: {...}, ... }
+      // Also support nested months field as fallback
+      if (data.months) {
+        months = data.months;
+      } else {
+        // Extract month keys from top-level document
+        const mk = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        months = {};
+        mk.forEach(m => { if (data[m]) months[m] = data[m]; });
+      }
       if (data.updatedAt && lu) {
         const by   = data.updatedByName || data.updatedBy || "someone";
         const time = new Date(data.updatedAt).toLocaleString();
@@ -76,8 +85,8 @@ function renderTable(months) {
   let totalPlan = 0, totalActual = 0;
 
   const rows = MONTHS.map((month, i) => {
-    const plan   = months[i]?.plan   ?? "";
-    const actual = months[i]?.actual ?? "";
+    const plan   = months[MKEYS[i]]?.plan ?? "";
+    const actual = months[MKEYS[i]]?.consumed ?? months[MKEYS[i]]?.actual ?? "";
     if (plan   !== "") totalPlan   += Number(plan)   || 0;
     if (actual !== "") totalActual += Number(actual) || 0;
     return `
@@ -158,8 +167,9 @@ el("saveBtn").addEventListener("click", async () => {
   btn.disabled  = true; btn.classList.add("loading");
 
   const months = {};
+  const saveData = {};
   MONTHS.forEach((_, i) => {
-    months[MKEYS[i]] = {
+    saveData[MKEYS[i]] = {
       plan:     parseFloat(el(`plan-${i}`)?.value)   || 0,
       consumed: parseFloat(el(`actual-${i}`)?.value) || 0,
     };
@@ -168,7 +178,7 @@ el("saveBtn").addEventListener("click", async () => {
   try {
     await setDoc(doc(db, "leave_data", `${currentYear}`), {
       year:          currentYear,
-      months,
+      ...saveData,
       updatedAt:     new Date().toISOString(),
       updatedBy:     currentUser.uid,
       updatedByName: currentUser.email
