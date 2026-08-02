@@ -3,339 +3,311 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Room Booking &amp; Schedule — E&amp;C Portal</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+  <title>Room Booking — EMS</title>
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
-      --navy:#1E3A5F; --steel:#2E5B88; --teal:#1B6B6B; --sage:#3A6B4A;
-      --gold:#BA7517; --rust:#8B3A2A;
-      --bg:#F0F2F5; --s0:#ffffff; --s1:#F8F9FB; --s2:#ffffff;
-      --border:rgba(0,0,0,.08); --border-strong:rgba(0,0,0,.14);
-      --text:#0F1923; --text2:#4A5568; --muted:#8896A4;
-      --accent:#2563EB; --accent-bg:rgba(37,99,235,.08);
-      --success:#059669; --success-bg:rgba(5,150,105,.09);
-      --warning:#BA7517; --warning-bg:rgba(186,117,23,.09);
-      --radius:10px; --ease:cubic-bezier(.65,0,.35,1);
+      --navy:#1E3A5F; --steel:#2E5B88; --bg:#F0F2F5;
+      --surface:#fff; --border:#DDE1E7; --text:#0F1923; --muted:#64748B;
+      --radius:10px; --ease:cubic-bezier(0.65,0,0.35,1);
     }
     body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
     /* ── Topbar ── */
-    .topbar {
-      position:sticky; top:0; z-index:80;
-      height:54px; padding:0 24px;
-      background:rgba(255,255,255,.92); backdrop-filter:blur(14px);
-      border-bottom:1px solid var(--border);
-      display:flex; align-items:center; justify-content:space-between;
-    }
-    .tb-left { display:flex; align-items:center; gap:10px; }
-    .brand-mark {
-      width:34px; height:34px; background:var(--navy); border-radius:9px;
-      display:flex; align-items:center; justify-content:center; color:#fff; font-size:16px; flex-shrink:0;
-    }
-    .brand-name { font-size:13px; font-weight:700; letter-spacing:.01em; color:var(--text); }
-    .brand-sub  { font-size:10px; color:var(--muted); margin-top:1px; }
-    .tb-sep { width:1px; height:20px; background:var(--border); margin:0 8px; }
-    .tb-page { font-size:13px; font-weight:500; color:var(--text2); }
-    .tb-right { display:flex; align-items:center; gap:10px; }
-    .live-pill {
-      display:inline-flex; align-items:center; gap:5px;
-      font-size:11px; font-weight:600; color:var(--success);
-      background:var(--success-bg); padding:4px 11px; border-radius:99px;
-      border:1px solid rgba(5,150,105,.2);
-    }
-    .live-dot { width:6px; height:6px; border-radius:50%; background:var(--success); animation:pulse 1.8s ease-in-out infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
-    .home-link { font-size:12px; color:var(--muted); text-decoration:none; transition:color 150ms; }
-    .home-link:hover { color:var(--navy); }
+    .topbar { background:var(--navy); padding:0 24px; height:54px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .topbar-left { display:flex; align-items:center; gap:10px; }
+    .brand-icon { width:30px; height:30px; background:rgba(255,255,255,.15); border-radius:7px; display:flex; align-items:center; justify-content:center; }
+    .brand-name { font-size:0.82rem; font-weight:800; letter-spacing:0.07em; text-transform:uppercase; color:#fff; }
+    .home-link { font-size:0.8rem; color:rgba(255,255,255,.65); text-decoration:none; margin-left:16px; transition:color 160ms; }
+    .home-link:hover { color:#fff; }
+    .topbar-right { display:flex; align-items:center; gap:10px; }
+    .live-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,.12); color:#fff; padding:5px 12px; border-radius:99px; font-size:0.72rem; font-weight:700; }
+    .live-dot { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse 1.8s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
 
-    /* ── Page ── */
-    .page { max-width:1160px; margin:0 auto; padding:24px 20px 64px; }
+    /* ── Page layout ── */
+    .page { max-width:1200px; margin:0 auto; padding:24px 16px 72px; }
 
     /* ── Page header ── */
-    .page-head { margin-bottom:20px; }
-    .page-head h1 { font-size:22px; font-weight:700; letter-spacing:-.03em; }
-    .page-head p  { font-size:13px; color:var(--text2); margin-top:4px; }
+    .page-head { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:16px; }
+    .page-head h1 { font-size:1.3rem; font-weight:800; letter-spacing:-0.02em; }
+    .page-head p  { font-size:0.82rem; color:var(--muted); margin-top:3px; }
 
-    /* ── Today cards ── */
-    .today-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; margin-bottom:20px; }
-    .today-card {
-      background:var(--s0); border:1px solid var(--border); border-radius:14px;
-      overflow:hidden; transition:box-shadow 200ms;
-    }
-    .today-card:hover { box-shadow:0 4px 18px rgba(0,0,0,.07); }
-    .tc-head {
-      padding:11px 14px 9px; border-bottom:1px solid var(--border);
-      display:flex; align-items:center; justify-content:space-between;
-    }
-    .room-pill { display:flex; align-items:center; gap:6px; }
-    .room-pip  { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
-    .room-name { font-size:12px; font-weight:600; color:var(--text); }
-    .tc-badge {
-      font-size:9px; font-weight:700; padding:2px 8px; border-radius:99px;
-      text-transform:uppercase; letter-spacing:.04em;
-    }
-    .badge-avail { background:var(--success-bg); color:var(--success); }
-    .badge-busy  { background:var(--accent-bg);   color:var(--accent);  }
-    .tc-body { padding:10px 14px 12px; }
-    .bk-row { padding:6px 0; border-bottom:1px solid var(--border); }
-    .bk-row:last-child { border-bottom:none; padding-bottom:0; }
-    .bk-time-row { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--muted); margin-bottom:2px; }
-    .now-tag {
-      display:inline-block; font-size:8px; font-weight:700;
-      padding:1px 5px; border-radius:3px; background:var(--gold); color:#fff; margin-left:3px;
-    }
-    .bk-title { font-size:12px; font-weight:600; }
-    .bk-who   { font-size:10px; color:var(--text2); margin-top:1px; }
-    .free-state { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--success); padding:6px 0; }
+    /* ── Today summary strip ── */
+    .today-strip { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; margin-bottom:20px; }
+    .today-strip-head { background:var(--navy); color:#fff; padding:10px 18px; display:flex; align-items:center; justify-content:space-between; }
+    .today-strip-head h2 { font-size:0.875rem; font-weight:700; }
+    .today-strip-date { font-size:0.75rem; opacity:.75; }
+    .today-rooms { display:flex; overflow-x:auto; gap:0; }
+    .today-room { min-width:200px; border-right:1px solid var(--border); flex-shrink:0; }
+    .today-room:last-child { border-right:none; }
+    .today-room-head { padding:8px 14px; background:#f8f9fb; border-bottom:1px solid var(--border); font-size:0.75rem; font-weight:700; display:flex; align-items:center; gap:7px; }
+    .room-color-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .today-booking { padding:7px 14px; border-bottom:1px solid #f0f0ee; font-size:0.72rem; }
+    .today-booking:last-child { border-bottom:none; }
+    .tb-time  { font-weight:700; color:var(--navy); }
+    .tb-title { font-weight:600; margin-top:1px; }
+    .tb-by    { color:var(--muted); margin-top:1px; }
+    .tb-now   { background:#fff8e1; border-left:3px solid #FFD700; }
+    .tb-now .tb-time::after { content:' ●NOW'; color:#8B6914; font-size:0.65rem; font-weight:800; }
+    .today-empty { padding:14px; text-align:center; color:var(--muted); font-size:0.75rem; }
 
     /* ── Controls ── */
-    .controls { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
-    .ctl-grp { display:flex; align-items:center; gap:7px; }
-    .ctl-label { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
-    .ctl-select {
-      font-size:12px; font-weight:600; padding:7px 12px;
-      border-radius:8px; border:1px solid var(--border-strong);
-      background:var(--s0); color:var(--text); cursor:pointer; outline:none;
-      transition:border-color 160ms;
+    .controls { display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+    .room-label { font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
+    .room-sel, .ctrl-sel {
+      padding:7px 12px; border:1.5px solid var(--border); border-radius:7px;
+      font-family:inherit; font-size:0.85rem; font-weight:600; color:var(--text);
+      background:var(--surface); outline:none; cursor:pointer; min-width:190px;
+      transition:border-color 180ms;
     }
-    .ctl-select:focus { border-color:var(--navy); }
-    .spacer { flex:1; }
-    .week-nav { display:flex; align-items:center; gap:4px; }
-    .wn-btn {
-      width:30px; height:30px; border-radius:8px;
-      border:1px solid var(--border-strong); background:var(--s0);
-      display:flex; align-items:center; justify-content:center;
-      cursor:pointer; color:var(--text2); font-size:14px; transition:all 150ms;
-    }
-    .wn-btn:hover { background:var(--navy); color:#fff; border-color:var(--navy); }
-    .wn-label { font-size:12px; font-weight:600; padding:0 10px; min-width:120px; text-align:center; color:var(--text); }
-    .this-week-btn {
-      font-size:11px; font-weight:600; padding:6px 14px; border-radius:8px;
-      border:1px solid rgba(37,99,235,.3); color:var(--accent); background:var(--accent-bg);
-      cursor:pointer; transition:all 150ms;
-    }
-    .this-week-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .room-sel:focus, .ctrl-sel:focus { border-color:var(--navy); }
+    .nav-btn { padding:7px 14px; border:1.5px solid var(--border); border-radius:7px; background:var(--surface); font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; color:var(--text); transition:all 160ms; }
+    .nav-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
+    .today-btn { padding:7px 14px; border:1.5px solid var(--navy); border-radius:7px; background:var(--navy); color:#fff; font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; }
+    .today-btn:hover { opacity:.88; }
 
-    /* ── Matrix ── */
-    .matrix-outer { border:1px solid var(--border); border-radius:14px; overflow:hidden; background:var(--s0); }
-    .matrix-head  { display:grid; background:var(--s1); border-bottom:1px solid var(--border-strong); }
-    .mh-time-cell { padding:10px 10px; border-right:1px solid var(--border); }
-    .mh-day {
-      padding:10px 8px; text-align:center;
-      border-right:1px solid var(--border);
+    /* ── Schedule table — modern ── */
+    .schedule-wrap {
+      overflow-x:auto;
+      border-radius:14px;
+      box-shadow:0 2px 16px rgba(30,58,95,.1);
+      border:1px solid var(--border);
     }
-    .mh-day:last-child { border-right:none; }
-    .mh-day.is-today { background:rgba(37,99,235,.04); }
-    .mh-day-name { font-size:10px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-    .mh-day-date { font-size:14px; font-weight:700; color:var(--text); margin-top:2px; }
-    .mh-day.is-today .mh-day-date { color:var(--accent); }
-    .today-pip { width:5px; height:5px; border-radius:50%; background:var(--accent); margin:4px auto 0; }
+    .sched-table { width:100%; border-collapse:collapse; min-width:700px; background:#fff; }
 
-    /* body rows */
-    .matrix-body {}
-    .m-row { display:grid; border-bottom:1px solid var(--border); }
-    .m-row:last-child { border-bottom:none; }
-    .m-row.is-now .m-slot.free { background:var(--warning-bg); }
-    .m-time {
-      padding:5px 10px; font-size:10px; font-weight:600; color:var(--muted);
-      border-right:1px solid var(--border); text-align:right; white-space:nowrap;
-      display:flex; align-items:center; justify-content:flex-end;
-      background:var(--s1);
+    /* Title bar */
+    .title-row td {
+      background:var(--navy); color:#fff; font-weight:700;
+      font-size:0.9rem; text-align:center; padding:12px 14px;
+      letter-spacing:0.01em;
     }
-    .m-slot { border-right:1px solid var(--border); min-height:30px; position:relative; transition:background 100ms; cursor:pointer; }
-    .m-slot:last-child { border-right:none; }
-    .m-slot.free { background:var(--s0); }
-    .m-slot.free:hover { background:var(--accent-bg); }
-    .m-slot.free:hover::after {
-      content:'+'; position:absolute; top:50%; left:50%;
-      transform:translate(-50%,-50%);
-      font-size:14px; font-weight:600; color:var(--accent); pointer-events:none;
+    .title-date {
+      background:#FFD700 !important; color:#0F1923 !important;
+      font-weight:800 !important; white-space:nowrap; font-size:0.9rem !important;
     }
-    .m-slot.booked { cursor:pointer; }
-    .bk-fill {
-      height:100%; padding:4px 7px; display:flex; flex-direction:column; justify-content:center;
-      border-left:2.5px solid;
+
+    /* Week label row */
+    .week-row td {
+      background:#F8F9FB; text-align:center; font-weight:600;
+      font-size:0.8rem; padding:6px; border-bottom:1px solid var(--border);
+      color:var(--text); letter-spacing:0.01em;
     }
-    .bk-fill.c-blue   { background:var(--accent-bg);   border-color:var(--accent);   }
-    .bk-fill.c-green  { background:var(--success-bg);  border-color:var(--success);  }
-    .bk-fill.c-amber  { background:var(--warning-bg);  border-color:var(--warning);  }
-    .bk-fill.c-navy   { background:rgba(30,58,95,.08); border-color:var(--navy);     }
-    .bk-fill-title { font-size:10px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); }
-    .bk-fill-who   { font-size:9px; color:var(--text2); margin-top:1px; }
+
+    /* Day headers */
+    .header-date td {
+      background:#EEF3FA; text-align:center; font-weight:700;
+      font-size:0.78rem; padding:8px 6px;
+      border-right:1px solid var(--border); border-bottom:1px solid var(--border);
+      color:var(--navy); letter-spacing:0.02em;
+    }
+    .header-day td {
+      background:#F4F7FC; text-align:center; font-size:0.72rem;
+      font-weight:600; padding:6px;
+      border-right:1px solid var(--border); border-bottom:1.5px solid var(--border);
+      color:var(--muted); text-transform:uppercase; letter-spacing:0.05em;
+    }
+
+    /* Body cells */
+    .sched-table tbody tr td {
+      border-right:1px solid #EDF0F4;
+      border-bottom:1px solid #EDF0F4;
+      font-size:0.77rem; vertical-align:top; padding:0;
+      height:30px; min-width:110px;
+    }
+
+    /* Time column */
+    .time-cell {
+      background:#F8F9FB !important;
+      font-weight:600; font-size:0.72rem; text-align:right;
+      padding:4px 10px 4px 4px !important; white-space:nowrap;
+      color:var(--muted); min-width:78px !important; width:78px;
+      border-right:1.5px solid #DDE1E7 !important;
+      letter-spacing:0.01em;
+    }
+
+    /* Booked cell — clean colored stripe style */
+    .booked-cell {
+      vertical-align:top; padding:0; cursor:pointer;
+      background:rgba(37,99,235,.07);
+      border-left:3px solid #2563EB !important;
+      transition:background 120ms;
+    }
+    .booked-cell:hover { background:rgba(37,99,235,.13); }
+    .booked-cell-inner { padding:4px 7px; height:100%; }
+    .booked-purpose { font-weight:700; font-size:0.72rem; color:#1E3A5F; line-height:1.3; }
+    .booked-by      { font-size:0.65rem; color:#64748B; margin-top:2px; }
+    .booked-now {
+      background:rgba(186,117,23,.1) !important;
+      border-left-color:#BA7517 !important;
+    }
+    .booked-now .booked-purpose { color:#7A4E10; }
+
+    /* Empty cell */
+    .empty-cell { cursor:pointer; transition:background 100ms; background:#fff; }
+    .empty-cell:hover { background:rgba(37,99,235,.06) !important; }
+    .empty-cell:hover::after {
+      content:'+ Book'; font-size:0.62rem; font-weight:700;
+      color:#2563EB; display:flex; justify-content:center;
+      padding-top:4px; opacity:.8;
+    }
+
+    /* Current time highlight */
+    .current-time-row .time-cell { color:var(--navy) !important; font-weight:800 !important; }
+    .current-time-row td.empty-cell { background:#FFFBEB !important; }
+    .current-time-row td.empty-cell:hover { background:rgba(37,99,235,.06) !important; }
+
+    /* ── Popup ── */
+    .slot-popup {
+      position:fixed; z-index:200; background:#fff;
+      border:1.5px solid var(--navy); border-radius:10px;
+      box-shadow:0 8px 32px rgba(30,58,95,.2); padding:16px 18px; min-width:230px;
+      animation:popIn 180ms cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    @keyframes popIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+    .popup-head { font-size:0.82rem; font-weight:700; color:var(--navy); margin-bottom:3px; }
+    .popup-sub  { font-size:0.72rem; color:var(--muted); margin-bottom:12px; line-height:1.4; }
+    .popup-btn  { width:100%; padding:9px; border-radius:7px; border:none; background:var(--navy); color:#fff; font-family:inherit; font-size:0.82rem; font-weight:700; cursor:pointer; transition:background 160ms; }
+    .popup-btn:hover { background:var(--steel); }
+    .popup-dismiss { display:block; text-align:center; margin-top:8px; font-size:0.72rem; color:var(--muted); cursor:pointer; }
+    .popup-dismiss:hover { color:var(--text); }
 
     /* ── Modal ── */
-    .modal-ov {
-      position:fixed; inset:0; background:rgba(15,25,35,.4);
-      backdrop-filter:blur(6px); z-index:300;
-      display:flex; align-items:center; justify-content:center; padding:20px;
-      opacity:0; pointer-events:none; transition:opacity 220ms;
-    }
-    .modal-ov.open { opacity:1; pointer-events:all; }
-    .modal {
-      background:var(--s0); border-radius:16px; width:100%; max-width:420px;
-      box-shadow:0 24px 64px rgba(0,0,0,.18);
-      transform:translateY(18px) scale(.97);
-      transition:transform 260ms var(--ease);
-      overflow:hidden;
-    }
-    .modal-ov.open .modal { transform:none; }
-    .modal-head {
-      padding:18px 22px 16px; border-bottom:1px solid var(--border);
-      display:flex; align-items:flex-start; justify-content:space-between;
-    }
-    .modal-head-eyebrow { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:4px; }
-    .modal-head-time    { font-size:20px; font-weight:700; letter-spacing:-.03em; }
-    .modal-head-meta    { font-size:12px; color:var(--text2); margin-top:3px; }
-    .modal-x { background:none; border:none; font-size:18px; color:var(--muted); cursor:pointer; padding:2px 6px; border-radius:6px; transition:all 150ms; line-height:1; }
-    .modal-x:hover { background:#f0f0ee; color:var(--text); }
+    .modal-overlay { position:fixed; inset:0; background:rgba(15,25,35,.5); backdrop-filter:blur(4px); z-index:300; display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; pointer-events:none; transition:opacity 250ms; }
+    .modal-overlay.open { opacity:1; pointer-events:all; }
+    .modal { background:#fff; border-radius:14px; width:100%; max-width:460px; box-shadow:0 20px 60px rgba(0,0,0,.2); transform:translateY(18px) scale(0.97); transition:transform 280ms var(--ease); overflow:hidden; }
+    .modal-overlay.open .modal { transform:none; }
+    .modal-header { padding:18px 22px 16px; border-bottom:1px solid var(--border); background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:space-between; }
+    .modal-header h2 { font-size:0.95rem; font-weight:700; }
+    .modal-close { background:none; border:none; color:rgba(255,255,255,.65); font-size:1.2rem; cursor:pointer; }
+    .modal-close:hover { color:#fff; }
     .modal-body { padding:18px 22px; }
-    .modal-foot { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
-
-    /* Booking details inside modal */
-    .bk-detail-card {
-      background:var(--s1); border-radius:10px; padding:12px 14px; margin-bottom:14px;
-      border-left:3px solid var(--accent);
-    }
-    .bk-detail-title { font-size:14px; font-weight:700; margin-bottom:3px; }
-    .bk-detail-who   { font-size:12px; color:var(--text2); display:flex; align-items:center; gap:5px; }
-
-    /* Form fields */
+    .modal-footer { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
     .field { margin-bottom:13px; }
-    .field label { display:block; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:5px; }
-    .field input, .field select, .field textarea {
-      width:100%; padding:9px 12px; border:1px solid var(--border-strong); border-radius:8px;
-      font-family:inherit; font-size:13px; color:var(--text); background:#fafaf9; outline:none;
-      transition:border-color 180ms, box-shadow 180ms;
-    }
-    .field input:focus, .field select:focus {
-      border-color:var(--accent); background:#fff; box-shadow:0 0 0 3px rgba(37,99,235,.1);
-    }
-    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    .conflict-banner {
-      background:#fee2e2; border-radius:8px; padding:9px 12px;
-      font-size:12px; font-weight:600; color:#991b1b; margin-bottom:12px; display:none;
-    }
+    .field label { display:block; font-size:0.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:5px; }
+    .field input, .field select, .field textarea { width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:7px; font-family:inherit; font-size:0.875rem; color:var(--text); background:#fafaf9; outline:none; transition:border-color 180ms, box-shadow 180ms; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--navy); background:#fff; box-shadow:0 0 0 3px rgba(30,58,95,.1); }
+    .field textarea { resize:vertical; min-height:56px; }
+    .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .conflict-banner { background:#fee2e2; border-radius:7px; padding:9px 13px; font-size:0.82rem; color:#991b1b; font-weight:600; margin-bottom:12px; display:none; }
     .conflict-banner.show { display:block; }
-
-    /* Buttons */
-    .btn-primary {
-      padding:10px 22px; border-radius:9px; background:var(--navy); color:#fff;
-      border:none; font-family:inherit; font-size:13px; font-weight:600;
-      cursor:pointer; transition:background 160ms; display:inline-flex; align-items:center; gap:6px;
-    }
+    .btn-primary { padding:10px 22px; border-radius:8px; background:var(--navy); color:#fff; border:none; font-family:inherit; font-size:0.875rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; transition:background 180ms; }
     .btn-primary:hover { background:var(--steel); }
     .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
-    .btn-ghost {
-      padding:10px 16px; border-radius:9px; background:none;
-      border:1px solid var(--border-strong); font-family:inherit;
-      font-size:13px; font-weight:500; cursor:pointer; color:var(--text2); transition:all 160ms;
-    }
+    .btn-ghost { padding:10px 16px; border-radius:8px; background:none; border:1.5px solid var(--border); font-family:inherit; font-size:0.875rem; font-weight:500; cursor:pointer; color:var(--muted); transition:all 180ms; }
     .btn-ghost:hover { border-color:var(--text); color:var(--text); }
-    .btn-danger { padding:10px 16px; border-radius:9px; background:#fee2e2; color:#991b1b; border:1px solid #fecaca; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:all 160ms; }
-    .btn-danger:hover { background:#991b1b; color:#fff; }
-    .spin { width:14px; height:14px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
+    .spin { width:15px; height:15px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:none; }
     .btn-primary.loading .spin { display:block; }
     @keyframes spin { to{transform:rotate(360deg)} }
 
     /* ── Legend ── */
-    .legend { display:flex; align-items:center; gap:14px; margin-top:12px; flex-wrap:wrap; }
-    .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text2); }
-    .leg-bar { width:14px; height:12px; border-radius:3px; border-left:2.5px solid; }
+    .legend { display:flex; gap:18px; flex-wrap:wrap; margin-top:12px; font-size:0.75rem; color:var(--muted); }
+    .leg { display:flex; align-items:center; gap:6px; }
+    .leg-box { width:14px; height:14px; border-radius:3px; border:1px solid #ddd; }
 
-    /* Toast */
-    .toast {
-      position:fixed; bottom:28px; left:50%;
-      transform:translateX(-50%) translateY(80px);
-      background:var(--navy); color:#fff; padding:11px 22px;
-      border-radius:10px; font-size:13px; font-weight:500;
-      box-shadow:0 4px 20px rgba(0,0,0,.18); transition:all 320ms var(--ease);
-      z-index:999; white-space:nowrap;
-    }
-    .toast.show   { transform:translateX(-50%) translateY(0); }
-    .toast.success{ background:var(--sage); }
-    .toast.error  { background:var(--rust); }
-    .toast.warn   { background:var(--gold); }
-
-    @media(max-width:640px){
-      .today-grid{ grid-template-columns:1fr; }
-      .controls{ gap:8px; }
-      .wn-label{ min-width:80px; font-size:11px; }
-    }
+    /* ── Toast ── */
+    .toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(80px); background:var(--navy); color:#fff; padding:11px 20px; border-radius:9px; font-size:0.875rem; font-weight:500; box-shadow:0 4px 20px rgba(0,0,0,.18); transition:all 320ms var(--ease); z-index:999; white-space:nowrap; }
+    .toast.show { transform:translateX(-50%) translateY(0); }
+    .toast.error   { background:#8B3A2A; }
+    .toast.success { background:#3A6B4A; }
+    .toast.warn    { background:#8B6914; }
   </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 </head>
 <body>
 
+  <!-- Topbar -->
   <header class="topbar">
-    <div class="tb-left">
-      <div class="brand-mark"><i class="ti ti-building-community"></i></div>
-      <div>
-        <div class="brand-name">E&amp;C Portal</div>
-        <div class="brand-sub">Employee &amp; Culture</div>
+    <div class="topbar-left">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
       </div>
-      <div class="tb-sep"></div>
-      <span class="tb-page">Room Booking &amp; Schedule</span>
-    </div>
-    <div class="tb-right">
+      <span class="brand-name">EMS</span>
       <a href="index.html" class="home-link">← Home</a>
-      <span class="live-pill"><span class="live-dot"></span>Live</span>
+    </div>
+    <div class="topbar-right">
+      <span class="live-badge"><span class="live-dot"></span>Live</span>
     </div>
   </header>
 
   <div class="page">
 
+    <!-- Page header -->
     <div class="page-head">
-      <h1>Room Booking &amp; Schedule</h1>
-      <p>Click any available slot to book. No login required.</p>
+      <div>
+        <h1>🏢 Room Booking &amp; Schedule</h1>
+        <p>Click any available slot to book. No login required.</p>
+      </div>
     </div>
 
-    <!-- Today cards -->
-    <div class="today-grid" id="todayGrid">
-      <div style="padding:20px;color:#8896A4;font-size:13px;">Loading today's bookings…</div>
+    <!-- Today's bookings summary strip -->
+    <div class="today-strip">
+      <div class="today-strip-head">
+        <h2>📋 Today's Bookings</h2>
+        <span class="today-strip-date" id="todayDateLabel"></span>
+      </div>
+      <div class="today-rooms" id="todayRooms">
+        <div style="padding:18px;color:#94a3b8;font-size:0.82rem;">Loading…</div>
+      </div>
     </div>
 
     <!-- Controls -->
     <div class="controls">
-      <div class="ctl-grp">
-        <span class="ctl-label">Room</span>
-        <select class="ctl-select" id="roomSel" onchange="renderMatrix()"></select>
-      </div>
-      <div class="spacer"></div>
-      <div class="week-nav">
-        <button class="wn-btn" id="prevWeek" title="Previous week"><i class="ti ti-chevron-left"></i></button>
-        <span class="wn-label" id="wkLabel"></span>
-        <button class="wn-btn" id="nextWeek" title="Next week"><i class="ti ti-chevron-right"></i></button>
-      </div>
-      <button class="this-week-btn" id="thisWeek">This week</button>
+      <span class="room-label">Room:</span>
+      <select class="room-sel" id="roomSel" onchange="renderSchedule()"></select>
+      <button class="nav-btn" id="prevWeek">‹ Prev</button>
+      <button class="today-btn" id="thisWeek">This Week</button>
+      <button class="nav-btn" id="nextWeek">Next ›</button>
     </div>
 
-    <!-- Matrix -->
-    <div class="matrix-outer">
-      <div class="matrix-head" id="matrixHead"></div>
-      <div class="matrix-body" id="matrixBody"></div>
+    <!-- Weekly schedule matrix -->
+    <div class="schedule-wrap" id="scheduleWrap">
+      <div style="padding:40px;text-align:center;color:var(--muted);">Loading schedule…</div>
     </div>
 
     <!-- Legend -->
     <div class="legend">
-      <div class="leg"><div class="leg-bar" style="background:var(--accent-bg);border-color:var(--accent)"></div>Booked</div>
-      <div class="leg"><div class="leg-bar" style="background:var(--warning-bg);border-color:var(--warning)"></div>Current time</div>
-      <div class="leg" style="margin-left:auto;font-size:11px;color:var(--muted);">Hover empty slots · click to book</div>
+      <div class="leg"><div class="leg-box" style="background:#FFD700;border-color:#FFD700;"></div>Booked</div>
+      <div class="leg"><div class="leg-box" style="background:#DBEAFE;border-color:#93c5fd;"></div>Click to Book</div>
+      <div class="leg"><div class="leg-box" style="background:#fffbeb;border-color:#fde68a;"></div>Current time</div>
     </div>
+
   </div>
 
-  <!-- Booking / Detail Modal -->
-  <div class="modal-ov" id="modal">
+  <!-- Slot popup -->
+  <div id="slotPopup" style="display:none;"></div>
+
+  <!-- Booking Modal -->
+  <div class="modal-overlay" id="bookModal">
     <div class="modal">
-      <div class="modal-head">
-        <div>
-          <div class="modal-head-eyebrow" id="modalEyebrow">Book this slot</div>
-          <div class="modal-head-time" id="modalTime"></div>
-          <div class="modal-head-meta" id="modalMeta"></div>
-        </div>
-        <button class="modal-x" id="modalClose">✕</button>
+      <div class="modal-header">
+        <h2>📅 Book Room</h2>
+        <button class="modal-close" id="modalClose">✕</button>
       </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-foot" id="modalFoot"></div>
+      <div class="modal-body">
+        <div class="conflict-banner" id="conflictBanner">⚠️ This time slot is already booked — please adjust times.</div>
+        <div class="field"><label>Room</label><select id="modalRoom"></select></div>
+        <div class="field"><label>Your Name</label><input type="text" id="modalName" placeholder="Full name"/></div>
+        <div class="field"><label>Purpose / Title</label><input type="text" id="modalTitle" placeholder="e.g. Team Meeting"/></div>
+        <div class="field"><label>Date</label><input type="date" id="modalDate"/></div>
+        <div class="field-row">
+          <div class="field"><label>Start Time</label><input type="time" id="modalStart"/></div>
+          <div class="field"><label>End Time</label><input type="time" id="modalEnd"/></div>
+        </div>
+        <div class="field"><label>Notes (optional)</label><textarea id="modalNotes" placeholder="Additional info…"></textarea></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn-primary" id="modalSubmit">
+          <span>Confirm Booking</span>
+          <span class="spin"></span>
+        </button>
+      </div>
     </div>
   </div>
 
