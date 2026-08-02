@@ -114,28 +114,40 @@ function renderToday() {
   if(labelEl) labelEl.textContent=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   if(!rooms.length){ gridEl.innerHTML=`<div style="padding:16px;color:#94a3b8;font-size:0.82rem;">No rooms configured.</div>`; return; }
 
-  gridEl.innerHTML = rooms.map(room=>{
+  // Row-per-room table layout
+  const rows = rooms.map(room=>{
     const bks=bookings.filter(b=>b.roomId===room.id&&b.date===todayKey)
       .sort((a,b)=>a.startTime.localeCompare(b.startTime));
-    const slotsHtml=bks.length===0
-      ? `<div class="today-empty">✅ Available all day</div>`
-      : bks.map(b=>{
-          const bs=toMins(b.startTime),be=toMins(b.endTime);
+
+    const slotsHtml = bks.length===0
+      ? `<div class="today-avail">✅ Available all day</div>`
+      : `<div class="today-slots-cell">${bks.map(b=>{
+          const bs=toMins(b.startTime), be=toMins(b.endTime);
           const isNow=nowMins>=bs&&nowMins<be;
-          return `<div class="today-booking${isNow?" tb-now":""}">
-            <div class="tb-time">${fmtTime(bs)} – ${fmtTime(be)}</div>
-            <div class="tb-title">${b.title}</div>
-            <div class="tb-by">👤 ${b.bookedByName||"—"}</div>
+          return `<div class="today-slot-chip${isNow?" chip-now":""}">
+            <span class="tsc-time">${fmtTime(bs)} – ${fmtTime(be)}${isNow?'<span class="now-pill">NOW</span>':""}</span>
+            <span class="tsc-title">${b.title}</span>
+            <span class="tsc-by">👤 ${b.bookedByName||"—"}</span>
           </div>`;
-        }).join("");
-    return `<div class="today-room">
-      <div class="today-room-head">
-        <span class="room-color-dot" style="background:${room.color||"#1E3A5F"}"></span>
+        }).join("")}</div>`;
+
+    return `<tr>
+      <td><div class="today-room-name">
+        <span class="today-room-dot" style="background:${room.color||"#1E3A5F"}"></span>
         ${room.name}
-      </div>
-      ${slotsHtml}
-    </div>`;
+        <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">(${room.capacity||"—"})</span>
+      </div></td>
+      <td>${slotsHtml}</td>
+    </tr>`;
   }).join("");
+
+  gridEl.innerHTML = `<table class="today-table">
+    <thead><tr>
+      <th style="width:200px;">Room</th>
+      <th>Bookings Today</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 // ── Weekly schedule matrix ────────────────────────────────────────────────────
