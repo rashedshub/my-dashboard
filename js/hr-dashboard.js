@@ -347,6 +347,29 @@ async function buildYEEP() {
     set("yeepESPct", total>0?`${(totES/total*100).toFixed(1)}% of total`:"—");
     set("yeepERPct", total>0?`${(totER/total*100).toFixed(1)}% of total`:"—");
 
+    // Plan vs Achievement card
+    const targets = snap.data().targets || {};
+    const tES = Number(targets.ES) || 0;
+    const tER = Number(targets.ER) || 0;
+    const pctES = tES > 0 ? (totES/tES*100) : null;
+    const pctER = tER > 0 ? (totER/tER*100) : null;
+    const clsES = pctES!==null&&pctES>=100?"exact":"under";
+    const clsER = pctER!==null&&pctER>=100?"exact":"under";
+
+    set("yeepESTarget", tES>0?tES.toLocaleString():"No target");
+    set("yeepESAch",    totES.toLocaleString());
+    set("yeepERTarget", tER>0?tER.toLocaleString():"No target");
+    set("yeepERAch",    totER.toLocaleString());
+
+    const esPctEl=el("yeepESAchPct");
+    if(esPctEl){ esPctEl.textContent=pctES!==null?pctES.toFixed(1)+"%":"—"; esPctEl.className="pct-value "+clsES; }
+    const erPctEl=el("yeepERAchPct");
+    if(erPctEl){ erPctEl.textContent=pctER!==null?pctER.toFixed(1)+"%":"—"; erPctEl.className="pct-value "+clsER; }
+    const esBar=el("yeepESBar");
+    if(esBar){ esBar.style.width=(pctES!==null?Math.min(pctES,100).toFixed(1):0)+"%"; esBar.className="pct-bar-fill "+clsES; }
+    const erBar=el("yeepERBar");
+    if(erBar){ erBar.style.width=(pctER!==null?Math.min(pctER,100).toFixed(1):0)+"%"; erBar.className="pct-bar-fill "+clsER; }
+
     const pie=el("yeepPieChart");
     if(pie){
       charts.yeepPie=new Chart(pie.getContext("2d"),{
