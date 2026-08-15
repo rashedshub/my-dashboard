@@ -120,6 +120,9 @@ async function loadData() {
 
       if (!sharedData.targets) sharedData.targets = { ES: 0, ER: 0 };
       if (data.targets) sharedData.targets = data.targets;
+      // Populate both target inputs
+      const tES = el("yeepTargetES"); if (tES) tES.value = sharedData.targets.ES || "";
+      const tER = el("yeepTargetER"); if (tER) tER.value = sharedData.targets.ER || "";
 
       if (data.updatedAt && lu) {
         const ts = data.updatedAt.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt);
@@ -233,49 +236,10 @@ window.updateTotal = function() {
   document.querySelectorAll(".yeep-input").forEach(inp => { total += Number(inp.value) || 0; });
   const gt = el("grandTotal");
   if (gt) gt.textContent = total > 0 ? total.toLocaleString() : "—";
-  updateTargetPct();
 };
 
 // ── Save ──────────────────────────────────────────────────────────────────────
-window.updateTargetPct = function() {
-  const isCombinedView = currentTeam === "combined";
-  const tBar = el("targetBar");
-  if (tBar) tBar.style.display = isCombinedView ? "none" : "flex";
-  if (isCombinedView) return;
 
-  // Update team label
-  const teamLbl = el("teamLabel");
-  if (teamLbl) teamLbl.textContent = currentTeam;
-
-  const target = Number(el("yeepTarget")?.value) || 0;
-  // Get total from grandTotal or sum inputs
-  let total = Number(el("grandTotal")?.textContent?.replace(/,/g,"")) || 0;
-  if (!total) {
-    document.querySelectorAll(".yeep-input").forEach(inp => { total += Number(inp.value) || 0; });
-  }
-
-  // Update yeepTotal2
-  const tot2 = el("yeepTotal2");
-  if (tot2) tot2.textContent = total > 0 ? total.toLocaleString() : "—";
-
-  const pct = target > 0 ? (total / target * 100) : null;
-  const pctEl = el("yeepPct");
-  const barEl = el("yeepPctBar");
-
-  if (pctEl) {
-    if (pct !== null) {
-      pctEl.textContent = pct.toFixed(1) + "% of target";
-      pctEl.style.color = pct >= 100 ? "#3A6B4A" : "#8B3A2A";
-    } else {
-      pctEl.textContent = "Set a target above";
-      pctEl.style.color = "var(--muted)";
-    }
-  }
-  if (barEl) {
-    barEl.style.width = pct !== null ? Math.min(pct, 100).toFixed(1) + "%" : "0%";
-    barEl.style.background = pct !== null && pct >= 100 ? "#3A6B4A" : "#1E3A5F";
-  }
-};
 
 el("saveBtn").addEventListener("click", async () => {
   const btn = el("saveBtn");
@@ -298,9 +262,10 @@ el("saveBtn").addEventListener("click", async () => {
   });
 
   try {
-    // Save target for current team
+    // Save both team targets always
     if (!sharedData.targets) sharedData.targets = { ES: 0, ER: 0 };
-    sharedData.targets[currentTeam] = Number(el("yeepTarget")?.value) || 0;
+    sharedData.targets.ES = Number(el("yeepTargetES")?.value) || 0;
+    sharedData.targets.ER = Number(el("yeepTargetER")?.value) || 0;
 
     await setDoc(doc(db, "yeep_data", String(currentYear)), {
       year:           currentYear,
