@@ -213,6 +213,25 @@
       </div>
 
       <!-- Table area -->
+      <!-- Target & Achievement bar -->
+      <div class="yeep-target-bar" id="targetBar" style="margin:0 0 16px;border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#fafaf9;">
+        <div class="yt-chip">
+          <label for="yeepTarget">Annual Target (<span id="teamLabel">ES</span> Team)</label>
+          <input type="number" class="yt-input" id="yeepTarget" min="0" placeholder="e.g. 5000" oninput="updateTargetPct()"/>
+        </div>
+        <div class="yt-chip">
+          <label>YTD Achieved</label>
+          <div class="yt-val" id="yeepTotal2">—</div>
+        </div>
+        <div class="yt-chip" style="flex:1;min-width:160px;">
+          <label>Achievement</label>
+          <div class="yt-pct" id="yeepPct">Set a target above</div>
+          <div class="pct-bar-track" style="width:100%;max-width:240px;height:8px;background:#EDF0F4;border-radius:99px;overflow:hidden;margin-top:6px;">
+            <div class="pct-bar-fill" id="yeepPctBar" style="height:100%;width:0%;border-radius:99px;background:#1E3A5F;transition:width 600ms;"></div>
+          </div>
+        </div>
+      </div>
+
       <div id="tableArea">
         <div class="table-loading">Loading…</div>
       </div>
