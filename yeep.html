@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>YEEP Data Entry — E&amp;C</title>
+  <title>YEEP Data Entry — EMS</title>
   <link rel="stylesheet" href="style.css"/>
   <style>
     .yeep-body { background: var(--bg); }
@@ -37,7 +37,7 @@
       transition: border-color 200ms, box-shadow 200ms;
     }
     .control-select:focus {
-      border-color: var(--navy);
+      border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
 
@@ -59,7 +59,7 @@
     }
     .team-tab::after {
       content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-      height: 2px; background: var(--navy); border-radius: 2px;
+      height: 2px; background: var(--accent); border-radius: 2px;
       transform: scaleX(0);
       transition: transform 280ms cubic-bezier(0.65,0,0.35,1);
     }
@@ -93,7 +93,7 @@
       transition: border-color 200ms, box-shadow 200ms, background 200ms;
     }
     .yeep-input:focus {
-      border-color: var(--navy); background: #fff;
+      border-color: var(--accent); background: #fff;
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
 
@@ -129,6 +129,28 @@
     .period-label {
       font-size: 0.78rem; color: var(--muted); padding: 10px 20px 0;
     }
+
+    /* ── Target & achievement ── */
+    .yeep-target-bar {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 18px 24px;
+      display: flex; align-items: center; gap: 28px; flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .yt-chip { display: flex; flex-direction: column; gap: 4px; }
+    .yt-chip label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .yt-input {
+      width: 120px; padding: 8px 12px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: inherit; font-size: 0.9rem; font-weight: 600;
+      color: var(--text); background: #fafaf9; outline: none;
+      transition: border-color 200ms, box-shadow 200ms;
+    }
+    .yt-input:focus { border-color: #1E3A5F; background: #fff; box-shadow: 0 0 0 3px rgba(30,58,95,.1); }
+    .yt-val { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+    .yt-pct { font-size: 0.8rem; font-weight: 600; margin-top: 2px; color: var(--muted); }
+    .pct-bar-track { width: 200px; height: 8px; background: #EDF0F4; border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .pct-bar-fill  { height: 100%; border-radius: 99px; background: #1E3A5F; transition: width 600ms cubic-bezier(.65,0,.35,1); }
+
   </style>
 </head>
 <body class="yeep-body">
@@ -143,11 +165,10 @@
           <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
         </svg>
       </div>
-      <span class="brand-name">E&amp;C Portal</span>
+      <span class="brand-name">EMS</span>
     </div>
     <div class="topbar-right">
-      <a href="index.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Home</a>
-      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← My Portal</a>
+      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Dashboard</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
