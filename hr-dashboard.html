@@ -217,29 +217,50 @@
         <div class="stat-card"><div class="sc-label">ER Team</div><div class="sc-value" style="color:#1B6B6B" id="yeepER">—</div><div class="sc-sub" id="yeepERPct">—</div></div>
       </div>
 
-      <!-- YEEP Plan vs Achievement card -->
+      <!-- YEEP Target vs Achievement — ES Team -->
       <div class="pct-card mb-18">
         <div class="pct-left">
           <div class="pct-label">ES Team Achievement</div>
-          <div class="pct-value" id="yeepESAchPct" style="font-size:2.4rem;">—</div>
+          <div class="pct-value" id="yeepESAchPct">—</div>
         </div>
         <div class="pct-right">
           <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepESBar" style="width:0%"></div></div>
           <div class="pct-stats">
-            <div class="pct-stat"><div class="ps-label">ES Target</div><div class="ps-val" id="yeepESTarget">—</div></div>
-            <div class="pct-stat"><div class="ps-label">ES Achieved</div><div class="ps-val" id="yeepESAch">—</div></div>
+            <div class="pct-stat"><div class="ps-label">ES Annual Target</div><div class="ps-val" id="yeepESTarget">—</div></div>
+            <div class="pct-stat"><div class="ps-label">ES YTD Achieved</div><div class="ps-val" id="yeepESAch">—</div></div>
+            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepESRem">—</div></div>
           </div>
         </div>
-        <div style="width:1px;background:var(--border);align-self:stretch;margin:0 8px;flex-shrink:0;"></div>
+      </div>
+
+      <!-- YEEP Target vs Achievement — ER Team -->
+      <div class="pct-card mb-18">
         <div class="pct-left">
           <div class="pct-label">ER Team Achievement</div>
-          <div class="pct-value" id="yeepERAchPct" style="font-size:2.4rem;">—</div>
+          <div class="pct-value" id="yeepERAchPct">—</div>
         </div>
         <div class="pct-right">
           <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepERBar" style="width:0%"></div></div>
           <div class="pct-stats">
-            <div class="pct-stat"><div class="ps-label">ER Target</div><div class="ps-val" id="yeepERTarget">—</div></div>
-            <div class="pct-stat"><div class="ps-label">ER Achieved</div><div class="ps-val" id="yeepERAch">—</div></div>
+            <div class="pct-stat"><div class="ps-label">ER Annual Target</div><div class="ps-val" id="yeepERTarget">—</div></div>
+            <div class="pct-stat"><div class="ps-label">ER YTD Achieved</div><div class="ps-val" id="yeepERAch">—</div></div>
+            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepERRem">—</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- YEEP Combined -->
+      <div class="pct-card mb-18">
+        <div class="pct-left">
+          <div class="pct-label">Combined Achievement</div>
+          <div class="pct-value" id="yeepCombAchPct">—</div>
+        </div>
+        <div class="pct-right">
+          <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepCombBar" style="width:0%"></div></div>
+          <div class="pct-stats">
+            <div class="pct-stat"><div class="ps-label">Combined Target</div><div class="ps-val" id="yeepCombTarget">—</div></div>
+            <div class="pct-stat"><div class="ps-label">Combined Achieved</div><div class="ps-val" id="yeepCombAch">—</div></div>
+            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepCombRem">—</div></div>
           </div>
         </div>
       </div>
