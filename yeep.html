@@ -213,23 +213,19 @@
       </div>
 
       <!-- Table area -->
-      <!-- Target & Achievement bar -->
-      <div class="yeep-target-bar" id="targetBar" style="margin:0 0 16px;border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;background:#fafaf9;">
-        <div class="yt-chip">
-          <label for="yeepTarget">Annual Target (<span id="teamLabel">ES</span> Team)</label>
-          <input type="number" class="yt-input" id="yeepTarget" min="0" placeholder="e.g. 5000" oninput="updateTargetPct()"/>
+      <!-- Annual Targets (saved per team, shown in HR Dashboard) -->
+      <div id="targetBar" style="display:flex;gap:20px;flex-wrap:wrap;margin:0 0 16px;padding:14px 18px;background:#EEF3FA;border-radius:10px;border:1px solid #d0dff0;align-items:flex-end;">
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label style="font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;">ES Team — Annual Target</label>
+          <input type="number" id="yeepTargetES" min="0" placeholder="e.g. 5000"
+            style="width:150px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9rem;font-weight:600;color:var(--text);background:#fff;outline:none;"/>
         </div>
-        <div class="yt-chip">
-          <label>YTD Achieved</label>
-          <div class="yt-val" id="yeepTotal2">—</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
+          <label style="font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.07em;">ER Team — Annual Target</label>
+          <input type="number" id="yeepTargetER" min="0" placeholder="e.g. 3000"
+            style="width:150px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.9rem;font-weight:600;color:var(--text);background:#fff;outline:none;"/>
         </div>
-        <div class="yt-chip" style="flex:1;min-width:160px;">
-          <label>Achievement</label>
-          <div class="yt-pct" id="yeepPct">Set a target above</div>
-          <div class="pct-bar-track" style="width:100%;max-width:240px;height:8px;background:#EDF0F4;border-radius:99px;overflow:hidden;margin-top:6px;">
-            <div class="pct-bar-fill" id="yeepPctBar" style="height:100%;width:0%;border-radius:99px;background:#1E3A5F;transition:width 600ms;"></div>
-          </div>
-        </div>
+        <div style="font-size:0.75rem;color:var(--muted);padding-bottom:10px;">Targets are saved when you click Save on any team tab.</div>
       </div>
 
       <div id="tableArea">
