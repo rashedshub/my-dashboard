@@ -44,13 +44,25 @@ async function loadRooms(){
 
 function buildVenueSelect(){
   const sel = el("venueSel"); if(!sel) return;
-  // Keep "All Venues" option, add rooms
   sel.innerHTML = `<option value="all">All Venues</option>`;
   rooms.forEach(r=>{
     const o = document.createElement("option");
     o.value = r.id; o.textContent = r.name;
     sel.appendChild(o);
   });
+  buildLegend();
+}
+
+function buildLegend(){
+  const wrap = el("calLegend"); if(!wrap) return;
+  if(!rooms.length){ wrap.innerHTML=""; return; }
+  wrap.innerHTML = rooms.map(r=>{
+    const clr = roomColor(r.id);
+    return `<div class="leg-item">
+      <div class="leg-swatch" style="background:${clr.border};border-color:${clr.border}"></div>
+      ${r.name}
+    </div>`;
+  }).join("");
 }
 
 function subscribeBookings(){
