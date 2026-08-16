@@ -82,7 +82,9 @@ window.renderCalendar = function(){
 
   // Build day grid
   const today = new Date();
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
+  // Week starts Saturday: offset so Sat=col0, Sun=col1, ..., Fri=col6
+  const firstDayRaw = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun..6=Sat
+  const firstDay    = (firstDayRaw + 1) % 7; // Sat→0, Sun→1, ..., Fri→6
   const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
   const daysInPrev  = new Date(viewYear, viewMonth,   0).getDate();
 
@@ -104,7 +106,9 @@ window.renderCalendar = function(){
   // Leading empty cells (prev month)
   for(let i=0; i<firstDay; i++){
     const d = daysInPrev - firstDay + i + 1;
-    html += `<div class="day-cell out-month">
+    // col i: 0=Sat(not weekend), 1=Sun(weekend), 6=Fri(weekend)
+    const lwEnd = i===1 || i===6;
+    html += `<div class="day-cell out-month${lwEnd?" is-weekend":""}">
       <span class="day-num">${d}</span>
     </div>`;
   }
@@ -114,8 +118,9 @@ window.renderCalendar = function(){
     const dKey   = dateKey(viewYear, viewMonth, d);
     const dayDate = new Date(viewYear, viewMonth, d);
     const dow    = dayDate.getDay(); // 0=Sun, 6=Sat
-    const isToday = today.getFullYear()===viewYear && today.getMonth()===viewMonth && today.getDate()===d;
-    const dayBks  = byDate[dKey] || [];
+    const isToday   = today.getFullYear()===viewYear && today.getMonth()===viewMonth && today.getDate()===d;
+    const isWeekend = dow===0 || dow===5; // Sunday or Friday
+    const dayBks    = byDate[dKey] || [];
 
     // Show ALL bookings — row height expands freely
     const chipsHtml = dayBks.map(b=>{
@@ -129,7 +134,7 @@ window.renderCalendar = function(){
 
     const moreHtml = "";
 
-    html += `<div class="day-cell${isToday?" is-today":""}${dow===0?" is-sunday":""}${dow===6?" is-saturday":""}">
+    html += `<div class="day-cell${isToday?" is-today":""}${isWeekend?" is-weekend":""}">
       <span class="day-num">${d}</span>
       <div class="day-events">${chipsHtml}${moreHtml}</div>
     </div>`;
@@ -139,7 +144,10 @@ window.renderCalendar = function(){
   const totalCells = firstDay + daysInMonth;
   const trailing   = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
   for(let i=1; i<=trailing; i++){
-    html += `<div class="day-cell out-month"><span class="day-num">${i}</span></div>`;
+    const col = (firstDay + daysInMonth + i - 1) % 7;
+    // col 1=Sun, col 6=Fri are weekends
+    const twEnd = col===1 || col===6;
+    html += `<div class="day-cell out-month${twEnd?" is-weekend":""}"><span class="day-num">${i}</span></div>`;
   }
 
   el("daysGrid").innerHTML = html;
