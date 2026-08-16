@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HR Dashboard — EMS</title>
+  <title>HR Dashboard — E&amp;C</title>
   <link rel="stylesheet" href="style.css"/>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
@@ -19,7 +19,7 @@
     body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
 
     /* ── Topbar ── */
-    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:58px; }
+    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:56px; }
     .topbar-brand { display:flex; align-items:center; gap:10px; }
     .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
     .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
@@ -114,6 +114,37 @@
     .diff-p { color:var(--rust);  font-weight:600; }
     .diff-n { color:var(--steel); font-weight:600; }
     .diff-z { color:var(--muted); }
+
+    /* ── Mobile ── */
+    @media(max-width:768px){
+      body{ font-size:14px; }
+      .topbar{ padding:0 14px; height:52px; }
+      .topbar-link, .home-link{ font-size:0.72rem; }
+      .user-badge{ display:none; }
+      .page, .content{ padding:12px 10px 48px; }
+      .section-title{ font-size:0.85rem; margin:20px 0 12px; }
+      .stat-row{ grid-template-columns:repeat(2,1fr); gap:10px; }
+      .grid-2{ grid-template-columns:1fr; gap:14px; }
+      .pct-card{ flex-direction:column; gap:16px; padding:18px; }
+      .pct-bar-track{ width:100%; }
+      .chart-wrap{ height:200px !important; }
+      .chart-wrap-md{ height:180px !important; }
+      .chart-wrap-pie{ height:200px !important; }
+      .chart-card{ border-radius:10px; }
+      .card-head h2{ font-size:0.85rem; }
+      .tab-btn{ font-size:0.78rem; padding:8px 12px 8px 0; }
+      .btn-primary, .btn-ghost, .action-btn{ font-size:0.78rem; padding:7px 12px; }
+      .search-input{ max-width:100%; }
+      table{ font-size:0.78rem; }
+      .data-table th, .data-table td{ padding:8px 10px; }
+    }
+    @media(max-width:480px){
+      .topbar{ padding:0 10px; }
+      .brand-name{ font-size:0.72rem; letter-spacing:.04em; }
+      .stat-row{ grid-template-columns:1fr; }
+      .tab-bar{ overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
+      .tab-btn{ white-space:nowrap; }
+    }
   </style>
 </head>
 <body>
@@ -128,12 +159,14 @@
           <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
         </svg>
       </div>
-      <span class="brand-name">EMS</span>
+      <span class="brand-name">E&amp;C Portal</span>
     </div>
     <div class="topbar-right">
-      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
+      <a href="index.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Home</a>
+      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← My Portal</a>
       <span class="user-badge" id="topbarEmail"></span>
-      <button class="logout-btn" id="logoutBtn">Log out</button>
+      <a href="login.html?redirect=hr-dashboard.html" id="loginBtn" style="padding:7px 16px;border:1.5px solid var(--border);border-radius:7px;font-size:0.8rem;font-weight:600;color:var(--text);text-decoration:none;display:none;">Log in</a>
+      <button class="logout-btn" id="logoutBtn" style="display:none;">Log out</button>
     </div>
   </header>
 
@@ -216,54 +249,6 @@
         <div class="stat-card"><div class="sc-label">ES Team</div><div class="sc-value" style="color:#1E3A5F" id="yeepES">—</div><div class="sc-sub" id="yeepESPct">—</div></div>
         <div class="stat-card"><div class="sc-label">ER Team</div><div class="sc-value" style="color:#1B6B6B" id="yeepER">—</div><div class="sc-sub" id="yeepERPct">—</div></div>
       </div>
-
-      <!-- YEEP Target vs Achievement — ES Team -->
-      <div class="pct-card mb-18">
-        <div class="pct-left">
-          <div class="pct-label">ES Team Achievement</div>
-          <div class="pct-value" id="yeepESAchPct">—</div>
-        </div>
-        <div class="pct-right">
-          <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepESBar" style="width:0%"></div></div>
-          <div class="pct-stats">
-            <div class="pct-stat"><div class="ps-label">ES Annual Target</div><div class="ps-val" id="yeepESTarget">—</div></div>
-            <div class="pct-stat"><div class="ps-label">ES YTD Achieved</div><div class="ps-val" id="yeepESAch">—</div></div>
-            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepESRem">—</div></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- YEEP Target vs Achievement — ER Team -->
-      <div class="pct-card mb-18">
-        <div class="pct-left">
-          <div class="pct-label">ER Team Achievement</div>
-          <div class="pct-value" id="yeepERAchPct">—</div>
-        </div>
-        <div class="pct-right">
-          <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepERBar" style="width:0%"></div></div>
-          <div class="pct-stats">
-            <div class="pct-stat"><div class="ps-label">ER Annual Target</div><div class="ps-val" id="yeepERTarget">—</div></div>
-            <div class="pct-stat"><div class="ps-label">ER YTD Achieved</div><div class="ps-val" id="yeepERAch">—</div></div>
-            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepERRem">—</div></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- YEEP Combined -->
-      <div class="pct-card mb-18">
-        <div class="pct-left">
-          <div class="pct-label">Combined Achievement</div>
-          <div class="pct-value" id="yeepCombAchPct">—</div>
-        </div>
-        <div class="pct-right">
-          <div class="pct-bar-track"><div class="pct-bar-fill" id="yeepCombBar" style="width:0%"></div></div>
-          <div class="pct-stats">
-            <div class="pct-stat"><div class="ps-label">Combined Target</div><div class="ps-val" id="yeepCombTarget">—</div></div>
-            <div class="pct-stat"><div class="ps-label">Combined Achieved</div><div class="ps-val" id="yeepCombAch">—</div></div>
-            <div class="pct-stat"><div class="ps-label">Remaining</div><div class="ps-val" id="yeepCombRem">—</div></div>
-          </div>
-        </div>
-      </div>
       <div class="grid-2">
         <div class="chart-card">
           <div class="chart-head"><div><h2>ES vs ER Split</h2><p>Total by team</p></div></div>
@@ -324,6 +309,46 @@
           <div class="chart-head"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
           <div class="chart-wrap-md"><canvas id="wfBarChart"></canvas></div>
         </div>
+      </div>
+
+
+      <!-- ════════ OUTSTANDING DISCIPLINARY ════════ -->
+      <div class="section-title">Outstanding Disciplinary</div>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="sc-label">Peak Month</div><div class="sc-value sc-rust" id="discPeak">—</div></div>
+        <div class="stat-card"><div class="sc-label">Monthly Avg</div><div class="sc-value sc-teal" id="discAvg">—</div></div>
+      </div>
+
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>Monthly Outstanding Cases</h2><p>Number of outstanding disciplinary cases per month</p></div>
+        </div>
+        <div class="chart-wrap"><canvas id="discBarChart"></canvas></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>Cases by Reason</h2><p>Distribution across disciplinary categories</p></div></div>
+          <div class="chart-wrap-pie"><canvas id="discPieChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>Trend</h2><p>Monthly outstanding case trend</p></div></div>
+          <div class="chart-wrap-md"><canvas id="discLineChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Weekly outstanding chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>Weekly Outstanding Cases</h2><p>Week-by-week breakdown for selected month</p></div>
+          <div>
+            <select id="discWeekMonthSelect" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.85rem;font-weight:600;color:var(--text);background:var(--surface);outline:none;cursor:pointer;" onchange="refreshDiscWeekly()">
+            </select>
+          </div>
+        </div>
+        <div id="discWeeklyEmpty" style="text-align:center;padding:40px;color:var(--muted);font-size:0.875rem;display:none;">No weekly data for this month.</div>
+        <div class="chart-wrap" style="display:none;" id="discWeeklyWrap"><canvas id="discWeeklyChart"></canvas></div>
       </div>
 
     </div><!-- /mainContent -->

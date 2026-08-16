@@ -32,7 +32,7 @@
       transition: border-color 200ms, box-shadow 200ms;
     }
     .year-selector select:focus {
-      border-color: var(--navy);
+      border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
 
@@ -81,7 +81,7 @@
       transition: border-color 200ms, box-shadow 200ms, background 200ms;
     }
     .leave-input:focus {
-      border-color: var(--navy); background: #fff;
+      border-color: var(--accent); background: #fff;
       box-shadow: 0 0 0 3px rgba(17,17,17,.07);
     }
     .leave-input.plan  { }
@@ -112,6 +112,37 @@
     /* Loading overlay */
     .table-loading {
       text-align: center; padding: 48px; color: var(--muted); font-size: 0.9rem;
+    }
+
+    /* ── Mobile ── */
+    @media(max-width:768px){
+      body{ font-size:14px; }
+      .topbar{ padding:0 14px; height:52px; }
+      .topbar-link, .home-link{ font-size:0.72rem; }
+      .user-badge{ display:none; }
+      .page, .content{ padding:12px 10px 48px; }
+      .section-title{ font-size:0.85rem; margin:20px 0 12px; }
+      .stat-row{ grid-template-columns:repeat(2,1fr); gap:10px; }
+      .grid-2{ grid-template-columns:1fr; gap:14px; }
+      .pct-card{ flex-direction:column; gap:16px; padding:18px; }
+      .pct-bar-track{ width:100%; }
+      .chart-wrap{ height:200px !important; }
+      .chart-wrap-md{ height:180px !important; }
+      .chart-wrap-pie{ height:200px !important; }
+      .chart-card{ border-radius:10px; }
+      .card-head h2{ font-size:0.85rem; }
+      .tab-btn{ font-size:0.78rem; padding:8px 12px 8px 0; }
+      .btn-primary, .btn-ghost, .action-btn{ font-size:0.78rem; padding:7px 12px; }
+      .search-input{ max-width:100%; }
+      table{ font-size:0.78rem; }
+      .data-table th, .data-table td{ padding:8px 10px; }
+    }
+    @media(max-width:480px){
+      .topbar{ padding:0 10px; }
+      .brand-name{ font-size:0.72rem; letter-spacing:.04em; }
+      .stat-row{ grid-template-columns:1fr; }
+      .tab-bar{ overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
+      .tab-btn{ white-space:nowrap; }
     }
   </style>
 </head>

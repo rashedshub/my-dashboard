@@ -64,7 +64,7 @@
     /* ── Calendar grid ── */
     .cal-grid-wrap{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 4px 20px rgba(30,58,95,.1)}
     /* Day-of-week header */
-    .dow-row{display:grid;grid-template-columns:repeat(7,minmax(120px,1fr));background:var(--steel)}
+    .dow-row{display:grid;grid-template-columns:repeat(6,minmax(120px,1fr)) minmax(72px,0.5fr);background:var(--steel)}
     .dow-cell{padding:9px 8px;text-align:center;font-size:11px;font-weight:700;color:#fff;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15)}
     .dow-cell:last-child{border-right:none}
     .dow-cell.dow-weekend{background:rgba(0,0,0,.18)}
@@ -72,7 +72,7 @@
     /* Fixed equal columns — row height expands freely */
     .days-grid{
       display:grid;
-      grid-template-columns:repeat(7,minmax(120px,1fr));
+      grid-template-columns:repeat(6,minmax(120px,1fr)) minmax(72px,0.5fr);
       grid-auto-rows:auto;
       align-items:stretch;
     }
@@ -162,7 +162,51 @@
       transition:background 160ms; white-space:nowrap; flex-shrink:0;
     }
     .cta-btn:hover { background:var(--steel); }
-    @media(max-width:640px){.cal-month{font-size:24px}.day-cell{min-height:60px}}
+
+    /* ── Mobile optimisation ── */
+    @media(max-width:768px){
+      .page{ padding:12px 8px 48px; }
+      .cal-header{ padding:14px 14px 14px; border-radius:10px 10px 0 0; }
+      .cal-month{ font-size:26px; }
+      .cal-header-top{ flex-direction:column; align-items:flex-start; gap:8px; }
+      .cal-nav{ width:100%; justify-content:space-between; }
+      .nav-btn{ font-size:10px; padding:5px 10px; }
+      .cal-header-bottom{ flex-direction:column; align-items:flex-start; gap:8px; }
+      .venue-sel{ width:100%; min-width:unset; }
+      .cal-legend{ gap:8px; }
+      .leg-item{ font-size:10px; }
+
+      /* CTA banner */
+      .cta-banner{ padding:14px 16px; flex-direction:column; align-items:flex-start; }
+      .cta-icon{ font-size:2rem; }
+      .cta-text h3{ font-size:0.9rem; }
+      .cta-text p{ font-size:0.75rem; }
+      .cta-btn{ width:100%; justify-content:center; }
+
+      /* Calendar grid — horizontal scroll on mobile */
+      .cal-grid-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      .dow-row{ grid-template-columns:repeat(6,minmax(90px,1fr)) minmax(56px,0.4fr) !important; min-width:600px; }
+      .days-grid{ grid-template-columns:repeat(6,minmax(90px,1fr)) minmax(56px,0.4fr) !important; min-width:600px; }
+      .dow-cell{ padding:6px 4px; font-size:9px; }
+      .day-cell{ min-height:60px; }
+      .day-num{ font-size:11px; padding:4px 4px 2px; }
+      .ev-chip{ padding:2px 4px; margin-bottom:2px; }
+      .ev-chip-time{ font-size:8px; }
+      .ev-chip-title{ font-size:9px; }
+
+      /* Modal */
+      .modal{ max-width:100%; border-radius:12px; margin:10px; }
+      .modal-title{ font-size:14px; }
+      .md-val{ font-size:12px; }
+    }
+
+    @media(max-width:480px){
+      .cal-month{ font-size:20px; }
+      .topbar{ padding:0 12px; }
+      .brand-name{ display:none; }
+      .tb-sep{ display:none; }
+      .tb-page{ font-size:11px; }
+    }
   </style>
 </head>
 <body>

@@ -93,6 +93,22 @@
 
     /* ── Dept badge ── */
     .dept-tag { display:inline-block; margin-top:16px; padding:5px 14px; background:rgba(30,58,95,.08); color:var(--navy); border-radius:99px; font-size:0.72rem; font-weight:700; letter-spacing:0.04em; }
+
+    @media(max-width:768px){
+      .topbar{ padding:0 14px; }
+      .hero{ padding-top:70px; padding-left:14px; padding-right:14px; }
+      .hero h1{ font-size:1.6rem; }
+      .hero p{ font-size:0.85rem; }
+      .matrix{ grid-template-columns:1fr; gap:10px; }
+      .matrix-card{ padding:18px 16px; }
+      .card-title{ font-size:0.875rem; }
+      .card-desc{ font-size:0.75rem; }
+    }
+    @media(max-width:480px){
+      .hero h1{ font-size:1.3rem; }
+      .btn-login, .btn-signup{ padding:7px 12px; font-size:0.75rem; }
+      .matrix{ grid-template-columns:1fr; }
+    }
   </style>
 </head>
 <body>

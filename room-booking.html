@@ -229,6 +229,69 @@
     .toast.error   { background:#8B3A2A; }
     .toast.success { background:#3A6B4A; }
     .toast.warn    { background:#8B6914; }
+
+    /* ── Mobile ── */
+    @media(max-width:768px){
+      .page{ padding:12px 8px 48px; }
+
+      /* CTA */
+      .cta-banner{ padding:14px 16px; flex-direction:column; align-items:flex-start; }
+      .cta-icon{ font-size:2rem; }
+      .cta-text h3{ font-size:0.875rem; }
+      .cta-text p{ font-size:0.75rem; }
+      .cta-btn{ width:100%; justify-content:center; }
+
+      /* Today strip */
+      .today-strip-head{ flex-direction:column; align-items:flex-start; gap:4px; }
+      .today-table th, .today-table td{ padding:7px 10px; font-size:0.72rem; }
+      .today-room-name{ font-size:0.75rem; }
+      .today-slot-chip{ min-width:120px; }
+      .tsc-time{ font-size:0.62rem; }
+      .tsc-title{ font-size:0.72rem; }
+
+      /* Controls */
+      .controls{ gap:6px; flex-wrap:wrap; }
+      .ctl-grp{ flex:1; min-width:140px; }
+      .ctl-select{ width:100%; font-size:0.8rem; }
+      .week-nav{ flex:1; justify-content:center; }
+      .wn-label{ min-width:90px; font-size:0.75rem; padding:0 6px; }
+      .wn-btn{ width:28px; height:28px; }
+      .this-week-btn{ font-size:0.75rem; padding:5px 10px; }
+
+      /* Schedule table — scroll horizontally */
+      .schedule-wrap{ border-radius:8px; }
+      .sched-table{ min-width:560px; }
+      .time-cell{ min-width:60px !important; width:60px; font-size:0.68rem; padding:3px 6px 3px 2px !important; }
+      .sched-table tbody tr td{ min-width:70px; height:26px; }
+      .booked-cell-inner{ padding:2px 4px; }
+      .booked-purpose{ font-size:0.65rem; }
+      .booked-by{ font-size:0.6rem; }
+
+      /* Popup */
+      .slot-popup{ min-width:180px; padding:12px 14px; }
+      .popup-head{ font-size:0.75rem; }
+      .popup-sub{ font-size:0.68rem; }
+      .popup-btn{ font-size:0.78rem; padding:8px; }
+
+      /* Modal */
+      .modal{ max-width:100%; margin:10px; border-radius:12px; }
+      .modal-header{ padding:14px 18px; }
+      .modal-body{ padding:14px 18px; }
+      .modal-footer{ padding:12px 18px; flex-wrap:wrap; }
+      .field input, .field select{ font-size:0.875rem; }
+      .btn-primary, .btn-ghost{ padding:9px 16px; font-size:0.8rem; }
+      .field-row{ grid-template-columns:1fr; }
+    }
+
+    @media(max-width:480px){
+      .topbar{ padding:0 12px; height:50px; }
+      .brand-name{ font-size:0.72rem; }
+      .tb-sep{ display:none; }
+      .tb-page{ display:none; }
+      .page-head h1{ font-size:1.1rem; }
+      .page-head p{ font-size:0.75rem; }
+      .today-table{ display:block; overflow-x:auto; }
+    }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
 </head>
