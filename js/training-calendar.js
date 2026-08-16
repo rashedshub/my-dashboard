@@ -105,11 +105,8 @@ window.renderCalendar = function(){
     const isToday = today.getFullYear()===viewYear && today.getMonth()===viewMonth && today.getDate()===d;
     const dayBks  = byDate[dKey] || [];
 
-    const MAX_SHOW = 4;
-    const shown    = dayBks.slice(0, MAX_SHOW);
-    const extra    = dayBks.length - MAX_SHOW;
-
-    const chipsHtml = shown.map(b=>{
+    // Show ALL bookings — row height expands freely
+    const chipsHtml = dayBks.map(b=>{
       const clr = roomColor(b.roomId);
       return `<div class="ev-chip" style="background:${clr.bg};border-left-color:${clr.border};color:${clr.text}"
         onclick="showEvent('${b.id}')">
@@ -118,9 +115,7 @@ window.renderCalendar = function(){
       </div>`;
     }).join("");
 
-    const moreHtml = extra > 0
-      ? `<div class="more-link" onclick="showDayEvents('${dKey}')">+${extra} more</div>`
-      : "";
+    const moreHtml = "";
 
     html += `<div class="day-cell${isToday?" is-today":""}${dow===0?" is-sunday":""}${dow===6?" is-saturday":""}">
       <span class="day-num">${d}</span>
