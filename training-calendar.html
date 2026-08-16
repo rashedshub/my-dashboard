@@ -137,6 +137,26 @@
     .cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.2); }
     .leg-item { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(255,255,255,.9); }
     .leg-swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; border:1.5px solid rgba(255,255,255,.4); }
+
+    /* ── CTA banner ── */
+    .cta-banner {
+      display:flex; align-items:center; justify-content:space-between;
+      background:#fff; border:1px solid var(--border); border-radius:14px;
+      padding:20px 28px; margin-bottom:20px; gap:20px; flex-wrap:wrap;
+      box-shadow:0 2px 12px rgba(30,58,95,.06);
+    }
+    .cta-left { display:flex; align-items:center; gap:18px; }
+    .cta-icon { font-size:2.8rem; line-height:1; flex-shrink:0; }
+    .cta-text h3 { font-size:1rem; font-weight:700; color:var(--text); margin-bottom:4px; }
+    .cta-text p  { font-size:0.82rem; color:var(--muted); line-height:1.5; }
+    .cta-btn {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:11px 22px; border-radius:9px; background:var(--navy); color:#fff;
+      font-family:inherit; font-size:0.875rem; font-weight:700;
+      text-decoration:none; border:none; cursor:pointer;
+      transition:background 160ms; white-space:nowrap; flex-shrink:0;
+    }
+    .cta-btn:hover { background:var(--steel); }
     @media(max-width:640px){.cal-month{font-size:24px}.day-cell{min-height:60px}}
   </style>
 </head>
@@ -156,6 +176,22 @@
 </header>
 
 <div class="page">
+
+
+  <!-- CTA Banner -->
+  <div class="cta-banner">
+    <div class="cta-left">
+      <div class="cta-icon">🏢</div>
+      <div class="cta-text">
+        <h3>Want to Book a Room?</h3>
+        <p>Reserve a training room or meeting space for your team — no login required. Check live availability and book instantly.</p>
+      </div>
+    </div>
+    <a href="room-booking.html" class="cta-btn">
+      <i class="ti ti-calendar-plus" style="font-size:1.1rem"></i>
+      Book a Room Now
+    </a>
+  </div>
 
   <!-- Calendar header -->
   <div class="cal-header">
