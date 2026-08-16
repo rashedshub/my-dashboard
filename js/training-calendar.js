@@ -110,11 +110,10 @@ window.renderCalendar = function(){
     const extra    = dayBks.length - MAX_SHOW;
 
     const chipsHtml = shown.map(b=>{
-      const clr  = roomColor(b.roomId);
-      const room = rooms.find(r=>r.id===b.roomId);
+      const clr = roomColor(b.roomId);
       return `<div class="ev-chip" style="background:${clr.bg};border-left-color:${clr.border};color:${clr.text}"
         onclick="showEvent('${b.id}')">
-        <div class="ev-chip-time">${fmtTime(b.startTime)} · ${room?.name||""}</div>
+        <div class="ev-chip-time">${fmtTime(b.startTime)} – ${fmtTime(b.endTime)}</div>
         <div class="ev-chip-title">${b.title}</div>
       </div>`;
     }).join("");
