@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Training Calendar — E&amp;C Portal</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --navy:#1E3A5F;--steel:#2E5B88;--light:#4A7BA8;--lighter:#6B9DC2;
+      --bg:#F0F2F5;--surface:#fff;--border:#DDE1E7;
+      --text:#0F1923;--muted:#64748B;--ease:cubic-bezier(.65,0,.35,1);
+    }
+    body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased}
+
+    /* ── Topbar ── */
+    .topbar{position:sticky;top:0;z-index:80;height:52px;padding:0 24px;background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .tb-brand{display:flex;align-items:center;gap:10px}
+    .brand-mark{width:30px;height:30px;background:var(--navy);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+    .brand-name{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+    .tb-sep{width:1px;height:16px;background:var(--border);margin:0 10px}
+    .tb-page{font-size:12px;color:var(--muted)}
+    .tb-right{display:flex;align-items:center;gap:10px}
+    .tb-link{font-size:12px;color:var(--muted);text-decoration:none;transition:color 150ms}
+    .tb-link:hover{color:var(--navy)}
+
+    /* ── Page ── */
+    .page{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+
+    /* ── Cal header (like the image) ── */
+    .cal-header{
+      background:linear-gradient(135deg,var(--navy) 0%,var(--light) 100%);
+      border-radius:14px 14px 0 0;
+      padding:20px 24px 18px;
+      color:#fff;
+    }
+    .cal-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px}
+    .cal-label{font-size:11px;font-weight:600;opacity:.75;letter-spacing:.08em;text-transform:uppercase}
+    .cal-nav{display:flex;align-items:center;gap:6px}
+    .nav-btn{
+      display:flex;align-items:center;gap:5px;
+      background:rgba(255,255,255,.18);border:none;color:#fff;
+      padding:6px 14px;border-radius:7px;font-family:inherit;font-size:11px;
+      font-weight:600;cursor:pointer;transition:background 150ms;white-space:nowrap;
+    }
+    .nav-btn:hover{background:rgba(255,255,255,.28)}
+    .cal-month{font-size:36px;font-weight:800;letter-spacing:-.03em;line-height:1}
+    .cal-header-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:10px}
+    .venue-wrap{display:flex;align-items:center;gap:8px}
+    .venue-label{font-size:11px;font-weight:600;opacity:.75;text-transform:uppercase;letter-spacing:.06em}
+    .venue-sel{
+      padding:6px 14px;border-radius:7px;border:1.5px solid rgba(255,255,255,.35);
+      background:rgba(255,255,255,.15);color:#fff;font-family:inherit;
+      font-size:12px;font-weight:600;cursor:pointer;outline:none;
+      transition:border-color 150ms;min-width:180px;
+    }
+    .venue-sel:focus{border-color:rgba(255,255,255,.7)}
+    .venue-sel option{background:var(--navy);color:#fff}
+    .live-pill{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:600;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:99px;border:1px solid rgba(255,255,255,.25)}
+    .live-dot{width:5px;height:5px;border-radius:50%;background:#4ade80;animation:pulse 1.8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+    /* ── Calendar grid ── */
+    .cal-grid-wrap{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 14px 14px;overflow:hidden;box-shadow:0 4px 20px rgba(30,58,95,.1)}
+    /* Day-of-week header */
+    .dow-row{display:grid;grid-template-columns:repeat(7,1fr);background:var(--steel)}
+    .dow-cell{padding:9px 8px;text-align:center;font-size:11px;font-weight:700;color:#fff;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15)}
+    .dow-cell:last-child{border-right:none}
+    /* Day grid */
+    .days-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+    .day-cell{
+      border-right:1px solid var(--border);border-bottom:1px solid var(--border);
+      min-height:100px;padding:0;position:relative;
+      background:var(--surface);transition:background 120ms;
+    }
+    .day-cell:nth-child(7n){border-right:none}
+    .day-cell.out-month{background:#F8F9FB}
+    .day-cell.is-today{background:rgba(30,58,95,.03)}
+    .day-cell.is-today .day-num{color:var(--navy);background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+    .day-num{
+      font-size:12px;font-weight:700;color:var(--text);
+      padding:6px 8px 4px;display:inline-block;line-height:1;
+    }
+    .day-cell.out-month .day-num{color:var(--muted);opacity:.5}
+    .day-cell.is-sunday .day-num,.day-cell.is-saturday .day-num{color:var(--muted)}
+    /* Events */
+    .day-events{padding:0 4px 4px}
+    .ev-chip{
+      display:block;width:100%;margin-bottom:3px;
+      border-radius:4px;padding:2px 6px;cursor:pointer;
+      font-size:10px;line-height:1.35;border-left:3px solid;
+      transition:filter 140ms;
+    }
+    .ev-chip:hover{filter:brightness(.92)}
+    .ev-chip-time{font-weight:700;opacity:.8;font-size:9px}
+    .ev-chip-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .more-link{font-size:9px;font-weight:600;color:var(--steel);cursor:pointer;padding:1px 4px}
+    .more-link:hover{text-decoration:underline}
+
+    /* ── Event modal ── */
+    .modal-ov{position:fixed;inset:0;background:rgba(15,25,35,.4);backdrop-filter:blur(5px);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity 220ms}
+    .modal-ov.open{opacity:1;pointer-events:all}
+    .modal{background:var(--surface);border-radius:16px;width:100%;max-width:400px;box-shadow:0 24px 64px rgba(0,0,0,.16);transform:translateY(16px) scale(.97);transition:transform 260ms var(--ease);overflow:hidden}
+    .modal-ov.open .modal{transform:none}
+    .modal-bar{height:5px}
+    .modal-head{padding:16px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between}
+    .modal-title{font-size:16px;font-weight:700}
+    .modal-x{background:none;border:none;font-size:18px;color:var(--muted);cursor:pointer;padding:2px 6px;border-radius:6px}
+    .modal-x:hover{background:#f0f0ee}
+    .modal-body{padding:16px 20px 20px}
+    .md-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+    .md-row:last-child{margin-bottom:0}
+    .md-icon{font-size:15px;color:var(--muted);flex-shrink:0;margin-top:1px}
+    .md-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+    .md-val{font-size:13px;font-weight:500}
+
+    /* Day events modal (more items) */
+    .day-modal-ev{padding:10px 0;border-bottom:1px solid var(--border)}
+    .day-modal-ev:last-child{border-bottom:none}
+    .dme-time{font-size:10px;font-weight:700;color:var(--muted)}
+    .dme-title{font-size:13px;font-weight:600;margin-top:2px}
+    .dme-by{font-size:11px;color:var(--muted);margin-top:1px}
+
+    /* Toast */
+    .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:all 320ms var(--ease);z-index:999;white-space:nowrap}
+    .toast.show{transform:translateX(-50%) translateY(0)}
+
+    @media(max-width:640px){.cal-month{font-size:24px}.day-cell{min-height:60px}.ev-chip{display:none}.more-link{display:block}}
+  </style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tb-brand">
+    <div class="brand-mark"><i class="ti ti-calendar-month"></i></div>
+    <span class="brand-name">E&amp;C Portal</span>
+    <div class="tb-sep"></div>
+    <span class="tb-page">Training Calendar</span>
+  </div>
+  <div class="tb-right">
+    <a href="index.html" class="tb-link">← Home</a>
+    <a href="room-booking.html" class="tb-link">🏢 Book a Room</a>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Calendar header -->
+  <div class="cal-header">
+    <div class="cal-header-top">
+      <div class="cal-label">Training Calendar &amp; Venue Schedule</div>
+      <div class="cal-nav">
+        <button class="nav-btn" id="prevMonth">◀ Previous Month</button>
+        <button class="nav-btn" id="nextMonth">Next Month ▶</button>
+      </div>
+    </div>
+    <div class="cal-month" id="calMonthLabel">January 2026</div>
+    <div class="cal-header-bottom">
+      <div class="venue-wrap">
+        <span class="venue-label">Venue</span>
+        <select class="venue-sel" id="venueSel" onchange="renderCalendar()">
+          <option value="all">All Venues</option>
+        </select>
+      </div>
+      <span class="live-pill"><span class="live-dot"></span>Live</span>
+    </div>
+  </div>
+
+  <!-- Calendar grid -->
+  <div class="cal-grid-wrap">
+    <div class="dow-row">
+      <div class="dow-cell">Sunday</div>
+      <div class="dow-cell">Monday</div>
+      <div class="dow-cell">Tuesday</div>
+      <div class="dow-cell">Wednesday</div>
+      <div class="dow-cell">Thursday</div>
+      <div class="dow-cell">Friday</div>
+      <div class="dow-cell">Saturday</div>
+    </div>
+    <div class="days-grid" id="daysGrid">
+      <div style="padding:40px;color:var(--muted);text-align:center;grid-column:1/-1">Loading…</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Event detail modal -->
+<div class="modal-ov" id="evModal">
+  <div class="modal">
+    <div class="modal-bar" id="evModalBar"></div>
+    <div class="modal-head">
+      <div class="modal-title" id="evTitle"></div>
+      <button class="modal-x" id="evClose">✕</button>
+    </div>
+    <div class="modal-body" id="evBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script type="module" src="js/training-calendar.js"></script>
+</body>
+</html>
