@@ -133,7 +133,11 @@
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:all 320ms var(--ease);z-index:999;white-space:nowrap}
     .toast.show{transform:translateX(-50%) translateY(0)}
 
-    @media(max-width:640px){.cal-month{font-size:24px}.day-cell{min-height:60px}.ev-chip{display:none}.more-link{display:block}}
+    /* ── Room colour legend ── */
+    .cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.2); }
+    .leg-item { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(255,255,255,.9); }
+    .leg-swatch { width:12px; height:12px; border-radius:3px; flex-shrink:0; border:1.5px solid rgba(255,255,255,.4); }
+    @media(max-width:640px){.cal-month{font-size:24px}.day-cell{min-height:60px}}
   </style>
 </head>
 <body>
@@ -172,6 +176,8 @@
       </div>
       <span class="live-pill"><span class="live-dot"></span>Live</span>
     </div>
+    <!-- Room colour legend — populated by JS -->
+    <div class="cal-legend" id="calLegend"></div>
   </div>
 
   <!-- Calendar grid -->
