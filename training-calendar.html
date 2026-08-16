@@ -68,33 +68,48 @@
     .dow-cell{padding:9px 8px;text-align:center;font-size:11px;font-weight:700;color:#fff;letter-spacing:.05em;text-transform:uppercase;border-right:1px solid rgba(255,255,255,.15)}
     .dow-cell:last-child{border-right:none}
     /* Day grid */
-    .days-grid{display:grid;grid-template-columns:repeat(7,1fr)}
-    .day-cell{
-      border-right:1px solid var(--border);border-bottom:1px solid var(--border);
-      min-height:100px;padding:0;position:relative;
-      background:var(--surface);transition:background 120ms;
+    /* Fixed equal columns, rows grow with content */
+    .days-grid{
+      display:grid;
+      grid-template-columns:repeat(7,minmax(0,1fr));
+      grid-auto-rows:auto;
     }
+    .day-cell{
+      border-right:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+      /* Aspect-ratio keeps cells square up to content */
+      min-height:0;
+      padding:0;
+      position:relative;
+      background:var(--surface);
+      transition:background 120ms;
+      /* Square baseline — expands when chips overflow */
+      aspect-ratio:1/1;
+    }
+    /* Once chips are present the aspect-ratio yields to content */
+    .day-cell:has(.ev-chip){ aspect-ratio:unset; min-height:90px; }
+    .day-cell:has(.more-link){ aspect-ratio:unset; }
     .day-cell:nth-child(7n){border-right:none}
     .day-cell.out-month{background:#F8F9FB}
     .day-cell.is-today{background:rgba(30,58,95,.03)}
     .day-cell.is-today .day-num{color:var(--navy);background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
     .day-num{
       font-size:12px;font-weight:700;color:var(--text);
-      padding:6px 8px 4px;display:inline-block;line-height:1;
+      padding:5px 6px 3px;display:inline-block;line-height:1;
     }
     .day-cell.out-month .day-num{color:var(--muted);opacity:.5}
     .day-cell.is-sunday .day-num,.day-cell.is-saturday .day-num{color:var(--muted)}
     /* Events */
-    .day-events{padding:0 4px 4px}
+    .day-events{padding:0 4px 3px;overflow:hidden}
     .ev-chip{
-      display:block;width:100%;margin-bottom:3px;
-      border-radius:4px;padding:2px 6px;cursor:pointer;
-      font-size:10px;line-height:1.35;border-left:3px solid;
-      transition:filter 140ms;
+      display:block;width:100%;margin-bottom:2px;
+      border-radius:4px;padding:2px 5px;cursor:pointer;
+      font-size:10px;line-height:1.3;border-left:3px solid;
+      transition:filter 140ms;overflow:hidden;
     }
     .ev-chip:hover{filter:brightness(.92)}
-    .ev-chip-time{font-weight:700;opacity:.8;font-size:9px}
-    .ev-chip-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .ev-chip-time{font-weight:700;opacity:.75;font-size:9px;white-space:nowrap}
+    .ev-chip-title{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:10px}
     .more-link{font-size:9px;font-weight:600;color:var(--steel);cursor:pointer;padding:1px 4px}
     .more-link:hover{text-decoration:underline}
 
