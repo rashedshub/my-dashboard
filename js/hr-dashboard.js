@@ -346,47 +346,43 @@ async function buildYEEP() {
     set("yeepER",    totER.toLocaleString());
 
     // Populate stat cards with target vs achievement
+    const targets = snap.data().targets || {};
     const tES  = Number(targets.ES)  || 0;
     const tER  = Number(targets.ER)  || 0;
     const tAll = tES + tER;
 
-    function fillCard(achId, targetId, remId, barId, pctId, target, achieved, color) {
+    function fillCard(achId, targetId, remId, barId, pctId, target, achieved, color,
+                     achPctId, pctBarId, achCardId, remCardId) {
       const pct = target > 0 ? (achieved / target * 100) : null;
       const rem = target > 0 ? Math.max(0, target - achieved) : null;
+      const cls = pct!==null && pct>=100 ? "exact" : "under";
+      // Stat card mini bar + pct
       set(targetId, target > 0 ? target.toLocaleString() : "No target");
       set(remId,    rem !== null ? rem.toLocaleString() : "—");
       const barEl = el(barId);
-      if(barEl){ barEl.style.width = (pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; barEl.style.background=color; }
+      if(barEl){ barEl.style.width=(pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; barEl.style.background=color; }
       const pctEl = el(pctId);
       if(pctEl){ pctEl.textContent = pct!==null ? pct.toFixed(1)+"% of target" : "No target set"; }
+      // Big pct-card below
+      if(achPctId){ const e=el(achPctId); if(e){ e.textContent=pct!==null?pct.toFixed(1)+"%":"No target"; e.className="pct-value "+(pct!==null?cls:""); } }
+      if(pctBarId){ const e=el(pctBarId); if(e){ e.style.width=(pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; e.className="pct-bar-fill "+cls; } }
+      if(achCardId){ set(achCardId, achieved.toLocaleString()); }
+      if(remCardId){ set(remCardId, rem!==null?rem.toLocaleString():"—"); }
     }
 
-    fillCard("yeepES","yeepESTargetCard","yeepESRemCard","yeepESBarCard","yeepESPct", tES,  totES,  "#1E3A5F");
-    fillCard("yeepER","yeepERTargetCard","yeepERRemCard","yeepERBarCard","yeepERPct", tER,  totER,  "#1B6B6B");
-    fillCard("yeepTotal","yeepCombTargetCard","yeepCombRemCard","yeepCombBarCard","yeepCombPctCard", tAll, total, "#1E3A5F");
+    fillCard("yeepES","yeepESTargetCard","yeepESRemCard","yeepESBarCard","yeepESPct","#1E3A5F",
+             totES, tES, "#1E3A5F","yeepESAchPct","yeepESBar","yeepESAch","yeepESRem");
+    fillCard("yeepER","yeepERTargetCard","yeepERRemCard","yeepERBarCard","yeepERPct","#1B6B6B",
+             totER, tER, "#1B6B6B","yeepERAchPct","yeepERBar","yeepERAch","yeepERRem");
+    fillCard("yeepTotal","yeepCombTargetCard","yeepCombRemCard","yeepCombBarCard","yeepCombPctCard","#1E3A5F",
+             total, tAll, "#1E3A5F","yeepCombAchPct","yeepCombBar","yeepCombAch","yeepCombRem");
 
-    // Target vs Achievement cards — ES, ER, Combined
-    const targets  = snap.data().targets || {};
-    const tES      = Number(targets.ES) || 0;
-    const tER      = Number(targets.ER) || 0;
-    const tComb    = tES + tER;
-    const pctES    = tES   > 0 ? (totES/tES*100)     : null;
-    const pctER    = tER   > 0 ? (totER/tER*100)     : null;
-    const pctComb  = tComb > 0 ? (total/tComb*100)   : null;
+    // Also set target elements for pct-cards
+    set("yeepESTarget",   tES>0?tES.toLocaleString():"—");
+    set("yeepERTarget",   tER>0?tER.toLocaleString():"—");
+    set("yeepCombTarget", tAll>0?tAll.toLocaleString():"—");
 
-    function applyCard(pctId, barId, targetId, achId, remId, target, achieved, pct) {
-      const cls = pct!==null && pct>=100 ? "exact" : "under";
-      const pctEl=el(pctId); if(pctEl){ pctEl.textContent=pct!==null?pct.toFixed(1)+"%":"No target set"; pctEl.className="pct-value "+(pct!==null?cls:""); pctEl.style.fontSize=pct!==null?"":"1.2rem"; }
-      const barEl=el(barId);  if(barEl){ barEl.style.width=(pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; barEl.className="pct-bar-fill "+cls; }
-      set(targetId, target>0?target.toLocaleString():"—");
-      set(achId,    achieved.toLocaleString());
-      const rem = target > 0 ? Math.max(0, target - achieved) : null;
-      set(remId, rem!==null ? rem.toLocaleString() : "—");
-    }
 
-    applyCard("yeepESAchPct",   "yeepESBar",   "yeepESTarget",   "yeepESAch",   "yeepESRem",   tES,   totES,  pctES);
-    applyCard("yeepERAchPct",   "yeepERBar",   "yeepERTarget",   "yeepERAch",   "yeepERRem",   tER,   totER,  pctER);
-    applyCard("yeepCombAchPct", "yeepCombBar", "yeepCombTarget", "yeepCombAch", "yeepCombRem", tComb, total,  pctComb);
 
     const pie=el("yeepPieChart");
     if(pie){
