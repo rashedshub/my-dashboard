@@ -332,6 +332,54 @@
         </div>
       </div>
 
+
+      <!-- ════════ OUTSTANDING DISCIPLINARY ════════ -->
+      <div class="section-title">Outstanding Disciplinary</div>
+
+      <!-- Stat cards row -->
+      <div class="stat-row" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="sc-label">This Month</div>
+          <div class="sc-value sc-rust" id="discCurrentMonth">—</div>
+          <div class="sc-sub" id="discCurrentMonthName">Outstanding cases</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Peak Month</div>
+          <div class="sc-value sc-navy" id="discPeak">—</div>
+          <div class="sc-sub">Highest outstanding</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Monthly Average</div>
+          <div class="sc-value sc-teal" id="discAvg">—</div>
+          <div class="sc-sub">Cases per month</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">YTD Total</div>
+          <div class="sc-value sc-navy" id="discTotal">—</div>
+          <div class="sc-sub">All months combined</div>
+        </div>
+      </div>
+
+      <!-- Monthly bar chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>Monthly Outstanding Cases</h2><p>Number of outstanding disciplinary cases per month</p></div>
+        </div>
+        <div class="chart-wrap"><canvas id="discBarChart"></canvas></div>
+      </div>
+
+      <!-- Category summary table + pie -->
+      <div class="grid-2">
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>By Category</h2><p>Outstanding cases by disciplinary reason</p></div></div>
+          <div id="discCategoryTable" style="padding:0 4px 12px;"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-head"><div><h2>Category Distribution</h2><p>Proportion of cases by reason</p></div></div>
+          <div class="chart-wrap-pie"><canvas id="discPieChart"></canvas></div>
+        </div>
+      </div>
+
     </div><!-- /mainContent -->
   </main>
 
