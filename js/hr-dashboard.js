@@ -583,9 +583,6 @@ async function buildDisc() {
     const peakIdx  = monthArr.indexOf(Math.max(...monthArr));
     const peak     = total>0 ? `${MONTHS[peakIdx]} (${monthArr[peakIdx]})` : "—";
 
-    set("discTotal", total>0?total.toLocaleString():"No data");
-    set("discPeak",  peak);
-    set("discAvg",   avg!=="—"?avg:"—");
 
     // Current month card
     const curMonthIdx = new Date().getMonth();
@@ -610,22 +607,24 @@ async function buildDisc() {
     window._discCurrentYear = currentYear;
     // renderDiscWeekly called after charts are built below
 
-    // Monthly bar chart
+    // Monthly trend — line chart
     const barCanvas=el("discBarChart");
     if(barCanvas) {
-      const barData=[...monthArr];
+      if(charts.discBar) charts.discBar.destroy();
       charts.discBar=new Chart(barCanvas.getContext("2d"),{
-        type:"bar",
+        type:"line",
         data:{
           labels:MONTHS,
           datasets:[{
             label:"Outstanding Cases",
-            data:barData,
-            backgroundColor:P.navyFade,
-            borderColor:P.navy,
-            borderWidth:2,
-            borderRadius:6,
-            borderSkipped:false
+            data:[...monthArr],
+            borderColor:P.rust||"#8B3A2A",
+            backgroundColor:"rgba(139,58,42,.1)",
+            borderWidth:2.5,
+            pointRadius:5,
+            pointBackgroundColor:P.rust||"#8B3A2A",
+            tension:0.35,
+            fill:true
           }]
         },
         options:{
@@ -634,8 +633,7 @@ async function buildDisc() {
             legend:{display:false},
             tooltip:{callbacks:{label:c=>` Outstanding: ${c.raw}`}}
           },
-          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
-          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0],P.navy); }}
+          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})}
         }
       });
     }
@@ -649,30 +647,7 @@ async function buildDisc() {
     });
     const totalCases=reasonCounts.reduce((a,b)=>a+b,0);
 
-    const pieCanvas=el("discPieChart");
-    if(pieCanvas) {
-      charts.discPie=new Chart(pieCanvas.getContext("2d"),{
-        type:"doughnut",
-        plugins:[PIE_LABEL_PLUGIN],
-        data:{
-          labels:REASON_LABELS,
-          datasets:[{
-            data:reasonCounts,
-            backgroundColor:DISC_COLORS,
-            borderColor:"#fff",
-            borderWidth:3,
-            hoverOffset:8
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false, cutout:"55%",
-          plugins:{
-            legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:8,font:{size:10}}},
-            tooltip:{callbacks:{label:c=>{const p=totalCases>0?(c.raw/totalCases*100).toFixed(1):0;return ` ${c.label}: ${c.raw} (${p}%)`;}}}
-          }
-        }
-      });
-    }
+
 
     // Category summary table
     const REASON_FULL_LABELS = [
@@ -721,39 +696,6 @@ async function buildDisc() {
       }
     }
 
-    // Trend line chart
-    const lineCanvas=el("discLineChart");
-    if(lineCanvas) {
-      const lineData=[...monthArr];
-      charts.discLine=new Chart(lineCanvas.getContext("2d"),{
-        type:"line",
-        data:{
-          labels:MONTHS,
-          datasets:[{
-            label:"Outstanding Cases",
-            data:lineData,
-            borderColor:P.navy,
-            backgroundColor:P.navyFade,
-            borderWidth:2.5,
-            pointRadius:5,
-            pointBackgroundColor:P.navy,
-            tension:0.35,
-            fill:true
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{
-            legend:{display:false},
-            tooltip:{callbacks:{label:c=>` Cases: ${c.raw}`}}
-          },
-          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
-          animation:{onComplete(evt){ if(evt.initial) return; labelLine(evt.chart,0,lineData,P.navy); }}
-        }
-      });
-    }
-
-    // Now safe to render weekly chart (after month selector is populated)
     renderDiscWeekly(weekly);
 
   } catch(e){console.error("Disc:",e);}
