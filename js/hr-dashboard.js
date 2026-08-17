@@ -607,24 +607,22 @@ async function buildDisc() {
     window._discCurrentYear = currentYear;
     // renderDiscWeekly called after charts are built below
 
-    // Monthly trend — line chart
+    // Monthly bar chart
     const barCanvas=el("discBarChart");
     if(barCanvas) {
       if(charts.discBar) charts.discBar.destroy();
       charts.discBar=new Chart(barCanvas.getContext("2d"),{
-        type:"line",
+        type:"bar",
         data:{
           labels:MONTHS,
           datasets:[{
             label:"Outstanding Cases",
             data:[...monthArr],
-            borderColor:P.rust||"#8B3A2A",
-            backgroundColor:"rgba(139,58,42,.1)",
-            borderWidth:2.5,
-            pointRadius:5,
-            pointBackgroundColor:P.rust||"#8B3A2A",
-            tension:0.35,
-            fill:true
+            backgroundColor:P.navyFade||"rgba(30,58,95,.15)",
+            borderColor:P.navy||"#1E3A5F",
+            borderWidth:2,
+            borderRadius:6,
+            borderSkipped:false
           }]
         },
         options:{
@@ -633,7 +631,8 @@ async function buildDisc() {
             legend:{display:false},
             tooltip:{callbacks:{label:c=>` Outstanding: ${c.raw}`}}
           },
-          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})}
+          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
+          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0],P.navy||"#1E3A5F"); }}
         }
       });
     }
