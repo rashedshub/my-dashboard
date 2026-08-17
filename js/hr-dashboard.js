@@ -344,8 +344,27 @@ async function buildYEEP() {
     set("yeepTotal", total.toLocaleString());
     set("yeepES",    totES.toLocaleString());
     set("yeepER",    totER.toLocaleString());
-    set("yeepESPct", total>0?`${(totES/total*100).toFixed(1)}% of total`:"—");
-    set("yeepERPct", total>0?`${(totER/total*100).toFixed(1)}% of total`:"—");
+
+    // Populate stat cards with target vs achievement
+    const targets  = snap.data().targets || {};
+    const tES  = Number(targets.ES)  || 0;
+    const tER  = Number(targets.ER)  || 0;
+    const tAll = tES + tER;
+
+    function fillCard(achId, targetId, remId, barId, pctId, target, achieved, color) {
+      const pct = target > 0 ? (achieved / target * 100) : null;
+      const rem = target > 0 ? Math.max(0, target - achieved) : null;
+      set(targetId, target > 0 ? target.toLocaleString() : "No target");
+      set(remId,    rem !== null ? rem.toLocaleString() : "—");
+      const barEl = el(barId);
+      if(barEl){ barEl.style.width = (pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; barEl.style.background=color; }
+      const pctEl = el(pctId);
+      if(pctEl){ pctEl.textContent = pct!==null ? pct.toFixed(1)+"% of target" : "No target set"; }
+    }
+
+    fillCard("yeepES","yeepESTargetCard","yeepESRemCard","yeepESBarCard","yeepESPct", tES,  totES,  "#1E3A5F");
+    fillCard("yeepER","yeepERTargetCard","yeepERRemCard","yeepERBarCard","yeepERPct", tER,  totER,  "#1B6B6B");
+    fillCard("yeepTotal","yeepCombTargetCard","yeepCombRemCard","yeepCombBarCard","yeepCombPctCard", tAll, total, "#1E3A5F");
 
     // Target vs Achievement cards — ES, ER, Combined
     const targets  = snap.data().targets || {};
