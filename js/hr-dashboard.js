@@ -181,6 +181,28 @@ onAuthStateChanged(auth, async user => {
   loadAll();
 });
 
+
+// ── Section filter ────────────────────────────────────────────────────────────
+function initFilters() {
+  const pills = document.querySelectorAll(".filter-pill");
+  pills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const filter = pill.dataset.filter;
+      // Update active pill
+      pills.forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      // Show/hide sections
+      document.querySelectorAll("[data-section]").forEach(sec => {
+        if(filter === "all") {
+          sec.style.display = "";
+        } else {
+          sec.style.display = sec.dataset.section === filter ? "" : "none";
+        }
+      });
+    });
+  });
+}
+
 function buildYearPicker() {
   const sel=el("yearSelect"); if(!sel) return;
   const base=new Date().getFullYear();
