@@ -114,6 +114,36 @@
     .diff-p { color:var(--rust);  font-weight:600; }
     .diff-n { color:var(--steel); font-weight:600; }
     .diff-z { color:var(--muted); }
+
+    /* ── Section filter bar ── */
+    .filter-bar {
+      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+      margin-bottom:24px; padding:14px 18px;
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); box-shadow:0 1px 6px rgba(30,58,95,.06);
+    }
+    .filter-bar-label {
+      font-size:0.7rem; font-weight:700; color:var(--muted);
+      text-transform:uppercase; letter-spacing:.07em; margin-right:4px; white-space:nowrap;
+    }
+    .filter-pill {
+      display:inline-flex; align-items:center; gap:5px;
+      padding:6px 14px; border-radius:99px; border:1.5px solid var(--border);
+      background:var(--surface); font-size:0.78rem; font-weight:600;
+      cursor:pointer; color:var(--muted); transition:all 150ms; white-space:nowrap;
+      font-family:inherit;
+    }
+    .filter-pill:hover { border-color:var(--navy); color:var(--navy); }
+    .filter-pill.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+    .filter-pill.all-pill.active { background:var(--steel); border-color:var(--steel); }
+
+    /* ── Disc side-by-side equal height ── */
+    .disc-top-grid {
+      display:grid; grid-template-columns:200px 1fr;
+      gap:16px; margin-bottom:20px; align-items:stretch;
+    }
+    .disc-top-grid .stat-card { display:flex; flex-direction:column; justify-content:center; }
+    @media(max-width:640px){ .disc-top-grid{ grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -150,6 +180,18 @@
       </div>
     </div>
 
+    <!-- Section filter bar -->
+    <div class="filter-bar" id="filterBar" style="display:none;">
+      <span class="filter-bar-label">Show:</span>
+      <button class="filter-pill all-pill active" data-filter="all">All Sections</button>
+      <button class="filter-pill" data-filter="leave">📋 Leave</button>
+      <button class="filter-pill" data-filter="yeep">⚡ YEEP</button>
+      <button class="filter-pill" data-filter="health">🏥 Health</button>
+      <button class="filter-pill" data-filter="food">🍽️ Food Quality</button>
+      <button class="filter-pill" data-filter="welfare">🤝 Welfare</button>
+      <button class="filter-pill" data-filter="disciplinary">⚖️ Disciplinary</button>
+    </div>
+
     <div id="loadingState" class="loading-state">
       <div class="icon">📊</div>Loading data…
     </div>
@@ -160,6 +202,7 @@
       <div class="last-updated" id="lastUpdated"></div>
 
       <!-- ════════ LEAVE ════════ -->
+      <div data-section="leave">
       <div class="section-title">Leave Plan vs Consumed</div>
 
       <!-- Pct card -->
@@ -208,6 +251,9 @@
         <div class="chart-wrap-md"><canvas id="ytdChart"></canvas></div>
       </div>
 
+      </div><!-- /section:leave -->
+
+      <div data-section="yeep">
       <!-- ════════ YEEP ════════ -->
       <div class="section-title">YEEP Installation</div>
 
@@ -282,6 +328,9 @@
       </div>
 
       <!-- ════════ HEALTH CHECKUP ════════ -->
+      </div><!-- /section:yeep -->
+
+      <div data-section="health">
       <div class="section-title">Health Checkup (YTD)</div>
 
       <div class="stat-row">
@@ -295,6 +344,9 @@
       </div>
 
       <!-- ════════ FOOD QUALITY ════════ -->
+      </div><!-- /section:health -->
+
+      <div data-section="food">
       <div class="section-title">Monthly Food Quality Survey</div>
 
       <div class="stat-row">
@@ -314,6 +366,9 @@
       </div>
 
       <!-- ════════ WELFARE ════════ -->
+      </div><!-- /section:food -->
+
+      <div data-section="welfare">
       <div class="section-title">Welfare / Workplace Issue Resolution</div>
 
       <div class="stat-row">
@@ -334,16 +389,19 @@
 
 
       <!-- ════════ OUTSTANDING DISCIPLINARY ════════ -->
+      </div><!-- /section:welfare -->
+
+      <div data-section="disciplinary">
       <div class="section-title">Outstanding Disciplinary</div>
 
       <!-- This Month + Category side by side -->
-      <div style="display:grid;grid-template-columns:200px 1fr;gap:16px;margin-bottom:20px;align-items:start;">
+      <div class="disc-top-grid">
         <div class="stat-card">
           <div class="sc-label">This Month Outstanding</div>
           <div class="sc-value sc-rust" id="discCurrentMonth">—</div>
           <div class="sc-sub" id="discCurrentMonthName">Outstanding cases</div>
         </div>
-        <div class="chart-card" style="margin:0;">
+        <div class="chart-card" style="margin:0;height:100%;">
           <div class="chart-head"><div><h2>By Category</h2><p>Current outstanding cases by disciplinary reason</p></div></div>
           <div id="discCategoryTable" style="padding:0 4px 12px;"></div>
         </div>
@@ -357,6 +415,7 @@
         <div class="chart-wrap"><canvas id="discBarChart"></canvas></div>
       </div>
 
+      </div><!-- /section:disciplinary -->
     </div><!-- /mainContent -->
   </main>
 
