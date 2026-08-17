@@ -346,7 +346,6 @@ async function buildYEEP() {
     set("yeepER",    totER.toLocaleString());
 
     // Populate stat cards with target vs achievement
-    const targets  = snap.data().targets || {};
     const tES  = Number(targets.ES)  || 0;
     const tER  = Number(targets.ER)  || 0;
     const tAll = tES + tER;
