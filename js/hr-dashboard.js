@@ -587,6 +587,13 @@ async function buildDisc() {
     set("discPeak",  peak);
     set("discAvg",   avg!=="—"?avg:"—");
 
+    // Current month card
+    const curMonthIdx = new Date().getMonth();
+    const curMonthVal = monthArr[curMonthIdx] || 0;
+    const curMonthName = MONTHS_FULL ? MONTHS_FULL[curMonthIdx] : MONTHS[curMonthIdx];
+    set("discCurrentMonth", curMonthVal > 0 ? curMonthVal.toString() : "0");
+    set("discCurrentMonthName", `${curMonthName} outstanding cases`);
+
     // Populate weekly month selector
     const sel = el("discWeekMonthSelect");
     if (sel && sel.options.length === 0) {
@@ -665,6 +672,53 @@ async function buildDisc() {
           }
         }
       });
+    }
+
+    // Category summary table
+    const REASON_FULL_LABELS = [
+      "Negligence of Work","Indecent Behaviour","Disobedience",
+      "Damage to Property","Dishonesty","Theft",
+      "Verbal Abuse","Mental Abuse","Physical Harassment","Sexual Harassment"
+    ];
+    const tableEl = el("discCategoryTable");
+    if(tableEl){
+      const rows = REASONS.map((r,i)=>({
+        label: REASON_FULL_LABELS[i],
+        count: reasonCounts[i],
+        color: DISC_COLORS[i]
+      })).filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+
+      if(rows.length===0){
+        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No cases recorded for ${currentYear}</div>`;
+      } else {
+        const maxCount = rows[0].count;
+        tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+          <thead><tr style="border-bottom:1.5px solid var(--border);">
+            <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Category</th>
+            <th style="text-align:center;padding:8px 8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Cases</th>
+            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Share</th>
+          </tr></thead>
+          <tbody>${rows.map(r=>{
+            const pct = totalCases>0?(r.count/totalCases*100).toFixed(1):0;
+            const barW = maxCount>0?(r.count/maxCount*100).toFixed(1):0;
+            return `<tr style="border-bottom:1px solid #f0f0ee;">
+              <td style="padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-weight:500;color:var(--text);">${r.label}</span>
+              </td>
+              <td style="padding:9px 8px;text-align:center;font-weight:700;color:var(--text);">${r.count}</td>
+              <td style="padding:9px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
+                    <div style="height:100%;width:${barW}%;background:${r.color};border-radius:99px;transition:width 600ms;"></div>
+                  </div>
+                  <span style="font-size:0.7rem;font-weight:600;color:var(--muted);min-width:36px;">${pct}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>`;
+      }
     }
 
     // Trend line chart
