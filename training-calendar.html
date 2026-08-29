@@ -138,6 +138,23 @@
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:all 320ms var(--ease);z-index:999;white-space:nowrap}
     .toast.show{transform:translateX(-50%) translateY(0)}
 
+
+    /* ── PDF Download button ── */
+    .dl-btn-wrap { display:flex; align-items:center; gap:8px; }
+    .dl-btn {
+      display:inline-flex; align-items:center; gap:7px;
+      padding:8px 18px; border-radius:9px; border:none;
+      background:var(--navy); color:#fff; font-family:inherit;
+      font-size:0.82rem; font-weight:700; cursor:pointer;
+      transition:background 160ms;
+    }
+    .dl-btn:hover { background:var(--steel); }
+    .dl-sel {
+      padding:7px 12px; border-radius:8px; border:1.5px solid rgba(255,255,255,.35);
+      background:rgba(255,255,255,.15); color:#fff; font-family:inherit;
+      font-size:0.82rem; font-weight:600; cursor:pointer; outline:none;
+    }
+    .dl-sel option { background:var(--navy); }
     /* ── Room colour legend ── */
     .cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.2); }
     .leg-item { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(255,255,255,.9); }
@@ -208,6 +225,8 @@
       .tb-page{ font-size:11px; }
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -260,6 +279,15 @@
         </select>
       </div>
       <span class="live-pill"><span class="live-dot"></span>Live</span>
+      <div class="dl-btn-wrap">
+        <select class="dl-sel" id="dlRange">
+          <option value="weekly">Weekly (Sat – Thu)</option>
+          <option value="monthly">Monthly</option>
+        </select>
+        <button class="dl-btn" id="dlPdfBtn">
+          ⬇️ Download PDF
+        </button>
+      </div>
     </div>
     <!-- Room colour legend — populated by JS -->
     <div class="cal-legend" id="calLegend"></div>
