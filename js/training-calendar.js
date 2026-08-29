@@ -231,139 +231,199 @@ setInterval(()=>renderCalendar(), 60000);
 document.getElementById("dlPdfBtn")?.addEventListener("click", generatePDF);
 
 function generatePDF() {
-  const range   = document.getElementById("dlRange")?.value || "monthly";
-  const venue   = el("venueSel")?.value || "all";
+  const range     = document.getElementById("dlRange")?.value || "monthly";
+  const venue     = el("venueSel")?.value || "all";
   const venueName = venue==="all" ? "All Venues" : (rooms.find(r=>r.id===venue)?.name||"All Venues");
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
-
   const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const MONTHS = ["January","February","March","April","May","June",
-                  "July","August","September","October","November","December"];
-  const DAYS_SAT = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"];
+  const MONTHS_FULL = ["January","February","March","April","May","June",
+                       "July","August","September","October","November","December"];
 
-  // Header
-  function drawPageHeader(title, subtitle) {
-    doc.setFillColor(30, 58, 95);
-    doc.rect(0, 0, pageW, 22, "F");
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function dateKeyLocal(y,mo,d){ return `${y}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+
+  function drawHeader(weekTitle, dateRange) {
+    // Company header
+    doc.setFillColor(30,58,95);
+    doc.rect(0,0,pageW,8,"F");
     doc.setTextColor(255,255,255);
-    doc.setFontSize(14); doc.setFont("helvetica","bold");
-    doc.text("Training Calendar & Venue Schedule — E&C Portal", 12, 9);
-    doc.setFontSize(10); doc.setFont("helvetica","normal");
-    doc.text(title, 12, 16);
-    doc.setTextColor(100,100,100);
-    doc.setFontSize(8);
-    doc.text(`Venue: ${venueName}   |   Generated: ${new Date().toLocaleString()}`, pageW-12, 16, {align:"right"});
+    doc.setFontSize(11); doc.setFont("helvetica","bold");
+    doc.text("Youngone Hi-Tech Sportswear Industries Ltd.", pageW/2, 5.5, {align:"center"});
+
+    // Training notice title
+    doc.setFillColor(255,255,255);
     doc.setTextColor(0,0,0);
+    doc.setFontSize(10); doc.setFont("helvetica","bold");
+    doc.text(`Training Notice of ${dateRange}`, pageW/2, 13, {align:"center"});
+
+    // Intro line
+    doc.setFontSize(8.5); doc.setFont("helvetica","normal");
+    doc.setFillColor(240,242,245);
+    doc.rect(8,15,pageW-16,7,"F");
+    doc.text("This is to inform all concerned that management will going to arrange below training session:", pageW/2, 19.5, {align:"center"});
+
+    // Venue line
+    doc.setFontSize(8); doc.setTextColor(80,80,80);
+    doc.text(`Venue: ${venueName}   |   Generated: ${new Date().toLocaleString()}`, pageW-10, 24, {align:"right"});
+    doc.setTextColor(0,0,0);
+  }
+
+  function buildRows(bks) {
+    // Group by day number for row-spanning
+    const byDay = {};
+    bks.forEach(b=>{
+      const d = new Date(b.date+"T00:00:00").getDate();
+      if(!byDay[d]) byDay[d]=[];
+      byDay[d].push(b);
+    });
+
+    const rows = [];
+    Object.keys(byDay).sort((a,b)=>Number(a)-Number(b)).forEach(dayNum=>{
+      const dayBks = byDay[dayNum];
+      dayBks.forEach((b,i)=>{
+        const room = rooms.find(r=>r.id===b.roomId);
+        const d    = new Date(b.date+"T00:00:00");
+        const dayFmt = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+        rows.push({
+          day: i===0 ? String(dayNum) : "",
+          title: b.title,
+          resource: b.resourcePerson||"—",
+          datetime: `${dayFmt}
+${fmtTime(toMins(b.startTime))}-${fmtTime(toMins(b.endTime))}`,
+          target: b.targetGroup||"—",
+          venue: room?.name||"—",
+          coordBy: b.bookedByName||"—",
+          isFirstOfDay: i===0,
+          dayCount: dayBks.length
+        });
+      });
+    });
+    return rows;
   }
 
   // ── MONTHLY ────────────────────────────────────────────────────────────────
   if (range === "monthly") {
-    const title = `${MONTHS[viewMonth]} ${viewYear}`;
-    drawPageHeader(title, "");
+    const monthName = MONTHS_FULL[viewMonth];
+    const dateRange = `${monthName} 1st to ${monthName} ${new Date(viewYear,viewMonth+1,0).getDate()}th ${viewYear}`;
+    drawHeader(`${monthName} ${viewYear}`, dateRange);
 
-    // Filter bookings
     const bks = bookings.filter(b=>{
       if(venue!=="all"&&b.roomId!==venue) return false;
       const [y,mo]=b.date.split("-").map(Number);
       return y===viewYear&&(mo-1)===viewMonth;
     }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
 
-    if(bks.length===0){
-      doc.setFontSize(11); doc.text("No bookings found for this month.", 12, 40);
-    } else {
-      // Table
-      const tableData = bks.map(b=>{
-        const room = rooms.find(r=>r.id===b.roomId);
-        const d = new Date(b.date+"T00:00:00");
-        const day = d.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
-        return [
-          day,
-          `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`,
-          b.title,
-          room?.name||"—",
-          b.bookedByName||"—",
-          b.resourcePerson||"—",
-          b.targetGroup||"—"
-        ];
-      });
-
-      doc.autoTable({
-        startY: 26,
-        head:[["Date","Time","Title / Purpose","Venue","Coord. By","Resource Person","Target Group"]],
-        body: tableData,
-        styles:{ fontSize:8, cellPadding:2.5 },
-        headStyles:{ fillColor:[30,58,95], textColor:255, fontStyle:"bold" },
-        alternateRowStyles:{ fillColor:[245,247,250] },
-        columnStyles:{
-          0:{cellWidth:28}, 1:{cellWidth:32}, 2:{cellWidth:55},
-          3:{cellWidth:30}, 4:{cellWidth:28}, 5:{cellWidth:28}, 6:{cellWidth:28}
-        },
-        margin:{left:10,right:10}
-      });
+    if(!bks.length){
+      doc.setFontSize(10); doc.text("No bookings found for this month.", pageW/2, 50, {align:"center"});
+      doc.save(`Training_${monthName}_${viewYear}.pdf`); return;
     }
-
-    doc.save(`Training_Calendar_${MONTHS[viewMonth]}_${viewYear}.pdf`);
+    renderTable(doc, bks, 27);
+    doc.save(`Training_Notice_${monthName}_${viewYear}.pdf`);
 
   // ── WEEKLY (Sat–Thu) ───────────────────────────────────────────────────────
   } else {
-    // Get current week Sat–Thu (6 days, skip Friday)
-    const today  = new Date();
-    const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
-    const diffToSat = (dayOfWeek + 1) % 7;
-    const sat = new Date(today); sat.setDate(today.getDate()-diffToSat); sat.setHours(0,0,0,0);
+    // Week start = Saturday of current calendar view month's first Saturday
+    // Use viewYear/viewMonth to get the displayed week, not just today
+    const today = new Date();
+    const dow = today.getDay(); // 0=Sun..6=Sat
+    const diffToSat = (dow + 1) % 7; // days since last Saturday
+    const sat = new Date(today);
+    sat.setDate(today.getDate() - diffToSat);
+    sat.setHours(0,0,0,0);
 
-    // Build 6 dates: Sat Sun Mon Tue Wed Thu
-    const weekDates = Array.from({length:6},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
-    const weekKeys  = weekDates.map(dateKey);
+    // Sat(0) Sun(1) Mon(2) Tue(3) Wed(4) Thu(5) — 6 days, skip Friday
+    const weekDates = Array.from({length:6},(_,i)=>{
+      const d=new Date(sat); d.setDate(sat.getDate()+i); return d;
+    });
+    const weekKeys = weekDates.map(d=>dateKey(d));
 
-    const satFmt = sat.toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"});
-    const thuDate = weekDates[5];
-    const thuFmt  = thuDate.toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"});
-    const title   = `Week of ${satFmt} – ${thuFmt}`;
+    const satFmt = sat.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
+    const thu    = weekDates[5];
+    const thuFmt = thu.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
+    const dateRange = `${satFmt} to ${thuFmt}`;
 
-    drawPageHeader(title,"");
+    drawHeader("", dateRange);
 
     const bks = bookings.filter(b=>{
       if(venue!=="all"&&b.roomId!==venue) return false;
       return weekKeys.includes(b.date);
     }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
 
-    if(bks.length===0){
-      doc.setFontSize(11); doc.text("No bookings found for this week.", 12, 40);
-    } else {
-      const tableData = bks.map(b=>{
-        const room = rooms.find(r=>r.id===b.roomId);
-        const d = new Date(b.date+"T00:00:00");
-        const day = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"short"});
-        return [
-          day,
-          `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`,
-          b.title,
-          room?.name||"—",
-          b.bookedByName||"—",
-          b.resourcePerson||"—",
-          b.targetGroup||"—"
-        ];
-      });
-
-      doc.autoTable({
-        startY: 26,
-        head:[["Day / Date","Time","Title / Purpose","Venue","Coord. By","Resource Person","Target Group"]],
-        body: tableData,
-        styles:{ fontSize:8, cellPadding:2.5 },
-        headStyles:{ fillColor:[30,58,95], textColor:255, fontStyle:"bold" },
-        alternateRowStyles:{ fillColor:[245,247,250] },
-        columnStyles:{
-          0:{cellWidth:30}, 1:{cellWidth:32}, 2:{cellWidth:55},
-          3:{cellWidth:28}, 4:{cellWidth:28}, 5:{cellWidth:28}, 6:{cellWidth:28}
-        },
-        margin:{left:10,right:10}
-      });
+    if(!bks.length){
+      doc.setFontSize(10); doc.text("No bookings found for this week.", pageW/2, 50, {align:"center"});
+      const satStr=sat.toISOString().slice(0,10).replace(/-/g,"");
+      doc.save(`Training_Notice_Week_${satStr}.pdf`); return;
     }
-
-    const satStr = sat.toISOString().slice(0,10).replace(/-/g,"");
-    doc.save(`Training_Calendar_Week_${satStr}.pdf`);
+    renderTable(doc, bks, 27);
+    const satStr=sat.toISOString().slice(0,10).replace(/-/g,"");
+    doc.save(`Training_Notice_Week_${satStr}.pdf`);
   }
+}
+
+function renderTable(doc, bks, startY) {
+  const venue   = el("venueSel")?.value || "all";
+  const pageW   = doc.internal.pageSize.getWidth();
+
+  // Group by day
+  const byDate = {};
+  bks.forEach(b=>{ if(!byDate[b.date]) byDate[b.date]=[]; byDate[b.date].push(b); });
+
+  const body = [];
+  const daySpans = []; // track which rows need day-number spanning
+
+  let rowIdx = 0;
+  Object.keys(byDate).sort().forEach(dKey=>{
+    const dayBks = byDate[dKey];
+    const d = new Date(dKey+"T00:00:00");
+    const dayNum = d.getDate();
+    const spanStart = rowIdx;
+
+    dayBks.forEach((b,i)=>{
+      const room = rooms.find(r=>r.id===b.roomId);
+      const dateFmt = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"}).replace(",","");
+      body.push([
+        i===0 ? String(dayNum) : "",   // Day
+        b.title,                        // Training Topic
+        b.resourcePerson||"—",          // Trainer/Resource
+        `${dateFmt}
+${fmtTime(toMins(b.startTime))}-${fmtTime(toMins(b.endTime))}`,  // Date & Time
+        b.targetGroup||"—",             // Target Group
+        room?.name||"—",                // Venue
+        i===0 ? (b.bookedByName||"—") : ""  // Coordinated by (first row only)
+      ]);
+      rowIdx++;
+    });
+
+    if(dayBks.length>1) daySpans.push({start:spanStart, count:dayBks.length});
+  });
+
+  doc.autoTable({
+    startY,
+    head:[["Day","Training Topics","Trainer / Resource Person","Date & Time","Target Group","Venue","Coordinated by"]],
+    body,
+    styles:{ fontSize:8, cellPadding:2.5, valign:"middle", lineColor:[200,200,200], lineWidth:0.3 },
+    headStyles:{ fillColor:[255,255,255], textColor:[0,0,0], fontStyle:"bold", halign:"center", lineWidth:0.3, lineColor:[0,0,0] },
+    bodyStyles:{ textColor:[0,0,0] },
+    alternateRowStyles:{ fillColor:[255,255,255] },
+    columnStyles:{
+      0:{ cellWidth:12, halign:"center", fontStyle:"bold" },
+      1:{ cellWidth:55 },
+      2:{ cellWidth:38 },
+      3:{ cellWidth:40 },
+      4:{ cellWidth:25 },
+      5:{ cellWidth:25 },
+      6:{ cellWidth:28 }
+    },
+    margin:{ left:8, right:8 },
+    didParseCell(data) {
+      // Yellow highlight for day rows (first of each day group)
+      if(data.section==="body" && data.column.index===0 && data.cell.raw!=="") {
+        data.cell.styles.fillColor = [255,255,0];
+      }
+    },
+    willDrawCell(data) {
+      // Thin border between different days
+    }
+  });
 }
