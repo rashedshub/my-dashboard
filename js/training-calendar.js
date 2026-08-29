@@ -226,3 +226,144 @@ async function init(){
 }
 init();
 setInterval(()=>renderCalendar(), 60000);
+
+// ── PDF Download ──────────────────────────────────────────────────────────────
+document.getElementById("dlPdfBtn")?.addEventListener("click", generatePDF);
+
+function generatePDF() {
+  const range   = document.getElementById("dlRange")?.value || "monthly";
+  const venue   = el("venueSel")?.value || "all";
+  const venueName = venue==="all" ? "All Venues" : (rooms.find(r=>r.id===venue)?.name||"All Venues");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:"landscape", unit:"mm", format:"a4" });
+
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const MONTHS = ["January","February","March","April","May","June",
+                  "July","August","September","October","November","December"];
+  const DAYS_SAT = ["Saturday","Sunday","Monday","Tuesday","Wednesday","Thursday"];
+
+  // Header
+  function drawPageHeader(title, subtitle) {
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, pageW, 22, "F");
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(14); doc.setFont("helvetica","bold");
+    doc.text("Training Calendar & Venue Schedule — E&C Portal", 12, 9);
+    doc.setFontSize(10); doc.setFont("helvetica","normal");
+    doc.text(title, 12, 16);
+    doc.setTextColor(100,100,100);
+    doc.setFontSize(8);
+    doc.text(`Venue: ${venueName}   |   Generated: ${new Date().toLocaleString()}`, pageW-12, 16, {align:"right"});
+    doc.setTextColor(0,0,0);
+  }
+
+  // ── MONTHLY ────────────────────────────────────────────────────────────────
+  if (range === "monthly") {
+    const title = `${MONTHS[viewMonth]} ${viewYear}`;
+    drawPageHeader(title, "");
+
+    // Filter bookings
+    const bks = bookings.filter(b=>{
+      if(venue!=="all"&&b.roomId!==venue) return false;
+      const [y,mo]=b.date.split("-").map(Number);
+      return y===viewYear&&(mo-1)===viewMonth;
+    }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+
+    if(bks.length===0){
+      doc.setFontSize(11); doc.text("No bookings found for this month.", 12, 40);
+    } else {
+      // Table
+      const tableData = bks.map(b=>{
+        const room = rooms.find(r=>r.id===b.roomId);
+        const d = new Date(b.date+"T00:00:00");
+        const day = d.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
+        return [
+          day,
+          `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`,
+          b.title,
+          room?.name||"—",
+          b.bookedByName||"—",
+          b.resourcePerson||"—",
+          b.targetGroup||"—"
+        ];
+      });
+
+      doc.autoTable({
+        startY: 26,
+        head:[["Date","Time","Title / Purpose","Venue","Coord. By","Resource Person","Target Group"]],
+        body: tableData,
+        styles:{ fontSize:8, cellPadding:2.5 },
+        headStyles:{ fillColor:[30,58,95], textColor:255, fontStyle:"bold" },
+        alternateRowStyles:{ fillColor:[245,247,250] },
+        columnStyles:{
+          0:{cellWidth:28}, 1:{cellWidth:32}, 2:{cellWidth:55},
+          3:{cellWidth:30}, 4:{cellWidth:28}, 5:{cellWidth:28}, 6:{cellWidth:28}
+        },
+        margin:{left:10,right:10}
+      });
+    }
+
+    doc.save(`Training_Calendar_${MONTHS[viewMonth]}_${viewYear}.pdf`);
+
+  // ── WEEKLY (Sat–Thu) ───────────────────────────────────────────────────────
+  } else {
+    // Get current week Sat–Thu (6 days, skip Friday)
+    const today  = new Date();
+    const dayOfWeek = today.getDay(); // 0=Sun..6=Sat
+    const diffToSat = (dayOfWeek + 1) % 7;
+    const sat = new Date(today); sat.setDate(today.getDate()-diffToSat); sat.setHours(0,0,0,0);
+
+    // Build 6 dates: Sat Sun Mon Tue Wed Thu
+    const weekDates = Array.from({length:6},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
+    const weekKeys  = weekDates.map(dateKey);
+
+    const satFmt = sat.toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"});
+    const thuDate = weekDates[5];
+    const thuFmt  = thuDate.toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"});
+    const title   = `Week of ${satFmt} – ${thuFmt}`;
+
+    drawPageHeader(title,"");
+
+    const bks = bookings.filter(b=>{
+      if(venue!=="all"&&b.roomId!==venue) return false;
+      return weekKeys.includes(b.date);
+    }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+
+    if(bks.length===0){
+      doc.setFontSize(11); doc.text("No bookings found for this week.", 12, 40);
+    } else {
+      const tableData = bks.map(b=>{
+        const room = rooms.find(r=>r.id===b.roomId);
+        const d = new Date(b.date+"T00:00:00");
+        const day = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"short"});
+        return [
+          day,
+          `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`,
+          b.title,
+          room?.name||"—",
+          b.bookedByName||"—",
+          b.resourcePerson||"—",
+          b.targetGroup||"—"
+        ];
+      });
+
+      doc.autoTable({
+        startY: 26,
+        head:[["Day / Date","Time","Title / Purpose","Venue","Coord. By","Resource Person","Target Group"]],
+        body: tableData,
+        styles:{ fontSize:8, cellPadding:2.5 },
+        headStyles:{ fillColor:[30,58,95], textColor:255, fontStyle:"bold" },
+        alternateRowStyles:{ fillColor:[245,247,250] },
+        columnStyles:{
+          0:{cellWidth:30}, 1:{cellWidth:32}, 2:{cellWidth:55},
+          3:{cellWidth:28}, 4:{cellWidth:28}, 5:{cellWidth:28}, 6:{cellWidth:28}
+        },
+        margin:{left:10,right:10}
+      });
+    }
+
+    const satStr = sat.toISOString().slice(0,10).replace(/-/g,"");
+    doc.save(`Training_Calendar_Week_${satStr}.pdf`);
+  }
+}
