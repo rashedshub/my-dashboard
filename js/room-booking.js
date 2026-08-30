@@ -271,7 +271,72 @@ function showSlotPopup(cell, date, start, end) {
 document.addEventListener("click", removePopup);
 
 // ── Booking modal ─────────────────────────────────────────────────────────────
+// ── Booking detail — click booked cell ───────────────────────────────────────
+window.openBookingDetail = function(bookingId) {
+  const b    = bookings.find(x => x.id === bookingId); if(!b) return;
+  const room = rooms.find(r => r.id === b.roomId);
+  const dateObj = new Date(b.date + "T00:00:00");
+  const dateFmt = dateObj.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+  // Populate modal header
+  const eyebrow = el("modalEyebrow"); if(eyebrow) eyebrow.textContent = "Booking Details";
+  const mTime   = el("modalTime");   if(mTime)   mTime.textContent   = `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`;
+  const mMeta   = el("modalMeta");   if(mMeta)   mMeta.textContent   = `${dateFmt} · ${room?.name||""}`;
+
+  // Body
+  const body = el("modalBody"); if(!body) return;
+  body.innerHTML = `
+    <div class="md-row"><i class="ti ti-building md-icon"></i>
+      <div><div class="md-label">Room</div>
+      <div class="md-val">${room?.name||"—"}${room?.capacity ? " (cap. "+room.capacity+")" : ""}</div></div>
+    </div>
+    <div class="md-row"><i class="ti ti-user md-icon"></i>
+      <div><div class="md-label">Booked By / Coordinated By</div>
+      <div class="md-val">${b.bookedByName||"—"}</div></div>
+    </div>
+    ${b.resourcePerson ? `<div class="md-row"><i class="ti ti-user-check md-icon"></i>
+      <div><div class="md-label">Resource Person</div>
+      <div class="md-val">${b.resourcePerson}</div></div>
+    </div>` : ""}
+    ${b.targetGroup ? `<div class="md-row"><i class="ti ti-users md-icon"></i>
+      <div><div class="md-label">Target Group</div>
+      <div class="md-val">${b.targetGroup}</div></div>
+    </div>` : ""}
+    ${b.notes ? `<div class="md-row"><i class="ti ti-notes md-icon"></i>
+      <div><div class="md-label">Notes</div>
+      <div class="md-val">${b.notes}</div></div>
+    </div>` : ""}
+  `;
+
+  // Footer — admin gets delete button
+  const foot = el("modalFoot"); if(!foot) return;
+  foot.innerHTML = `<button class="btn-ghost" onclick="document.getElementById('bookModal').classList.remove('open')">Close</button>`;
+  if(isAdmin) {
+    const delBtn = document.createElement("button");
+    delBtn.className = "btn-danger";
+    delBtn.style.cssText = "padding:10px 16px;border-radius:9px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-family:inherit;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all 160ms;";
+    delBtn.textContent = "🗑️ Delete Booking";
+    delBtn.onmouseover = () => { delBtn.style.background="#991b1b"; delBtn.style.color="#fff"; };
+    delBtn.onmouseout  = () => { delBtn.style.background="#fee2e2"; delBtn.style.color="#991b1b"; };
+    delBtn.onclick = async () => {
+      if(!confirm(`Delete booking "${b.title}" by ${b.bookedByName}?`)) return;
+      try {
+        await deleteDoc(doc(db, "room_bookings", bookingId));
+        document.getElementById("bookModal").classList.remove("open");
+        showToast("Booking deleted.", "warn");
+      } catch(err) {
+        showToast("Delete failed: " + err.message, "error");
+      }
+    };
+    foot.appendChild(delBtn);
+  }
+
+  // Open modal
+  el("bookModal")?.classList.add("open");
+};
+
 function openBookModal(date, start, end) {
+  const eyebrow = el("modalEyebrow"); if(eyebrow) eyebrow.textContent = "Book this slot";
   if(el("modalDate"))  el("modalDate").value  = date;
   if(el("modalStart")) el("modalStart").value = start;
   if(el("modalEnd"))   el("modalEnd").value   = end;
