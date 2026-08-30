@@ -1,417 +1,271 @@
 import { app } from "./firebase.js";
-import { getAuth, onAuthStateChanged }
-  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, collection, getDocs, onSnapshot, addDoc, deleteDoc, doc, getDoc
+  getFirestore, collection, getDocs, onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
 
-const SLOT_START = 8 * 60;
-const SLOT_END   = 18 * 60;
+// ── Config ────────────────────────────────────────────────────────────────────
+const SLOT_START = 7 * 60;   // 7:00 AM
+const SLOT_END   = 19 * 60;  // 7:00 PM
 const SLOT_STEP  = 30;
+const SLOT_H     = 32;       // px per slot
+const DAYS       = ["Sat","Sun","Mon","Tue","Wed","Thu","Fri"];
+const MONTHS_S   = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-let rooms        = [];
-let isAdmin      = false;
-let bookings     = [];
-let weekOffset   = 0;
-let selectedRoom = "";
+// Room colour palette — assigned by index
+const PALETTE = [
+  { bg:"rgba(37,99,235,.12)",  border:"#2563EB", text:"#1E3A7A" },
+  { bg:"rgba(5,150,105,.12)",  border:"#059669", text:"#065F46" },
+  { bg:"rgba(186,117,23,.13)", border:"#BA7517", text:"#7A4E10" },
+  { bg:"rgba(124,58,237,.12)", border:"#7C3AED", text:"#4C1D95" },
+  { bg:"rgba(220,38,38,.11)",  border:"#DC2626", text:"#7F1D1D" },
+  { bg:"rgba(20,184,166,.12)", border:"#14B8A6", text:"#0F766E" },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let rooms         = [];
+let bookings      = [];
+let weekOffset    = 0;
+let activeRoom    = "all";  // filter
 let unsubBookings = null;
-let activePopup  = null;
-
-// ── Auth — check admin role ──────────────────────────────────────────────────
-const auth = getAuth(app);
-onAuthStateChanged(auth, async user => {
-  if (!user) { isAdmin = false; return; }
-  try {
-    const snap = await getDoc(doc(db, "users", user.uid));
-    isAdmin = snap.exists() && snap.data().role === "admin";
-  } catch(e) { isAdmin = false; }
-});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const el = id => document.getElementById(id);
-function fmtTime(mins) {
-  const h=Math.floor(mins/60),m=mins%60,s=h>=12?"PM":"AM",hh=h%12||12;
-  return `${hh}:${String(m).padStart(2,"0")} ${s}`;
+const el  = id => document.getElementById(id);
+function fmtTime(m){ const h=Math.floor(m/60),mn=m%60,s=h>=12?"PM":"AM",hh=h%12||12; return `${hh}:${String(mn).padStart(2,"0")} ${s}`; }
+function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function toMins(t){ const [h,m]=t.split(":").map(Number); return h*60+m; }
+function fmtDayMon(d){ return `${d.getDate()} ${MONTHS_S[d.getMonth()]}`; }
+function fmtDateFull(d){ return d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"}); }
+function getWeekStart(offset=0){
+  const t=new Date(), diff=(t.getDay()+1)%7, s=new Date(t);
+  s.setDate(t.getDate()-diff+offset*7); s.setHours(0,0,0,0); return s;
 }
-function toHHMM(mins) {
-  return `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;
+function getWeekDates(offset=0){
+  const s=getWeekStart(offset);
+  return Array.from({length:7},(_,i)=>{ const d=new Date(s); d.setDate(s.getDate()+i); return d; });
 }
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function roomColor(roomId){
+  const idx = rooms.findIndex(r=>r.id===roomId);
+  return PALETTE[idx % PALETTE.length] || PALETTE[0];
 }
-function toMins(t)     { const [h,m]=t.split(":").map(Number); return h*60+m; }
-function fmtDayMonth(d){ return d.toLocaleDateString("en-US",{day:"numeric",month:"short"}); }
-function fmtDateFull(d){ return d.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
-function getWeekStart(offset=0) {
-  const today=new Date(), day=today.getDay(), diff=(day+1)%7;
-  const sat=new Date(today); sat.setDate(today.getDate()-diff+offset*7); sat.setHours(0,0,0,0);
-  return sat;
-}
-function getWeekDates(offset=0) {
-  const sat=getWeekStart(offset);
-  return Array.from({length:7},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
-}
-function showToast(msg, type="success") {
-  const t=el("toast"); if(!t) return;
-  t.textContent=msg; t.className=`toast ${type} show`;
-  clearTimeout(t._tmr); t._tmr=setTimeout(()=>t.classList.remove("show"),3500);
-}
-function closeModal()  { el("bookModal")?.classList.remove("open"); }
-function removePopup() {
-  if(activePopup){ activePopup.remove(); activePopup=null; }
-  el("slotPopup") && (el("slotPopup").style.display="none");
-}
+function showToast(msg){ const t=el("toast"); t.textContent=msg; t.className="toast show"; clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),3000); }
+function openModal(){ el("evModal")?.classList.add("open"); }
+function closeModal(){ el("evModal")?.classList.remove("open"); }
 
 // ── Load rooms ────────────────────────────────────────────────────────────────
-async function loadRooms() {
-  try {
+async function loadRooms(){
+  try{
     const snap = await getDocs(collection(db,"training_rooms"));
-    rooms = snap.docs.map(d=>({id:d.id,...d.data()}))
-      .sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-    buildRoomSelects();
+    rooms = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+    buildRoomFilters();
+    buildLegend();
   } catch(e){ console.error("Rooms:",e); }
 }
 
-function buildRoomSelects() {
-  const selEl=el("roomSel"), modalSel=el("modalRoom");
-  if(selEl) selEl.innerHTML="";
-  if(modalSel) modalSel.innerHTML="";
-  if(!rooms.length){
-    if(selEl) selEl.innerHTML="<option>No rooms configured</option>";
-    return;
-  }
-  rooms.forEach((r,i)=>{
-    [selEl, modalSel].forEach(sel=>{
-      if(!sel) return;
-      const o=document.createElement("option");
-      o.value=r.id; o.textContent=`${r.name} (cap. ${r.capacity})`;
-      if(i===0) o.selected=true;
-      sel.appendChild(o);
-    });
-    if(i===0) selectedRoom=r.id;
+function buildRoomFilters(){
+  const wrap = el("roomFilters"); if(!wrap) return;
+  // Remove old room pills (keep All)
+  wrap.querySelectorAll("[data-room]:not([data-room='all'])").forEach(p=>p.remove());
+
+  rooms.forEach(r=>{
+    const clr = roomColor(r.id);
+    const pill = document.createElement("div");
+    pill.className = "rf-pill";
+    pill.dataset.room = r.id;
+    pill.innerHTML = `<span class="rf-pip" style="background:${clr.border}"></span>${r.name}`;
+    pill.addEventListener("click", ()=>setRoomFilter(r.id));
+    wrap.appendChild(pill);
   });
+
+  // All pill click
+  wrap.querySelector("[data-room='all']").addEventListener("click", ()=>setRoomFilter("all"));
 }
 
-// ── Subscribe bookings ─────────────────────────────────────────────────────────
-function subscribeBookings() {
+function setRoomFilter(roomId){
+  activeRoom = roomId;
+  document.querySelectorAll(".rf-pill").forEach(p=>{
+    const isAll = p.dataset.room === "all";
+    const isActive = p.dataset.room === roomId;
+    p.classList.toggle("active", isActive);
+    if(isAll) p.classList.toggle("all-pill", true);
+    if(isActive && !isAll){
+      const clr = roomColor(roomId);
+      p.style.background = clr.border;
+      p.style.borderColor = clr.border;
+    } else if(!isActive){
+      p.style.background = "";
+      p.style.borderColor = "";
+    }
+    if(isActive && isAll){
+      p.style.background = "var(--navy)";
+      p.style.borderColor = "var(--navy)";
+    }
+  });
+  renderCalendar();
+}
+
+function buildLegend(){
+  const wrap = el("legend"); if(!wrap) return;
+  wrap.innerHTML = rooms.map(r=>{
+    const clr = roomColor(r.id);
+    return `<div class="leg">
+      <div class="leg-sq" style="background:${clr.bg};border-left:3px solid ${clr.border}"></div>
+      ${r.name}
+    </div>`;
+  }).join("") + `<div class="leg" style="margin-left:auto">
+    <div class="leg-sq" style="background:#FFFBEB;border:1px solid #fde68a"></div>Current time
+  </div>`;
+}
+
+// ── Subscribe bookings ────────────────────────────────────────────────────────
+function subscribeBookings(){
   if(unsubBookings) unsubBookings();
-  unsubBookings=onSnapshot(collection(db,"room_bookings"), snap=>{
-    bookings=snap.docs.map(d=>({id:d.id,...d.data()}));
-    renderSchedule();
-    renderToday();
+  unsubBookings = onSnapshot(collection(db,"room_bookings"), snap=>{
+    bookings = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderCalendar();
   }, err=>console.error("Bookings:",err));
 }
 
-// ── Today summary ─────────────────────────────────────────────────────────────
-function renderToday() {
-  const todayKey=dateKey(new Date());
-  const nowMins=new Date().getHours()*60+new Date().getMinutes();
-  const labelEl=el("todayDateLabel"), gridEl=el("todayRooms");
-  if(!gridEl) return;
-  if(labelEl) labelEl.textContent=new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
-  if(!rooms.length){ gridEl.innerHTML=`<div style="padding:16px;color:#94a3b8;font-size:0.82rem;">No rooms configured.</div>`; return; }
+// ── Render calendar ───────────────────────────────────────────────────────────
+function renderCalendar(){
+  const dates   = getWeekDates(weekOffset);
+  const todayKey = dateKey(new Date());
+  const nowMins  = new Date().getHours()*60+new Date().getMinutes();
 
-  // Row-per-room table layout
-  const rows = rooms.map(room=>{
-    const bks=bookings.filter(b=>b.roomId===room.id&&b.date===todayKey)
-      .sort((a,b)=>a.startTime.localeCompare(b.startTime));
-    const slotsHtml = bks.length===0
-      ? `<div class="today-avail">✅ Available all day</div>`
-      : `<div class="today-slots-cell">${bks.map(b=>{
-          const bs=toMins(b.startTime),be=toMins(b.endTime);
-          const isNow=nowMins>=bs&&nowMins<be;
-          return `<div class="today-slot-chip${isNow?" chip-now":""}">
-            <span class="tsc-time">${fmtTime(bs)} – ${fmtTime(be)}${isNow?'<span class="now-pill">NOW</span>':""}</span>
-            <span class="tsc-title">${b.title}</span>
-            <span class="tsc-by">👤 ${b.bookedByName||"—"}</span>
-          </div>`;
-        }).join("")}</div>`;
-    return `<tr>
-      <td><div class="today-room-name">
-        <span class="today-room-dot" style="background:${room.color||"#1E3A5F"}"></span>
-        ${room.name}
-        <span style="font-size:0.68rem;color:var(--muted);font-weight:400;">(${room.capacity||"—"})</span>
-      </div></td>
-      <td>${slotsHtml}</td>
-    </tr>`;
-  }).join("");
+  // Week label
+  const wl = el("wkLabel"); if(wl) wl.textContent = `${fmtDayMon(dates[0])} – ${fmtDayMon(dates[6])} ${dates[0].getFullYear()}`;
 
-  gridEl.innerHTML = `<table class="today-table">
-    <thead><tr>
-      <th style="width:200px;">Room</th>
-      <th>Bookings Today</th>
-    </tr></thead>
-    <tbody>${rows}</tbody>
-  </table>`;
-}
+  const weekKeys = dates.map(dateKey);
 
-// ── Weekly schedule matrix ────────────────────────────────────────────────────
-window.renderSchedule = function() {
-  removePopup();
-  const selEl=el("roomSel"); selectedRoom=selEl?.value||"";
-  const room=rooms.find(r=>r.id===selectedRoom);
-  const roomName=room?room.name:"—";
-  const dates=getWeekDates(weekOffset);
-  const monthYearStr=dates[0].toLocaleDateString("en-US",{month:"short",year:"2-digit"}).replace(" ","-");
-  const weekKeys=dates.map(dateKey);
-  const roomBks=bookings.filter(b=>b.roomId===selectedRoom&&weekKeys.includes(b.date));
+  // Filter bookings
+  const visibleBks = bookings.filter(b=>{
+    if(!weekKeys.includes(b.date)) return false;
+    if(activeRoom !== "all" && b.roomId !== activeRoom) return false;
+    return true;
+  });
 
+  // Slots
   const slots=[]; for(let m=SLOT_START;m<SLOT_END;m+=SLOT_STEP) slots.push(m);
+  const cols = `72px repeat(7,1fr)`;
 
-  function getSlotInfo(dStr,slotMins){
-    for(const b of roomBks){
-      if(b.date!==dStr) continue;
-      const bs=toMins(b.startTime),be=toMins(b.endTime);
-      if(slotMins>=bs&&slotMins<be)
-        return{booking:b,isStart:slotMins===bs,span:Math.ceil((be-bs)/SLOT_STEP)};
-    }
-    return null;
-  }
+  // ── Head ────────────────────────────────────────────────────────────────────
+  let head = `<div class="cal-head" style="grid-template-columns:${cols}">
+    <div class="ch-time"></div>
+    ${dates.map((d,i)=>{
+      const k=dateKey(d), isToday=k===todayKey;
+      return `<div class="ch-day${isToday?" is-today":""}">
+        <div class="ch-day-name">${DAYS[i]}</div>
+        <div class="ch-day-num">${d.getDate()}</div>
+        ${isToday?'<div class="today-pip"></div>':""}
+      </div>`;
+    }).join("")}
+  </div>`;
 
-  const skip={};
-  const nowMins=new Date().getHours()*60+new Date().getMinutes();
-  const todayKey=dateKey(new Date());
+  // ── Body ─────────────────────────────────────────────────────────────────────
+  // Pre-compute event positions for each booking
+  // Event block height = span * SLOT_H - 2px padding
+  const evMap = {}; // dateKey → array of {bk, topPx, heightPx, color}
+  visibleBks.forEach(b=>{
+    const bs = toMins(b.startTime), be = toMins(b.endTime);
+    if(bs < SLOT_START || be > SLOT_END) return;
+    const topPx    = ((bs - SLOT_START) / SLOT_STEP) * SLOT_H + 1;
+    const heightPx = ((be - bs) / SLOT_STEP) * SLOT_H - 2;
+    const clr      = roomColor(b.roomId);
+    const room     = rooms.find(r=>r.id===b.roomId);
+    if(!evMap[b.date]) evMap[b.date] = [];
+    evMap[b.date].push({ b, topPx, heightPx, clr, room });
+  });
 
-  let html=`<table class="sched-table">
-    <thead>
-      <tr class="title-row">
-        <td colspan="8">Room Booking Schedule &nbsp;[${roomName}]</td>
-        <td class="title-date">${monthYearStr}</td>
-      </tr>
-      <tr class="week-row">
-        <td colspan="9">
-          &lt; ${weekOffset===0?"Current Week":weekOffset===-1?"Last Week":weekOffset===1?"Next Week":`Week ${weekOffset>0?"+":""}${weekOffset}`} &gt;
-          &nbsp;&nbsp;<span style="font-weight:400;color:#555;">${fmtDayMonth(dates[0])} – ${fmtDayMonth(dates[6])}, ${dates[0].getFullYear()}</span>
-        </td>
-      </tr>
-      <tr class="header-date">
-        <td rowspan="2" style="text-align:center;vertical-align:middle;width:78px;background:#D6E4F0;font-weight:700;border:1px solid var(--border);">Time</td>
-        ${dates.map(d=>`<td>${fmtDayMonth(d)}</td>`).join("")}
-      </tr>
-      <tr class="header-day">
-        ${dates.map(d=>`<td>${d.toLocaleDateString("en-US",{weekday:"long"})}</td>`).join("")}
-      </tr>
-    </thead>
-    <tbody>`;
-
+  let body = `<div class="cal-body">`;
   slots.forEach((slotMins,si)=>{
-    const isCurrent=todayKey&&slotMins<=nowMins&&nowMins<slotMins+SLOT_STEP;
-    html+=`<tr class="${isCurrent?"current-time-row":""}">`;
-    html+=`<td class="time-cell">${fmtTime(slotMins)}</td>`;
+    const isHour   = slotMins % 60 === 0;
+    const isCurrent = todayKey && slotMins <= nowMins && nowMins < slotMins+SLOT_STEP;
+    const timeLabel = isHour ? fmtTime(slotMins) : "";
+
+    body += `<div class="cal-row${isHour?" is-hour":""}${isCurrent?" is-now":""}\" style="grid-template-columns:${cols}">`;
+    body += `<div class="cr-time${isHour?" on-hour":""}">${timeLabel}</div>`;
+
     dates.forEach((d,di)=>{
-      const dKey=dateKey(d), ck=`${di}-${si}`;
-      if(skip[ck]) return;
-      const info=getSlotInfo(dKey,slotMins);
-      if(info&&info.isStart){
-        for(let s=1;s<info.span;s++) skip[`${di}-${si+s}`]=true;
-        const b=info.booking;
-        const isNow=todayKey===dKey&&nowMins>=toMins(b.startTime)&&nowMins<toMins(b.endTime);
-        html+=`<td class="booked-cell${isNow?" booked-now":""}" rowspan="${info.span}" style="cursor:pointer;" onclick="openBookingDetail('${b.id}')">
-          <div class="booked-purpose">${b.title}</div>
-          <div class="booked-by">👤 ${b.bookedByName||"—"}</div>
-        </td>`;
-      } else if(!info){
-        html+=`<td class="empty-cell" data-date="${dKey}" data-start="${toHHMM(slotMins)}" data-end="${toHHMM(slotMins+SLOT_STEP)}"></td>`;
-      }
+      const dKey   = dateKey(d);
+      const isToday = dKey===todayKey;
+      // Render event blocks only on the first slot of each event (topPx managed absolutely)
+      const eventsThisDay = si===0 ? (evMap[dKey]||[]) : [];
+      const evHtml = eventsThisDay.map(ev=>{
+        const lines = Math.floor(ev.heightPx / 14);
+        return `<div class="ev-block" style="
+            top:${ev.topPx}px;height:${ev.heightPx}px;
+            background:${ev.clr.bg};border-left:3px solid ${ev.clr.border};
+            color:${ev.clr.text};"
+          onclick="showEvent('${ev.b.id}')">
+          <div class="ev-title">${ev.b.title}</div>
+          ${lines>=2?`<div class="ev-room">${ev.room?.name||""}</div>`:""}
+          ${lines>=3?`<div class="ev-time-label">${fmtTime(toMins(ev.b.startTime))} – ${fmtTime(toMins(ev.b.endTime))}</div>`:""}
+        </div>`;
+      }).join("");
+
+      body += `<div class="cr-slot${isToday?" is-today-col":""}" style="position:relative">
+        ${evHtml}
+      </div>`;
     });
-    html+=`</tr>`;
+
+    body += `</div>`;
   });
+  body += `</div>`;
 
-  html+=`</tbody></table>`;
-  el("scheduleWrap").innerHTML=html;
-
-  // Attach click to empty cells
-  el("scheduleWrap").querySelectorAll(".empty-cell").forEach(cell=>{
-    cell.addEventListener("click", e=>{
-      e.stopPropagation();
-      showSlotPopup(cell, cell.dataset.date, cell.dataset.start, cell.dataset.end);
-    });
-  });
-};
-
-// ── Slot popup ────────────────────────────────────────────────────────────────
-function showSlotPopup(cell, date, start, end) {
-  removePopup();
-  const rect=cell.getBoundingClientRect();
-  const top=rect.bottom+window.scrollY+8;
-  const left=Math.min(rect.left+window.scrollX, window.innerWidth-250);
-
-  const popup=document.createElement("div");
-  popup.className="slot-popup";
-  popup.style.cssText=`position:absolute;top:${top}px;left:${left}px;`;
-
-  const dateObj=new Date(date+"T00:00:00");
-  const room=rooms.find(r=>r.id===selectedRoom);
-
-  popup.innerHTML=`
-    <div class="popup-head">📅 ${fmtTime(toMins(start))} – ${fmtTime(toMins(end))}</div>
-    <div class="popup-sub">
-      ${fmtDateFull(dateObj)}<br>
-      <strong>${room?.name||""}</strong>
-      ${room?.capacity ? ` · Capacity: ${room.capacity}` : ""}
-    </div>
-    <button class="popup-btn" id="popupBook">Book this slot</button>
-    <span class="popup-dismiss" id="popupDismiss">Cancel</span>
-  `;
-
-  document.body.appendChild(popup);
-  activePopup=popup;
-
-  el("popupBook").addEventListener("click", e=>{
-    e.stopPropagation(); removePopup();
-    openBookModal(date, start, end);
-  });
-  el("popupDismiss").addEventListener("click", e=>{
-    e.stopPropagation(); removePopup();
-  });
-}
-
-document.addEventListener("click", removePopup);
-
-// ── Booking modal ─────────────────────────────────────────────────────────────
-// ── Booking detail — click booked cell ───────────────────────────────────────
-window.openBookingDetail = function(bookingId) {
-  const b    = bookings.find(x => x.id === bookingId); if(!b) return;
-  const room = rooms.find(r => r.id === b.roomId);
-  const dateObj = new Date(b.date + "T00:00:00");
-  const dateFmt = dateObj.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-
-  // Populate modal header
-  const eyebrow = el("modalEyebrow"); if(eyebrow) eyebrow.textContent = "Booking Details";
-  const mTime   = el("modalTime");   if(mTime)   mTime.textContent   = `${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}`;
-  const mMeta   = el("modalMeta");   if(mMeta)   mMeta.textContent   = `${dateFmt} · ${room?.name||""}`;
-
-  // Body
-  const body = el("modalBody"); if(!body) return;
-  body.innerHTML = `
-    <div class="md-row"><i class="ti ti-building md-icon"></i>
-      <div><div class="md-label">Room</div>
-      <div class="md-val">${room?.name||"—"}${room?.capacity ? " (cap. "+room.capacity+")" : ""}</div></div>
-    </div>
-    <div class="md-row"><i class="ti ti-user md-icon"></i>
-      <div><div class="md-label">Booked By / Coordinated By</div>
-      <div class="md-val">${b.bookedByName||"—"}</div></div>
-    </div>
-    ${b.resourcePerson ? `<div class="md-row"><i class="ti ti-user-check md-icon"></i>
-      <div><div class="md-label">Resource Person</div>
-      <div class="md-val">${b.resourcePerson}</div></div>
-    </div>` : ""}
-    ${b.targetGroup ? `<div class="md-row"><i class="ti ti-users md-icon"></i>
-      <div><div class="md-label">Target Group</div>
-      <div class="md-val">${b.targetGroup}</div></div>
-    </div>` : ""}
-    ${b.notes ? `<div class="md-row"><i class="ti ti-notes md-icon"></i>
-      <div><div class="md-label">Notes</div>
-      <div class="md-val">${b.notes}</div></div>
-    </div>` : ""}
-  `;
-
-  // Footer — admin gets delete button
-  const foot = el("modalFoot"); if(!foot) return;
-  foot.innerHTML = `<button class="btn-ghost" onclick="document.getElementById('bookModal').classList.remove('open')">Close</button>`;
-  if(isAdmin) {
-    const delBtn = document.createElement("button");
-    delBtn.className = "btn-danger";
-    delBtn.style.cssText = "padding:10px 16px;border-radius:9px;background:#fee2e2;color:#991b1b;border:1px solid #fecaca;font-family:inherit;font-size:0.875rem;font-weight:600;cursor:pointer;transition:all 160ms;";
-    delBtn.textContent = "🗑️ Delete Booking";
-    delBtn.onmouseover = () => { delBtn.style.background="#991b1b"; delBtn.style.color="#fff"; };
-    delBtn.onmouseout  = () => { delBtn.style.background="#fee2e2"; delBtn.style.color="#991b1b"; };
-    delBtn.onclick = async () => {
-      if(!confirm(`Delete booking "${b.title}" by ${b.bookedByName}?`)) return;
-      try {
-        await deleteDoc(doc(db, "room_bookings", bookingId));
-        document.getElementById("bookModal").classList.remove("open");
-        showToast("Booking deleted.", "warn");
-      } catch(err) {
-        showToast("Delete failed: " + err.message, "error");
-      }
-    };
-    foot.appendChild(delBtn);
+  // No bookings state
+  if(visibleBks.length === 0){
+    body = `<div class="state-box"><div class="si">🗓️</div>No bookings this week${activeRoom!=="all"?" for this room":""}.</div>`;
   }
 
-  // Open modal
-  el("bookModal")?.classList.add("open");
+  el("calArea").innerHTML = `<div class="cal-outer">${head}${body}</div>`;
+}
+
+// ── Event detail modal ────────────────────────────────────────────────────────
+window.showEvent = function(bookingId){
+  const b    = bookings.find(x=>x.id===bookingId); if(!b) return;
+  const room = rooms.find(r=>r.id===b.roomId);
+  const clr  = roomColor(b.roomId);
+  const dateObj = new Date(b.date+"T00:00:00");
+
+  el("evModalBar").style.background = clr.border;
+  el("evTitle").textContent = b.title;
+  el("evBody").innerHTML = `
+    <div class="md-row">
+      <i class="ti ti-building md-icon"></i>
+      <div><div class="md-label">Room</div><div class="md-val">${room?.name||"—"} ${room?.capacity?`· Capacity ${room.capacity}`:""}</div></div>
+    </div>
+    <div class="md-row">
+      <i class="ti ti-calendar md-icon"></i>
+      <div><div class="md-label">Date</div><div class="md-val">${fmtDateFull(dateObj)}</div></div>
+    </div>
+    <div class="md-row">
+      <i class="ti ti-clock md-icon"></i>
+      <div><div class="md-label">Time</div><div class="md-val">${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}</div></div>
+    </div>
+    <div class="md-row">
+      <i class="ti ti-user md-icon"></i>
+      <div><div class="md-label">Booked by</div><div class="md-val">${b.bookedByName||"—"}</div></div>
+    </div>
+    ${b.notes?`<div class="md-row">
+      <i class="ti ti-notes md-icon"></i>
+      <div><div class="md-label">Notes</div><div class="md-val">${b.notes}</div></div>
+    </div>`:""}
+  `;
+  openModal();
 };
 
-function openBookModal(date, start, end) {
-  const eyebrow = el("modalEyebrow"); if(eyebrow) eyebrow.textContent = "Book this slot";
-  if(el("modalDate"))  el("modalDate").value  = date;
-  if(el("modalStart")) el("modalStart").value = start;
-  if(el("modalEnd"))   el("modalEnd").value   = end;
-  if(el("modalTitle")) el("modalTitle").value = "";
-  if(el("modalName"))  el("modalName").value  = "";
-  const ms=el("modalRoom"); if(ms&&selectedRoom) ms.value=selectedRoom;
-  el("conflictBanner")?.classList.remove("show");
-  checkConflict();
-  el("bookModal")?.classList.add("open");
-}
-
-function checkConflict() {
-  const roomId=el("modalRoom")?.value, date=el("modalDate")?.value,
-        start=el("modalStart")?.value, end=el("modalEnd")?.value;
-  if(!roomId||!date||!start||!end) return false;
-  const s=toMins(start), e=toMins(end);
-  const conflict=bookings.some(b=>{
-    if(b.roomId!==roomId||b.date!==date) return false;
-    return s<toMins(b.endTime)&&e>toMins(b.startTime);
-  });
-  el("conflictBanner")?.classList.toggle("show", conflict);
-  return conflict;
-}
-
-async function submitBooking() {
-  const btn=el("modalSubmit");
-  const roomId=el("modalRoom")?.value;
-  const name=el("modalName")?.value.trim();
-  const title=el("modalTitle")?.value.trim();
-  const date=el("modalDate")?.value;
-  const startTime=el("modalStart")?.value;
-  const endTime=el("modalEnd")?.value;
-  const resource=el("modalResource")?.value.trim()||"";
-  const targetGroup=el("modalTarget")?.value.trim()||"";
-
-  if(!name)  { showToast("Please enter your name.","error"); return; }
-  if(!title) { showToast("Please enter a purpose/title.","error"); return; }
-  if(!date)  { showToast("Please select a date.","error"); return; }
-  if(!startTime||!endTime){ showToast("Please set start and end time.","error"); return; }
-  if(toMins(endTime)<=toMins(startTime)){ showToast("End time must be after start.","error"); return; }
-  if(checkConflict()){ showToast("⚠️ Room already booked for that time!","error"); return; }
-
-  btn.disabled=true; btn.classList.add("loading");
-  try {
-    await addDoc(collection(db,"room_bookings"),{
-      roomId, title, date, startTime, endTime,
-      resourcePerson:resource, targetGroup,
-      bookedBy:"guest_"+Date.now(),
-      bookedByName:name,
-      bookedByEmail:"",
-      createdAt:new Date().toISOString()
-    });
-    closeModal();
-    showToast(`✓ Booked! ${fmtTime(toMins(startTime))} – ${fmtTime(toMins(endTime))}`,"success");
-  } catch(e){ showToast("Booking failed: "+e.message,"error"); }
-  btn.disabled=false; btn.classList.remove("loading");
-}
-
-// ── Wire up buttons ───────────────────────────────────────────────────────────
-el("prevWeek")?.addEventListener("click",  ()=>{ weekOffset--; renderSchedule(); });
-el("nextWeek")?.addEventListener("click",  ()=>{ weekOffset++; renderSchedule(); });
-el("thisWeek")?.addEventListener("click",  ()=>{ weekOffset=0; renderSchedule(); });
-el("roomSel")?.addEventListener("change",  ()=>renderSchedule());
-el("modalClose")?.addEventListener("click",  closeModal);
-el("modalCancel")?.addEventListener("click", closeModal);
-el("modalSubmit")?.addEventListener("click", submitBooking);
-el("bookModal")?.addEventListener("click", e=>{ if(e.target===el("bookModal")) closeModal(); });
-["modalRoom","modalDate","modalStart","modalEnd"].forEach(id=>{
-  el(id)?.addEventListener("change", checkConflict);
-});
+// ── Nav ───────────────────────────────────────────────────────────────────────
+el("prevWeek")?.addEventListener("click", ()=>{ weekOffset--; renderCalendar(); });
+el("nextWeek")?.addEventListener("click", ()=>{ weekOffset++; renderCalendar(); });
+el("thisWeek")?.addEventListener("click", ()=>{ weekOffset=0; renderCalendar(); });
+el("evClose")?.addEventListener("click",  closeModal);
+el("evModal")?.addEventListener("click",  e=>{ if(e.target===el("evModal")) closeModal(); });
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-async function init() {
+async function init(){
   await loadRooms();
   subscribeBookings();
 }
 init();
-setInterval(()=>{ if(weekOffset===0){ renderSchedule(); renderToday(); } }, 60000);
+setInterval(()=>{ if(weekOffset===0) renderCalendar(); }, 60000);
