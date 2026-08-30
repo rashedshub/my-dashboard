@@ -1,6 +1,8 @@
 import { app } from "./firebase.js";
+import { getAuth, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
-  getFirestore, collection, getDocs, onSnapshot, addDoc
+  getFirestore, collection, getDocs, onSnapshot, addDoc, deleteDoc, doc, getDoc
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
@@ -10,11 +12,22 @@ const SLOT_END   = 18 * 60;
 const SLOT_STEP  = 30;
 
 let rooms        = [];
+let isAdmin      = false;
 let bookings     = [];
 let weekOffset   = 0;
 let selectedRoom = "";
 let unsubBookings = null;
 let activePopup  = null;
+
+// ── Auth — check admin role ──────────────────────────────────────────────────
+const auth = getAuth(app);
+onAuthStateChanged(auth, async user => {
+  if (!user) { isAdmin = false; return; }
+  try {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    isAdmin = snap.exists() && snap.data().role === "admin";
+  } catch(e) { isAdmin = false; }
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const el = id => document.getElementById(id);
@@ -195,7 +208,7 @@ window.renderSchedule = function() {
         for(let s=1;s<info.span;s++) skip[`${di}-${si+s}`]=true;
         const b=info.booking;
         const isNow=todayKey===dKey&&nowMins>=toMins(b.startTime)&&nowMins<toMins(b.endTime);
-        html+=`<td class="booked-cell${isNow?" booked-now":""}" rowspan="${info.span}">
+        html+=`<td class="booked-cell${isNow?" booked-now":""}" rowspan="${info.span}" style="cursor:pointer;" onclick="openBookingDetail('${b.id}')">
           <div class="booked-purpose">${b.title}</div>
           <div class="booked-by">👤 ${b.bookedByName||"—"}</div>
         </td>`;
