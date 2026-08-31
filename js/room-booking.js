@@ -282,7 +282,6 @@ function openBookModal(date, start, end) {
   if(el("modalStart")) el("modalStart").value = start;
   if(el("modalEnd"))   el("modalEnd").value   = end;
   if(el("modalTitle")) el("modalTitle").value = "";
-  if(el("modalNotes")) el("modalNotes").value = "";
   if(el("modalName"))  el("modalName").value  = "";
   const ms=el("modalRoom"); if(ms&&selectedRoom) ms.value=selectedRoom;
   el("conflictBanner")?.classList.remove("show");
@@ -311,7 +310,8 @@ async function submitBooking() {
   const date=el("modalDate")?.value;
   const startTime=el("modalStart")?.value;
   const endTime=el("modalEnd")?.value;
-  const notes=el("modalNotes")?.value.trim();
+  const resource=el("modalResource")?.value.trim()||"";
+  const targetGroup=el("modalTarget")?.value.trim()||"";
 
   if(!name)  { showToast("Please enter your name.","error"); return; }
   if(!title) { showToast("Please enter a purpose/title.","error"); return; }
@@ -323,7 +323,8 @@ async function submitBooking() {
   btn.disabled=true; btn.classList.add("loading");
   try {
     await addDoc(collection(db,"room_bookings"),{
-      roomId, title, date, startTime, endTime, notes,
+      roomId, title, date, startTime, endTime,
+      resourcePerson:resource, targetGroup,
       bookedBy:"guest_"+Date.now(),
       bookedByName:name,
       bookedByEmail:"",
@@ -370,7 +371,8 @@ window.openBookingDetail = function(e, bookingId) {
       📅 ${dateFmt}<br>
       ⏰ ${fmtTime(toMins(b.startTime))} – ${fmtTime(toMins(b.endTime))}<br>
       👤 ${b.bookedByName || "—"}
-      ${b.notes ? `<br>📝 ${b.notes}` : ""}
+      ${b.resourcePerson ? `<br>👨‍🏫 Resource: ${b.resourcePerson}` : ""}
+      ${b.targetGroup ? `<br>👥 Target: ${b.targetGroup}` : ""}
     </div>
     ${deleteBtn}
     <span class="popup-dismiss" id="popupDismiss">Close</span>
