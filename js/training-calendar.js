@@ -27,6 +27,7 @@ let unsubBookings = null;
 const el = id => document.getElementById(id);
 function fmtTime(t){ const [h,m]=t.split(":").map(Number),s=h>=12?"PM":"AM",hh=h%12||12; return `${hh}:${String(m).padStart(2,"0")} ${s}`; }
 function dateKey(y,mo,d){ return `${y}-${String(mo+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+function dateKeyD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function roomColor(roomId){ const idx=rooms.findIndex(r=>r.id===roomId); return PALETTE[idx%PALETTE.length]||PALETTE[0]; }
 function toMins(t){ const [h,m]=t.split(":").map(Number); return h*60+m; }
 
@@ -336,7 +337,7 @@ ${fmtTime(toMins(b.startTime))}-${fmtTime(toMins(b.endTime))}`,
     const weekDates = Array.from({length:6},(_,i)=>{
       const d=new Date(sat); d.setDate(sat.getDate()+i); return d;
     });
-    const weekKeys = weekDates.map(d=>dateKey(d));
+    const weekKeys = weekDates.map(d=>dateKeyD(d));
 
     const satFmt = sat.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
     const thu    = weekDates[5];
