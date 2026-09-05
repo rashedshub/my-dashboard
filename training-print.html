@@ -74,6 +74,7 @@ const db = getFirestore(app);
 let rooms    = [];
 let bookings = [];
 let ready    = false;
+let offset   = 0;
 
 const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
@@ -97,8 +98,6 @@ ready = true;
 render();
 
 // 3. Wire up controls
-let offset = 0; // 0=current, -1=prev, +1=next
-
 document.getElementById("rangeSelect").addEventListener("change", () => { offset=0; render(); });
 document.getElementById("venueSelect").addEventListener("change", render);
 document.getElementById("prevBtn").addEventListener("click", () => { offset--; render(); });
