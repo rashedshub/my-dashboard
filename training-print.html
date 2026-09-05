@@ -4,180 +4,129 @@
   <meta charset="UTF-8"/>
   <title>Training Notice — E&amp;C Portal</title>
   <style>
-    /* ── Screen styles ── */
-    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
-    body { font-family:'Calibri', Arial, sans-serif; background:#f0f2f5; color:#000; padding:20px; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Calibri',Arial,sans-serif;background:#f0f2f5;color:#000;padding:20px}
 
-    .toolbar {
-      max-width:900px; margin:0 auto 16px;
-      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    }
-    .toolbar label { font-size:13px; font-weight:600; color:#444; }
-    .toolbar select, .toolbar input {
-      padding:7px 12px; border-radius:7px; border:1px solid #ccc;
-      font-family:inherit; font-size:13px; background:#fff;
-    }
-    .btn-print {
-      padding:8px 20px; border-radius:7px; border:none;
-      background:#1E3A5F; color:#fff; font-family:inherit;
-      font-size:13px; font-weight:700; cursor:pointer;
-    }
-    .btn-print:hover { background:#2E5B88; }
-    .btn-back {
-      padding:8px 16px; border-radius:7px; border:1px solid #ccc;
-      background:#fff; font-family:inherit; font-size:13px; cursor:pointer;
-    }
+    .toolbar{max-width:960px;margin:0 auto 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;padding:12px 16px;border-radius:10px;border:1px solid #ddd}
+    .toolbar label{font-size:13px;font-weight:700;color:#444}
+    .toolbar select{padding:7px 12px;border-radius:7px;border:1px solid #ccc;font-family:inherit;font-size:13px;background:#fff;cursor:pointer}
+    .btn-print{padding:9px 22px;border-radius:7px;border:none;background:#1E3A5F;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .btn-print:hover{background:#2E5B88}
+    .btn-back{padding:9px 16px;border-radius:7px;border:1px solid #ccc;background:#fff;font-family:inherit;font-size:13px;cursor:pointer;text-decoration:none;color:#000;display:inline-block}
 
-    /* ── Print document ── */
-    .doc {
-      max-width:900px; margin:0 auto;
-      background:#fff; border:1px solid #ccc;
-    }
+    /* Document */
+    .doc{max-width:960px;margin:0 auto;background:#fff;border:1px solid #bbb}
+    .doc-company{background:#1E3A5F;color:#fff;text-align:center;padding:9px 16px;font-size:15px;font-weight:700}
+    .doc-title{text-align:center;font-size:13px;font-weight:700;padding:6px 16px;border-bottom:1px solid #ccc}
+    .doc-intro{text-align:center;font-size:12px;padding:5px 16px;background:#eef0f3;border-bottom:1px solid #ccc}
+    .doc table{width:100%;border-collapse:collapse;font-size:11.5px}
+    .doc table th{border:1px solid #888;padding:6px 8px;text-align:left;background:#fff;font-weight:700;font-size:11px}
+    .doc table td{border:1px solid #888;padding:5px 8px;vertical-align:middle}
+    .day-cell{text-align:center;font-weight:700;background:#FFD700;width:36px;font-size:13px}
+    .doc-footer{text-align:right;font-size:10px;color:#666;padding:5px 14px;border-top:1px solid #eee}
+    .no-data{text-align:center;padding:32px;color:#888;font-size:13px}
+    .status{text-align:center;padding:20px;color:#666;font-size:13px}
 
-    /* Company header */
-    .doc-header {
-      background:#1E3A5F; color:#fff; text-align:center;
-      padding:10px 16px 8px;
-    }
-    .doc-header .company { font-size:15px; font-weight:700; }
-    .doc-title {
-      text-align:center; font-size:13px; font-weight:700;
-      padding:7px 16px; border-bottom:1px solid #ccc;
-    }
-    .doc-intro {
-      text-align:center; font-size:12px; padding:6px 16px;
-      background:#f0f2f5; border-bottom:1px solid #ccc;
-    }
-
-    /* Table */
-    .doc table {
-      width:100%; border-collapse:collapse; font-size:11.5px;
-    }
-    .doc table th {
-      border:1px solid #999; padding:6px 8px;
-      text-align:left; background:#fff; font-weight:700;
-    }
-    .doc table td {
-      border:1px solid #999; padding:5px 8px;
-      vertical-align:middle;
-    }
-    .day-cell {
-      text-align:center; font-weight:700;
-      background:#FFD700; width:36px;
-    }
-    .no-data {
-      text-align:center; padding:32px; color:#888; font-size:13px;
-    }
-    .doc-footer {
-      text-align:right; font-size:10px; color:#666;
-      padding:6px 14px; border-top:1px solid #eee;
-    }
-
-    /* ── Print styles ── */
-    @media print {
-      body { background:#fff; padding:0; }
-      .toolbar { display:none; }
-      .doc { border:none; max-width:100%; }
-      @page { size:A4 landscape; margin:10mm; }
+    @media print{
+      body{background:#fff;padding:0}
+      .toolbar{display:none}
+      .doc{border:none;max-width:100%}
+      @page{size:A4 landscape;margin:8mm}
     }
   </style>
 </head>
 <body>
 
-<!-- Toolbar (hidden on print) -->
 <div class="toolbar">
-  <button class="btn-back" onclick="history.back()">← Back</button>
-
+  <a href="training-calendar.html" class="btn-back">← Back</a>
   <label>Range:</label>
-  <select id="rangeSelect">
+  <select id="rangeSelect" onchange="render()">
     <option value="weekly">Weekly (Sat – Thu)</option>
     <option value="monthly">Monthly</option>
   </select>
-
   <label>Venue:</label>
-  <select id="venueSelect">
+  <select id="venueSelect" onchange="render()">
     <option value="all">All Venues</option>
   </select>
-
   <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
 </div>
 
-<!-- Printable document -->
-<div class="doc" id="printDoc">
-  <div class="doc-header">
-    <div class="company">Youngone Hi-Tech Sportswear Industries Ltd.</div>
-  </div>
+<div class="doc">
+  <div class="doc-company">Youngone Hi-Tech Sportswear Industries Ltd.</div>
   <div class="doc-title" id="docTitle">Training Notice</div>
   <div class="doc-intro">This is to inform all concerned that management will going to arrange below training session:</div>
-  <div id="docBody"><div class="no-data">Loading…</div></div>
+  <div id="docBody"><div class="status">Loading data…</div></div>
   <div class="doc-footer" id="docFooter"></div>
 </div>
 
 <script type="module">
 import { app } from "./firebase.js";
-import { getFirestore, collection, getDocs, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+import {
+  getFirestore, collection, getDocs, onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
-let rooms = [], bookings = [];
+let rooms    = [];
+let bookings = [];
+let ready    = false;
 
 const MONTHS = ["January","February","March","April","May","June",
                 "July","August","September","October","November","December"];
 
-function dateKeyD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-function fmtTime(t){ const [h,m]=t.split(":").map(Number),s=h>=12?"PM":"AM",hh=h%12||12; return `${hh}:${String(m).padStart(2,"0")}${s}`; }
-function toMins(t){ const [h,m]=t.split(":").map(Number); return h*60+m; }
+function dk(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function fmtT(t){ const[h,m]=t.split(":").map(Number),s=h>=12?"PM":"AM",hh=h%12||12; return `${hh}:${String(m).padStart(2,"0")}${s}`; }
 
-// Load rooms
-async function loadRooms(){
-  const snap = await getDocs(collection(db,"training_rooms"));
-  rooms = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-  const sel = document.getElementById("venueSelect");
-  rooms.forEach(r=>{ const o=document.createElement("option"); o.value=r.id; o.textContent=r.name; sel.appendChild(o); });
-}
+// 1. Load rooms first
+const rSnap = await getDocs(collection(db,"training_rooms"));
+rooms = rSnap.docs.map(d=>({id:d.id,...d.data()}))
+  .sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
 
-// Subscribe bookings
+// Populate venue selector
+const vSel = document.getElementById("venueSelect");
+rooms.forEach(r=>{ const o=document.createElement("option"); o.value=r.id; o.textContent=r.name; vSel.appendChild(o); });
+
+// 2. Load bookings then render
+const bSnap = await getDocs(collection(db,"room_bookings"));
+bookings = bSnap.docs.map(d=>({id:d.id,...d.data()}));
+ready = true;
+render();
+
+// 3. Live updates
 onSnapshot(collection(db,"room_bookings"), snap=>{
   bookings = snap.docs.map(d=>({id:d.id,...d.data()}));
-  render();
+  if(ready) render();
 });
 
-// Controls
-document.getElementById("rangeSelect").addEventListener("change", render);
-document.getElementById("venueSelect").addEventListener("change", render);
+window.render = function render(){
+  const range = document.getElementById("rangeSelect").value;
+  const venue = document.getElementById("venueSelect").value;
+  const vName = venue==="all" ? "All Venues" : (rooms.find(r=>r.id===venue)?.name||"All Venues");
 
-function render(){
-  const range  = document.getElementById("rangeSelect").value;
-  const venue  = document.getElementById("venueSelect").value;
-  const vName  = venue==="all" ? "All Venues" : (rooms.find(r=>r.id===venue)?.name||"All Venues");
-
-  let bks, dateRange, title;
+  let bks, title;
 
   if(range === "weekly"){
-    // Current week Sat–Thu
     const today = new Date();
     const diff  = (today.getDay()+1)%7;
     const sat   = new Date(today); sat.setDate(today.getDate()-diff); sat.setHours(0,0,0,0);
-    const weekDates = Array.from({length:6},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
-    const weekKeys  = weekDates.map(dateKeyD);
+    const dates = Array.from({length:6},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
+    const keys  = dates.map(dk);
 
-    bks = bookings.filter(b=>(venue==="all"||b.roomId===venue) && weekKeys.includes(b.date))
-                  .sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
+    bks = bookings
+      .filter(b=>(venue==="all"||b.roomId===venue) && keys.includes(b.date))
+      .sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
 
     const satFmt = sat.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
-    const thu    = weekDates[5];
+    const thu    = dates[5];
     const thuFmt = thu.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
-    dateRange = `${satFmt} to ${thuFmt}`;
-    title = `Training Notice of ${dateRange}`;
+    title = `Training Notice of ${satFmt} to ${thuFmt}`;
+
   } else {
-    const now = new Date();
-    const y = now.getFullYear(), mo = now.getMonth();
+    const now = new Date(), y=now.getFullYear(), mo=now.getMonth();
     bks = bookings.filter(b=>{
       if(venue!=="all"&&b.roomId!==venue) return false;
-      const [by,bmo]=b.date.split("-").map(Number);
+      const[by,bmo]=b.date.split("-").map(Number);
       return by===y&&(bmo-1)===mo;
     }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
-    dateRange = `${MONTHS[mo]} ${y}`;
     title = `Training Notice — ${MONTHS[mo]} ${y}`;
   }
 
@@ -186,7 +135,8 @@ function render(){
     `Venue: ${vName}   |   Generated: ${new Date().toLocaleString()}`;
 
   if(!bks.length){
-    document.getElementById("docBody").innerHTML = `<div class="no-data">No bookings found for this period.</div>`;
+    document.getElementById("docBody").innerHTML =
+      `<div class="no-data">No bookings found for this period.</div>`;
     return;
   }
 
@@ -199,44 +149,39 @@ function render(){
     const dayBks = byDate[dKey];
     const d      = new Date(dKey+"T00:00:00");
     const dayNum = d.getDate();
-    const coord  = dayBks[0]?.bookedByName||"";
+    const coord  = dayBks.map(b=>b.bookedByName||"").filter(Boolean)
+                     .filter((v,i,a)=>a.indexOf(v)===i).join(", ") || "—";
 
     dayBks.forEach((b,i)=>{
       const room    = rooms.find(r=>r.id===b.roomId);
       const dateFmt = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-      const timeFmt = `${fmtTime(b.startTime)}-${fmtTime(b.endTime)}`;
-
+      const timeFmt = `${fmtT(b.startTime)}-${fmtT(b.endTime)}`;
       rows += `<tr>
         ${i===0 ? `<td class="day-cell" rowspan="${dayBks.length}">${dayNum}</td>` : ""}
-        <td>${b.title}</td>
+        <td>${b.title||"—"}</td>
         <td>${b.resourcePerson||"—"}</td>
-        <td>${dateFmt}<br>${timeFmt}</td>
+        <td>${dateFmt}<br><strong>${timeFmt}</strong></td>
         <td>${b.targetGroup||"—"}</td>
         <td>${room?.name||"—"}</td>
-        ${i===0 ? `<td rowspan="${dayBks.length}">${coord}</td>` : ""}
+        ${i===0 ? `<td rowspan="${dayBks.length}" style="vertical-align:middle;">${coord}</td>` : ""}
       </tr>`;
     });
   });
 
   document.getElementById("docBody").innerHTML = `
     <table>
-      <thead>
-        <tr>
-          <th style="width:36px;">Day</th>
-          <th>Training Topics</th>
-          <th style="width:140px;">Trainer / Resource Person</th>
-          <th style="width:150px;">Date &amp; Time</th>
-          <th style="width:100px;">Target Group</th>
-          <th style="width:90px;">Venue</th>
-          <th style="width:110px;">Coordinated by</th>
-        </tr>
-      </thead>
+      <thead><tr>
+        <th style="width:36px;">Day</th>
+        <th>Training Topics</th>
+        <th style="width:140px;">Trainer / Resource Person</th>
+        <th style="width:155px;">Date &amp; Time</th>
+        <th style="width:100px;">Target Group</th>
+        <th style="width:90px;">Venue</th>
+        <th style="width:110px;">Coordinated by</th>
+      </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-}
-
-await loadRooms();
-render();
+};
 </script>
 </body>
 </html>
