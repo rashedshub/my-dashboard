@@ -6,11 +6,14 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Calibri',Arial,sans-serif;background:#f0f2f5;color:#000;padding:20px}
-
     .toolbar{max-width:960px;margin:0 auto 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;padding:12px 16px;border-radius:10px;border:1px solid #ddd}
     .toolbar label{font-size:13px;font-weight:700;color:#444}
     .toolbar select{padding:7px 12px;border-radius:7px;border:1px solid #ccc;font-family:inherit;font-size:13px;background:#fff;cursor:pointer}
-    .btn-print{padding:9px 22px;border-radius:7px;border:none;background:#1E3A5F;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+    .nav-grp{display:flex;align-items:center;gap:6px}
+    .nav-btn{padding:6px 14px;border-radius:7px;border:1px solid #ccc;background:#fff;font-family:inherit;font-size:13px;cursor:pointer;transition:all 150ms}
+    .nav-btn:hover{background:#1E3A5F;color:#fff;border-color:#1E3A5F}
+    .nav-lbl{font-size:13px;font-weight:700;min-width:140px;text-align:center;color:#333}
+    .btn-print{padding:9px 22px;border-radius:7px;border:none;background:#1E3A5F;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto}
     .btn-print:hover{background:#2E5B88}
     .btn-back{padding:9px 16px;border-radius:7px;border:1px solid #ccc;background:#fff;font-family:inherit;font-size:13px;cursor:pointer;text-decoration:none;color:#000;display:inline-block}
 
@@ -27,11 +30,6 @@
     .no-data{text-align:center;padding:32px;color:#888;font-size:13px}
     .status{text-align:center;padding:20px;color:#666;font-size:13px}
 
-
-    .week-nav { display:flex; align-items:center; gap:6px; }
-    .nav-btn  { padding:7px 14px; border-radius:7px; border:1px solid #ccc; background:#fff; font-family:inherit; font-size:13px; cursor:pointer; transition:all 150ms; }
-    .nav-btn:hover { background:#1E3A5F; color:#fff; border-color:#1E3A5F; }
-    .nav-label { font-size:13px; font-weight:700; min-width:160px; text-align:center; color:#333; }
     @media print{
       body{background:#fff;padding:0}
       .toolbar{display:none}
@@ -42,20 +40,31 @@
 </head>
 <body>
 
+<!-- Toolbar -->
 <div class="toolbar">
   <a href="training-calendar.html" class="btn-back">← Back</a>
+
   <label>Range:</label>
   <select id="rangeSelect">
     <option value="weekly">Weekly (Sat – Thu)</option>
     <option value="monthly">Monthly</option>
   </select>
+
+  <div class="nav-grp">
+    <button class="nav-btn" id="prevBtn">◀ Prev</button>
+    <span class="nav-lbl" id="navLbl">This Week</span>
+    <button class="nav-btn" id="nextBtn">Next ▶</button>
+  </div>
+
   <label>Venue:</label>
   <select id="venueSelect">
     <option value="all">All Venues</option>
   </select>
+
   <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
 </div>
 
+<!-- Document -->
 <div class="doc">
   <div class="doc-company">Youngone Hi-Tech Sportswear Industries Ltd.</div>
   <div class="doc-title" id="docTitle">Training Notice</div>
@@ -66,14 +75,13 @@
 
 <script type="module">
 import { app } from "./js/firebase.js";
-import {
-  getFirestore, collection, getDocs, onSnapshot
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
+
 let rooms    = [];
 let bookings = [];
-let ready    = false;
 let offset   = 0;
 
 const MONTHS = ["January","February","March","April","May","June",
@@ -81,33 +89,6 @@ const MONTHS = ["January","February","March","April","May","June",
 
 function dk(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function fmtT(t){ const[h,m]=t.split(":").map(Number),s=h>=12?"PM":"AM",hh=h%12||12; return `${hh}:${String(m).padStart(2,"0")}${s}`; }
-
-// 1. Load rooms first
-const rSnap = await getDocs(collection(db,"training_rooms"));
-rooms = rSnap.docs.map(d=>({id:d.id,...d.data()}))
-  .sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
-
-// Populate venue selector
-const vSel = document.getElementById("venueSelect");
-rooms.forEach(r=>{ const o=document.createElement("option"); o.value=r.id; o.textContent=r.name; vSel.appendChild(o); });
-
-// 2. Load bookings then render
-const bSnap = await getDocs(collection(db,"room_bookings"));
-bookings = bSnap.docs.map(d=>({id:d.id,...d.data()}));
-ready = true;
-render();
-
-// 3. Wire up controls
-document.getElementById("rangeSelect").addEventListener("change", () => { offset=0; render(); });
-document.getElementById("venueSelect").addEventListener("change", render);
-document.getElementById("prevBtn").addEventListener("click", () => { offset--; render(); });
-document.getElementById("nextBtn").addEventListener("click", () => { offset++; render(); });
-
-// 4. Live updates
-onSnapshot(collection(db,"room_bookings"), snap=>{
-  bookings = snap.docs.map(d=>({id:d.id,...d.data()}));
-  if(ready) render();
-});
 
 function render(){
   const range = document.getElementById("rangeSelect").value;
@@ -133,11 +114,11 @@ function render(){
     const thu    = dates[5];
     const thuFmt = thu.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
     title = `Training Notice of ${satFmt} to ${thuFmt}`;
-    document.getElementById("navLabel").textContent =
-      offset===0 ? "This Week" : offset<0 ? `${Math.abs(offset)} week${Math.abs(offset)>1?"s":""} ago` : `${offset} week${offset>1?"s":""} ahead`;
+    document.getElementById("navLbl").textContent =
+      offset===0 ? "This Week" : offset<0 ? `${Math.abs(offset)}w ago` : `${offset}w ahead`;
 
   } else {
-    const now = new Date();
+    const now  = new Date();
     const base = new Date(now.getFullYear(), now.getMonth()+offset, 1);
     const y=base.getFullYear(), mo=base.getMonth();
     bks = bookings.filter(b=>{
@@ -146,7 +127,7 @@ function render(){
       return by===y&&(bmo-1)===mo;
     }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
     title = `Training Notice — ${MONTHS[mo]} ${y}`;
-    document.getElementById("navLabel").textContent = `${MONTHS[mo]} ${y}`;
+    document.getElementById("navLbl").textContent = `${MONTHS[mo]} ${y}`;
   }
 
   document.getElementById("docTitle").textContent = title;
@@ -169,20 +150,19 @@ function render(){
     const d      = new Date(dKey+"T00:00:00");
     const dayNum = d.getDate();
     const coord  = dayBks.map(b=>b.bookedByName||"").filter(Boolean)
-                     .filter((v,i,a)=>a.indexOf(v)===i).join(", ") || "—";
+                     .filter((v,i,a)=>a.indexOf(v)===i).join(", ")||"—";
 
     dayBks.forEach((b,i)=>{
       const room    = rooms.find(r=>r.id===b.roomId);
       const dateFmt = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-      const timeFmt = `${fmtT(b.startTime)}-${fmtT(b.endTime)}`;
       rows += `<tr>
-        ${i===0 ? `<td class="day-cell" rowspan="${dayBks.length}">${dayNum}</td>` : ""}
+        ${i===0?`<td class="day-cell" rowspan="${dayBks.length}">${dayNum}</td>`:""}
         <td>${b.title||"—"}</td>
         <td>${b.resourcePerson||"—"}</td>
-        <td>${dateFmt}<br><strong>${timeFmt}</strong></td>
+        <td>${dateFmt}<br><strong>${fmtT(b.startTime)}-${fmtT(b.endTime)}</strong></td>
         <td>${b.targetGroup||"—"}</td>
         <td>${room?.name||"—"}</td>
-        ${i===0 ? `<td rowspan="${dayBks.length}" style="vertical-align:middle;">${coord}</td>` : ""}
+        ${i===0?`<td rowspan="${dayBks.length}" style="vertical-align:middle">${coord}</td>`:""}
       </tr>`;
     });
   });
@@ -190,17 +170,41 @@ function render(){
   document.getElementById("docBody").innerHTML = `
     <table>
       <thead><tr>
-        <th style="width:36px;">Day</th>
+        <th style="width:36px">Day</th>
         <th>Training Topics</th>
-        <th style="width:140px;">Trainer / Resource Person</th>
-        <th style="width:155px;">Date &amp; Time</th>
-        <th style="width:100px;">Target Group</th>
-        <th style="width:90px;">Venue</th>
-        <th style="width:110px;">Coordinated by</th>
+        <th style="width:140px">Trainer / Resource Person</th>
+        <th style="width:155px">Date &amp; Time</th>
+        <th style="width:100px">Target Group</th>
+        <th style="width:90px">Venue</th>
+        <th style="width:110px">Coordinated by</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
-};
+}
+
+// Load data
+const rSnap = await getDocs(collection(db,"training_rooms"));
+rooms = rSnap.docs.map(d=>({id:d.id,...d.data()}))
+  .sort((a,b)=>(a.createdAt||"").localeCompare(b.createdAt||""));
+
+const vSel = document.getElementById("venueSelect");
+rooms.forEach(r=>{ const o=document.createElement("option"); o.value=r.id; o.textContent=r.name; vSel.appendChild(o); });
+
+const bSnap = await getDocs(collection(db,"room_bookings"));
+bookings = bSnap.docs.map(d=>({id:d.id,...d.data()}));
+render();
+
+// Live updates
+onSnapshot(collection(db,"room_bookings"), snap=>{
+  bookings = snap.docs.map(d=>({id:d.id,...d.data()}));
+  render();
+});
+
+// Controls
+document.getElementById("rangeSelect").addEventListener("change",()=>{ offset=0; render(); });
+document.getElementById("venueSelect").addEventListener("change", render);
+document.getElementById("prevBtn").addEventListener("click",()=>{ offset--; render(); });
+document.getElementById("nextBtn").addEventListener("click",()=>{ offset++; render(); });
 </script>
 </body>
 </html>
