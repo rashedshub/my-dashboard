@@ -40,12 +40,12 @@
 <div class="toolbar">
   <a href="training-calendar.html" class="btn-back">← Back</a>
   <label>Range:</label>
-  <select id="rangeSelect" onchange="render()">
+  <select id="rangeSelect">
     <option value="weekly">Weekly (Sat – Thu)</option>
     <option value="monthly">Monthly</option>
   </select>
   <label>Venue:</label>
-  <select id="venueSelect" onchange="render()">
+  <select id="venueSelect">
     <option value="all">All Venues</option>
   </select>
   <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
@@ -91,13 +91,17 @@ bookings = bSnap.docs.map(d=>({id:d.id,...d.data()}));
 ready = true;
 render();
 
-// 3. Live updates
+// 3. Wire up controls
+document.getElementById("rangeSelect").addEventListener("change", render);
+document.getElementById("venueSelect").addEventListener("change", render);
+
+// 4. Live updates
 onSnapshot(collection(db,"room_bookings"), snap=>{
   bookings = snap.docs.map(d=>({id:d.id,...d.data()}));
   if(ready) render();
 });
 
-window.render = function render(){
+function render(){
   const range = document.getElementById("rangeSelect").value;
   const venue = document.getElementById("venueSelect").value;
   const vName = venue==="all" ? "All Venues" : (rooms.find(r=>r.id===venue)?.name||"All Venues");
