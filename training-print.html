@@ -27,6 +27,11 @@
     .no-data{text-align:center;padding:32px;color:#888;font-size:13px}
     .status{text-align:center;padding:20px;color:#666;font-size:13px}
 
+
+    .week-nav { display:flex; align-items:center; gap:6px; }
+    .nav-btn  { padding:7px 14px; border-radius:7px; border:1px solid #ccc; background:#fff; font-family:inherit; font-size:13px; cursor:pointer; transition:all 150ms; }
+    .nav-btn:hover { background:#1E3A5F; color:#fff; border-color:#1E3A5F; }
+    .nav-label { font-size:13px; font-weight:700; min-width:160px; text-align:center; color:#333; }
     @media print{
       body{background:#fff;padding:0}
       .toolbar{display:none}
@@ -92,8 +97,12 @@ ready = true;
 render();
 
 // 3. Wire up controls
-document.getElementById("rangeSelect").addEventListener("change", render);
+let offset = 0; // 0=current, -1=prev, +1=next
+
+document.getElementById("rangeSelect").addEventListener("change", () => { offset=0; render(); });
 document.getElementById("venueSelect").addEventListener("change", render);
+document.getElementById("prevBtn").addEventListener("click", () => { offset--; render(); });
+document.getElementById("nextBtn").addEventListener("click", () => { offset++; render(); });
 
 // 4. Live updates
 onSnapshot(collection(db,"room_bookings"), snap=>{
@@ -111,7 +120,9 @@ function render(){
   if(range === "weekly"){
     const today = new Date();
     const diff  = (today.getDay()+1)%7;
-    const sat   = new Date(today); sat.setDate(today.getDate()-diff); sat.setHours(0,0,0,0);
+    const sat   = new Date(today);
+    sat.setDate(today.getDate() - diff + offset*7);
+    sat.setHours(0,0,0,0);
     const dates = Array.from({length:6},(_,i)=>{ const d=new Date(sat); d.setDate(sat.getDate()+i); return d; });
     const keys  = dates.map(dk);
 
@@ -123,15 +134,20 @@ function render(){
     const thu    = dates[5];
     const thuFmt = thu.toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"});
     title = `Training Notice of ${satFmt} to ${thuFmt}`;
+    document.getElementById("navLabel").textContent =
+      offset===0 ? "This Week" : offset<0 ? `${Math.abs(offset)} week${Math.abs(offset)>1?"s":""} ago` : `${offset} week${offset>1?"s":""} ahead`;
 
   } else {
-    const now = new Date(), y=now.getFullYear(), mo=now.getMonth();
+    const now = new Date();
+    const base = new Date(now.getFullYear(), now.getMonth()+offset, 1);
+    const y=base.getFullYear(), mo=base.getMonth();
     bks = bookings.filter(b=>{
       if(venue!=="all"&&b.roomId!==venue) return false;
       const[by,bmo]=b.date.split("-").map(Number);
       return by===y&&(bmo-1)===mo;
     }).sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime));
     title = `Training Notice — ${MONTHS[mo]} ${y}`;
+    document.getElementById("navLabel").textContent = `${MONTHS[mo]} ${y}`;
   }
 
   document.getElementById("docTitle").textContent = title;
