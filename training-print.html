@@ -25,7 +25,7 @@
     .doc table{width:100%;border-collapse:collapse;font-size:11.5px}
     .doc table th{border:1px solid #888;padding:6px 8px;text-align:left;background:#fff;font-weight:700;font-size:11px}
     .doc table td{border:1px solid #888;padding:5px 8px;vertical-align:middle}
-    .day-cell{text-align:center;font-weight:700;background:#FFD700;width:36px;font-size:13px}
+    .sl-cell{text-align:center;font-weight:600;width:36px;font-size:12px;color:#333}
     .doc-footer{text-align:right;font-size:10px;color:#666;padding:5px 14px;border-top:1px solid #eee}
     .no-data{text-align:center;padding:32px;color:#888;font-size:13px}
     .status{text-align:center;padding:20px;color:#666;font-size:13px}
@@ -145,24 +145,23 @@ function render(){
   bks.forEach(b=>{ if(!byDate[b.date]) byDate[b.date]=[]; byDate[b.date].push(b); });
 
   let rows = "";
+  let sl = 1;
   Object.keys(byDate).sort().forEach(dKey=>{
     const dayBks = byDate[dKey];
     const d      = new Date(dKey+"T00:00:00");
-    const dayNum = d.getDate();
-    const coord  = dayBks.map(b=>b.bookedByName||"").filter(Boolean)
-                     .filter((v,i,a)=>a.indexOf(v)===i).join(", ")||"—";
 
-    dayBks.forEach((b,i)=>{
+    dayBks.forEach((b)=>{
       const room    = rooms.find(r=>r.id===b.roomId);
       const dateFmt = d.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+      const coord   = b.bookedByName||"—";
       rows += `<tr>
-        ${i===0?`<td class="day-cell" rowspan="${dayBks.length}">${dayNum}</td>`:""}
+        <td class="sl-cell">${sl++}</td>
         <td>${b.title||"—"}</td>
         <td>${b.resourcePerson||"—"}</td>
         <td>${dateFmt}<br><strong>${fmtT(b.startTime)}-${fmtT(b.endTime)}</strong></td>
         <td>${b.targetGroup||"—"}</td>
         <td>${room?.name||"—"}</td>
-        ${i===0?`<td rowspan="${dayBks.length}" style="vertical-align:middle">${coord}</td>`:""}
+        <td>${coord}</td>
       </tr>`;
     });
   });
@@ -170,7 +169,7 @@ function render(){
   document.getElementById("docBody").innerHTML = `
     <table>
       <thead><tr>
-        <th style="width:36px">Day</th>
+        <th style="width:32px">SL</th>
         <th>Training Topics</th>
         <th style="width:140px">Trainer / Resource Person</th>
         <th style="width:155px">Date &amp; Time</th>
