@@ -137,6 +137,17 @@
     /* Toast */
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:all 320ms var(--ease);z-index:999;white-space:nowrap}
     .toast.show{transform:translateX(-50%) translateY(0)}
+
+    .print-btn {
+      display:inline-flex; align-items:center; gap:7px;
+      padding:8px 18px; border-radius:9px;
+      border:1.5px solid rgba(255,255,255,.4);
+      background:rgba(255,255,255,.15); color:#fff;
+      font-family:inherit; font-size:0.82rem; font-weight:700;
+      text-decoration:none; cursor:pointer;
+      transition:background 160ms; white-space:nowrap;
+    }
+    .print-btn:hover { background:rgba(255,255,255,.28); }
     /* ── Room colour legend ── */
     .cal-legend { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.2); }
     .leg-item { display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:rgba(255,255,255,.9); }
@@ -258,7 +269,9 @@
           <option value="all">All Venues</option>
         </select>
       </div>
-      <span class="live-pill"><span class="live-dot"></span>Live</span></div>
+      <span class="live-pill"><span class="live-dot"></span>Live</span>
+      <a href="training-print.html" target="_blank" class="print-btn">🖨️ Print / Save as PDF</a>
+    </div>
     <!-- Room colour legend — populated by JS -->
     <div class="cal-legend" id="calLegend"></div>
   </div>
