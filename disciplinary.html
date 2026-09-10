@@ -3,220 +3,71 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Outstanding Disciplinary — E&amp;C</title>
+  <title>Disciplinary — E&amp;C Portal</title>
   <link rel="stylesheet" href="style.css"/>
   <style>
-    .disc-body { background: var(--bg); }
-    .disc-main {
-      max-width: 1300px; margin: 0 auto; padding: 36px 20px 72px;
-      animation: fadeUp 400ms 80ms var(--ease) both;
-    }
-
-    /* ── Header ── */
-    .disc-header {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 28px; flex-wrap: wrap; gap: 16px;
-    }
-    .disc-header h1 { font-size: 1.4rem; letter-spacing: -0.02em; font-weight: 700; }
-    .disc-header p  { color: var(--muted); font-size: 0.875rem; margin-top: 4px; }
-
-    .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .page { max-width:1100px; margin:0 auto; padding:28px 20px 64px; }
+    .page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px; }
+    .page-head h1 { font-size:1.2rem; font-weight:700; letter-spacing:-.02em; }
+    .page-head p  { font-size:0.8rem; color:var(--muted); margin-top:3px; }
+    .controls { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+    .ctrl-label { font-size:0.75rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
     .ctrl-select {
-      padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px;
-      font-family: inherit; font-size: 0.9rem; font-weight: 600;
-      color: var(--text); background: var(--surface); outline: none; cursor: pointer;
-      transition: border-color 200ms, box-shadow 200ms;
+      padding:8px 14px; border:1.5px solid var(--border); border-radius:8px;
+      font-family:inherit; font-size:0.875rem; font-weight:600; color:var(--text);
+      background:var(--surface); outline:none; cursor:pointer; transition:border-color 180ms;
     }
-    .ctrl-select:focus { border-color: #1E3A5F; box-shadow: 0 0 0 3px rgba(30,58,95,.1); }
+    .ctrl-select:focus { border-color:var(--navy); }
 
-    /* ── Tabs: Case Table / Outstanding Number ── */
-    .page-tabs {
-      display: flex; border-bottom: 1.5px solid var(--border); margin-bottom: 24px;
+    /* Summary table */
+    .disc-summary-table { width:100%; border-collapse:collapse; font-size:0.8rem; }
+    .disc-summary-table thead tr { background:#F0F4FA; }
+    .disc-summary-table th {
+      padding:9px 8px; font-size:0.68rem; font-weight:700;
+      color:var(--muted); text-transform:uppercase; letter-spacing:.06em;
+      border:1px solid var(--border); text-align:center;
     }
-    .page-tab {
-      background: none; border: none; font-family: inherit;
-      font-size: 0.875rem; font-weight: 500; color: var(--muted);
-      padding: 10px 20px 10px 0; cursor: pointer; position: relative;
-      margin-right: 12px; transition: color 200ms;
+    .disc-summary-table th:first-child { text-align:left; min-width:200px; }
+    .disc-summary-table td { padding:6px 6px; border:1px solid var(--border); text-align:center; }
+    .disc-summary-table tbody tr:hover td { background:#fafbfc; }
+    .cat-cell { text-align:left !important; font-weight:500; color:var(--text); padding-left:10px !important; }
+    .total-cell { font-weight:700; color:var(--navy); background:#F8F9FB; }
+    .disc-summary-table tfoot td { background:#EEF3FA; font-weight:700; }
+    .disc-input {
+      width:52px; padding:4px 6px; border:1px solid var(--border);
+      border-radius:5px; font-family:inherit; font-size:0.8rem; text-align:center;
+      background:#fff; outline:none; transition:border-color 160ms;
     }
-    .page-tab::after {
-      content: ''; position: absolute; bottom: -1.5px; left: 0; right: 0;
-      height: 2px; background: #1E3A5F; border-radius: 2px;
-      transform: scaleX(0); transition: transform 280ms var(--ease);
-    }
-    .page-tab.active { color: var(--text); }
-    .page-tab.active::after { transform: scaleX(1); }
+    .disc-input:focus { border-color:var(--navy); }
+    .disc-input::-webkit-outer-spin-button,
+    .disc-input::-webkit-inner-spin-button { -webkit-appearance:none; }
 
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    /* Save bar */
+    .save-bar { display:flex; align-items:center; gap:14px; padding:16px 0; flex-wrap:wrap; }
+    .btn-save {
+      padding:10px 28px; border-radius:9px; background:var(--navy); color:#fff;
+      border:none; font-family:inherit; font-size:0.875rem; font-weight:700;
+      cursor:pointer; transition:background 160ms;
+    }
+    .btn-save:hover { background:var(--steel); }
+    .btn-save:disabled { opacity:.5; cursor:not-allowed; }
+    .save-msg { font-size:0.875rem; }
+    .save-msg.success { color:var(--sage); }
+    .save-msg.error   { color:var(--rust); }
 
-    /* ── Summary stats ── */
-    .summary-row {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
-      gap: 12px; margin-bottom: 24px;
-    }
-    .sum-card {
-      background: var(--surface); border-radius: 10px;
-      border: 1px solid var(--border); padding: 16px 18px;
-    }
-    .sum-card .sc-lbl {
-      font-size: 0.7rem; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px;
-    }
-    .sum-card .sc-val { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; color: #1E3A5F; }
-
-    /* ── Disciplinary table ── */
-    .disc-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px;
-    }
-    .disc-reason-header {
-      padding: 12px 16px; background: #1E3A5F; color: #fff;
-      font-size: 0.875rem; font-weight: 700; letter-spacing: 0.02em;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .add-row-btn {
-      background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35);
-      color: #fff; border-radius: 6px; padding: 4px 12px;
-      font-family: inherit; font-size: 0.78rem; font-weight: 600;
-      cursor: pointer; transition: background 160ms;
-    }
-    .add-row-btn:hover { background: rgba(255,255,255,0.3); }
-
-    .disc-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-    .disc-table thead tr { background: #f5f6f8; border-bottom: 1px solid var(--border); }
-    .disc-table th {
-      padding: 9px 10px; text-align: left;
-      font-size: 0.68rem; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
-    }
-    .disc-table td { padding: 6px 8px; border-bottom: 1px solid #f0f0ee; vertical-align: middle; }
-    .disc-table tr:last-child td { border-bottom: none; }
-    .disc-table tr:hover td { background: #fafaf9; }
-
-    /* Inputs inside table */
-    .di {
-      width: 100%; padding: 6px 8px; border: 1.5px solid var(--border);
-      border-radius: 6px; font-family: inherit; font-size: 0.8rem;
-      color: var(--text); background: #fafaf9; outline: none;
-      transition: border-color 180ms, box-shadow 180ms, background 180ms;
-    }
-    .di:focus { border-color: #1E3A5F; background: #fff; box-shadow: 0 0 0 2px rgba(30,58,95,.08); }
-    .di.di-sm  { width: 70px; }
-    .di.di-md  { width: 110px; }
-    .di.di-lg  { width: 160px; }
-    .di.di-xl  { width: 200px; }
-    .di.di-date{ width: 130px; }
-
-    .del-btn {
-      background: none; border: none; cursor: pointer; color: #ccc;
-      font-size: 1rem; padding: 4px; border-radius: 4px;
-      transition: color 160ms, background 160ms;
-    }
-    .del-btn:hover { color: #991b1b; background: #fee2e2; }
-
-    .empty-reason {
-      padding: 16px; text-align: center; color: var(--muted);
-      font-size: 0.8rem; font-style: italic;
-    }
-
-    /* ── Outstanding Number tab ── */
-    .out-card {
-      background: var(--surface); border-radius: var(--radius);
-      border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px;
-    }
-    .out-card-head {
-      padding: 14px 20px; background: #f5f6f8;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.875rem; font-weight: 700;
-    }
-    .out-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    .out-table th {
-      padding: 10px 16px; text-align: left;
-      font-size: 0.72rem; font-weight: 600; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em;
-      background: #f5f6f8; border-bottom: 1px solid var(--border);
-    }
-    .out-table th:not(:first-child) { text-align: center; }
-    .out-table td { padding: 8px 16px; border-bottom: 1px solid #f0f0ee; vertical-align: middle; }
-    .out-table td:first-child { font-weight: 500; }
-    .out-table td:not(:first-child) { text-align: center; }
-    .out-table tr:last-child td { border-bottom: none; }
-    .out-table tr:hover td { background: #fafaf9; }
-    .out-input {
-      width: 90px; padding: 7px 10px; border: 1.5px solid var(--border);
-      border-radius: 7px; font-family: inherit; font-size: 0.875rem; font-weight: 500;
-      color: var(--text); background: #fafaf9; text-align: center; outline: none;
-      transition: border-color 200ms, box-shadow 200ms, background 200ms;
-    }
-    .out-input:focus { border-color: #1E3A5F; background: #fff; box-shadow: 0 0 0 3px rgba(30,58,95,.1); }
-    .total-row td { font-weight: 700; background: #f5f6f8; border-top: 1.5px solid var(--border); }
-
-    /* ── Mode selector for outstanding ── */
-    .mode-bar {
-      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
-    }
-    .mode-btn {
-      padding: 7px 18px; border-radius: 7px; border: 1.5px solid var(--border);
-      background: var(--surface); font-family: inherit; font-size: 0.8rem; font-weight: 600;
-      cursor: pointer; color: var(--muted); transition: all 160ms;
-    }
-    .mode-btn.active { background: #1E3A5F; color: #fff; border-color: #1E3A5F; }
-    .month-picker { display: flex; align-items: center; gap: 8px; }
-    .month-picker label { font-size: 0.8rem; font-weight: 500; color: var(--muted); }
-
-    /* ── Save bar ── */
-    .save-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 20px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 12px;
-    }
-    .save-bar .message { margin: 0; font-size: 0.875rem; }
-    .save-btn { width: auto; padding: 10px 28px; background: #1E3A5F; }
-    .save-btn:hover { background: #2E5B88; }
-
-    .last-saved {
-      font-size: 0.73rem; color: var(--muted); padding: 8px 20px;
-      border-top: 1px solid var(--border); background: #fafaf9; display: none;
-    }
-
-    /* ── Mobile ── */
     @media(max-width:768px){
-      body{ font-size:14px; }
-      .topbar{ padding:0 14px; height:52px; }
-      .topbar-link, .home-link{ font-size:0.72rem; }
-      .user-badge{ display:none; }
-      .page, .content{ padding:12px 10px 48px; }
-      .section-title{ font-size:0.85rem; margin:20px 0 12px; }
-      .stat-row{ grid-template-columns:repeat(2,1fr); gap:10px; }
-      .grid-2{ grid-template-columns:1fr; gap:14px; }
-      .pct-card{ flex-direction:column; gap:16px; padding:18px; }
-      .pct-bar-track{ width:100%; }
-      .chart-wrap{ height:200px !important; }
-      .chart-wrap-md{ height:180px !important; }
-      .chart-wrap-pie{ height:200px !important; }
-      .chart-card{ border-radius:10px; }
-      .card-head h2{ font-size:0.85rem; }
-      .tab-btn{ font-size:0.78rem; padding:8px 12px 8px 0; }
-      .btn-primary, .btn-ghost, .action-btn{ font-size:0.78rem; padding:7px 12px; }
-      .search-input{ max-width:100%; }
-      table{ font-size:0.78rem; }
-      .data-table th, .data-table td{ padding:8px 10px; }
-    }
-    @media(max-width:480px){
-      .topbar{ padding:0 10px; }
-      .brand-name{ font-size:0.72rem; letter-spacing:.04em; }
-      .stat-row{ grid-template-columns:1fr; }
-      .tab-bar{ overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
-      .tab-btn{ white-space:nowrap; }
+      .page{ padding:12px 8px 48px; }
+      .disc-input{ width:40px; font-size:0.72rem; }
+      .disc-summary-table th, .disc-summary-table td{ padding:5px 4px; font-size:0.7rem; }
     }
   </style>
 </head>
-<body class="disc-body">
+<body>
 
   <header class="topbar">
     <div class="topbar-brand">
       <div class="brand-icon">
-        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
           <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
           <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
@@ -226,87 +77,36 @@
       <span class="brand-name">E&amp;C Portal</span>
     </div>
     <div class="topbar-right">
-      <a href="index.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;margin-right:16px;">← Home</a>
-      <a href="dashboard.html" style="font-size:0.875rem;color:var(--muted);text-decoration:none;margin-right:16px;">← My Portal</a>
+      <a href="index.html" class="topbar-link">← Home</a>
+      <a href="dashboard.html" class="topbar-link">← My Portal</a>
       <span class="user-badge" id="topbarEmail"></span>
       <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
   </header>
 
-  <main class="disc-main">
-
-    <div class="disc-header">
+  <div class="page">
+    <div class="page-head">
       <div>
-        <h1>Outstanding Disciplinary</h1>
-        <p>Shared — any user can view and update. Last save overwrites.</p>
-      </div>
-      <div class="controls">
-        <select class="ctrl-select" id="yearSelect"></select>
+        <h1>⚖️ Outstanding Disciplinary</h1>
+        <p>Enter monthly outstanding case count per category.</p>
       </div>
     </div>
 
-    <!-- Page tabs -->
-    <div class="page-tabs">
-      <button class="page-tab active" data-tab="cases">📋 Case Records</button>
-      <button class="page-tab" data-tab="outstanding">📊 Outstanding Number</button>
+    <div class="controls">
+      <span class="ctrl-label">Year</span>
+      <select class="ctrl-select" id="yearSelect"></select>
     </div>
 
-    <!-- ═══ TAB 1: CASE RECORDS ═══ -->
-    <div class="tab-content active" id="tab-cases">
-
-      <!-- Summary -->
-      <div class="summary-row">
-        <div class="sum-card"><div class="sc-lbl">Total Cases</div><div class="sc-val" id="sumTotal">0</div></div>
-        <div class="sum-card"><div class="sc-lbl">Reasons Active</div><div class="sc-val" id="sumReasons">0</div></div>
-        <div class="sum-card"><div class="sc-lbl">Last Updated</div><div class="sc-val" style="font-size:0.9rem;margin-top:4px;" id="sumUpdated">—</div></div>
-      </div>
-
-      <!-- Reason tables -->
-      <div id="reasonTables"></div>
-
-      <!-- Save -->
-      <div style="background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;">
-        <div class="last-saved" id="caseLastSaved"></div>
-        <div class="save-bar">
-          <p class="message" id="caseMsg"></p>
-          <button class="btn save-btn" id="caseSaveBtn">
-            <span class="btn-label">Save All Cases</span>
-            <span class="spinner"></span>
-          </button>
-        </div>
-      </div>
+    <div class="card">
+      <div id="tableArea" style="padding:20px;color:var(--muted);">Loading…</div>
     </div>
 
-    <!-- ═══ TAB 2: OUTSTANDING NUMBER ═══ -->
-    <div class="tab-content" id="tab-outstanding">
-
-      <div class="mode-bar">
-        <button class="mode-btn active" id="modeMonthly" onclick="setMode('monthly')">Monthly</button>
-        <button class="mode-btn" id="modeWeekly" onclick="setMode('weekly')">Weekly</button>
-        <div class="month-picker" id="weekMonthPicker" style="display:none;">
-          <label>Month:</label>
-          <select class="ctrl-select" id="weekMonthSelect"></select>
-        </div>
-      </div>
-
-      <div class="out-card">
-        <div class="out-card-head" id="outTableTitle">Monthly Outstanding Numbers</div>
-        <div id="outTableArea"></div>
-        <div class="last-saved" id="outLastSaved"></div>
-        <div class="save-bar">
-          <p class="message" id="outMsg"></p>
-          <button class="btn save-btn" id="outSaveBtn">
-            <span class="btn-label">Save</span>
-            <span class="spinner"></span>
-          </button>
-        </div>
-      </div>
-
+    <div class="save-bar">
+      <button class="btn-save" id="saveBtn">Save Data</button>
+      <span class="save-msg" id="saveMsg"></span>
     </div>
+  </div>
 
-  </main>
-
-  <div class="toast" id="toast"></div>
   <script type="module" src="js/disciplinary.js"></script>
 </body>
 </html>
