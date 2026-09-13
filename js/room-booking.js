@@ -15,6 +15,7 @@ const SLOT_STEP  = 30;
 
 let rooms        = [];
 let isAdmin      = false;
+let currentUid   = null;
 let bookings     = [];
 let weekOffset   = 0;
 let selectedRoom = "";
@@ -23,7 +24,8 @@ let activePopup  = null;
 
 // ── Auth — check if admin ─────────────────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
-  if (!user) { isAdmin = false; return; }
+  if (!user) { isAdmin = false; currentUid = null; return; }
+  currentUid = user.uid;
   try {
     const snap = await getDoc(doc(db, "users", user.uid));
     isAdmin = snap.exists() && snap.data().role === "admin";
@@ -357,7 +359,8 @@ window.openBookingDetail = function(e, bookingId) {
   popup.className = "slot-popup";
   popup.style.cssText = `position:absolute;top:${top}px;left:${left}px;min-width:240px;`;
 
-  const deleteBtn = isAdmin
+  const isOwner = currentUid && b.bookedBy === currentUid;
+  const deleteBtn = (isAdmin || isOwner)
     ? `<button class="popup-btn" id="deleteBookingBtn"
          style="background:#8B3A2A;margin-top:8px;">
          🗑️ Delete Booking
@@ -383,7 +386,7 @@ window.openBookingDetail = function(e, bookingId) {
 
   el("popupDismiss").addEventListener("click", e => { e.stopPropagation(); removePopup(); });
 
-  if (isAdmin) {
+  if (isAdmin || isOwner) {
     el("deleteBookingBtn")?.addEventListener("click", async ev => {
       ev.stopPropagation();
       if (!confirm(`Delete booking "${b.title}" by ${b.bookedByName}?`)) return;
