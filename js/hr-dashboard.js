@@ -589,86 +589,54 @@ async function buildDisc() {
   const COLORS = [
     "#2563EB","#1B6B6B","#3A6B4A","#BA7517","#8B3A2A","#7C3AED",
     "#0891B2","#65A30D","#DC2626","#DB2777","#9333EA","#EA580C",
-    "#16A34A","#0D9488","#7C3AED","#B45309","#1D4ED8","#047857","#BE185D"
+    "#16A34A","#0D9488","#6D28D9","#B45309","#1D4ED8","#047857","#BE185D"
   ];
   function catKey(c){ return c.toLowerCase().replace(/[^a-z0-9]+/g,"_"); }
 
   try {
-    const snap = await getDoc(doc(db,"disciplinary_summary",String(currentYear)));
+    const snap = await getDoc(doc(db,"disciplinary_current","outstanding"));
     if(!snap.exists()){
       set("discCurrentMonth","0");
-      set("discCurrentMonthName","No data for "+currentYear);
+      set("discCurrentMonthName","No data entered yet");
+      const tableEl=el("discCategoryTable");
+      if(tableEl) tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);">No data entered yet.</div>`;
       return;
     }
     const data = snap.data();
+    const catValues = CATEGORIES.map(cat=>Number(data[catKey(cat)])||0);
+    const total = catValues.reduce((s,v)=>s+v,0);
 
-    // Current month
-    const curMoKey = MONTHS[new Date().getMonth()];
-    let curMonthTotal = 0;
-    CATEGORIES.forEach(cat => {
-      curMonthTotal += Number(data[catKey(cat)]?.[curMoKey]) || 0;
-    });
-    set("discCurrentMonth", curMonthTotal > 0 ? curMonthTotal : "0");
-    set("discCurrentMonthName", `${MONTHS_FULL[new Date().getMonth()]} outstanding cases`);
-
-    // Monthly totals for bar chart
-    const monthArr = MONTHS.map(m =>
-      CATEGORIES.reduce((s,cat) => s + (Number(data[catKey(cat)]?.[m])||0), 0)
-    );
-
-    // Category totals (all months summed)
-    const catTotals = CATEGORIES.map(cat =>
-      MONTHS.reduce((s,m) => s + (Number(data[catKey(cat)]?.[m])||0), 0)
-    );
-    const totalCases = catTotals.reduce((s,v)=>s+v,0);
-
-    // Bar chart
-    const barCanvas = el("discBarChart");
-    if(barCanvas){
-      if(charts.discBar) charts.discBar.destroy();
-      charts.discBar = new Chart(barCanvas.getContext("2d"),{
-        type:"bar",
-        data:{
-          labels:MONTHS,
-          datasets:[{
-            label:"Outstanding Cases",
-            data:monthArr,
-            backgroundColor:P.navyFade||"rgba(30,58,95,.15)",
-            borderColor:P.navy||"#1E3A5F",
-            borderWidth:2, borderRadius:6, borderSkipped:false
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` Outstanding: ${c.raw}`}} },
-          scales:{ x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10}) },
-          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0],P.navy||"#1E3A5F"); }}
-        }
-      });
-    }
+    // Stat card
+    set("discCurrentMonth", total);
+    const updatedAt = data.updatedAt
+      ? new Date(data.updatedAt).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"})
+      : "—";
+    set("discCurrentMonthName",`Total outstanding · Updated ${updatedAt}`);
 
     // Category table
-    const tableEl = el("discCategoryTable");
+    const tableEl=el("discCategoryTable");
     if(tableEl){
-      const rows = CATEGORIES.map((cat,i)=>({label:cat, count:catTotals[i], color:COLORS[i]}))
+      const rows=CATEGORIES.map((cat,i)=>({label:cat,count:catValues[i],color:COLORS[i]}))
         .filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
       if(!rows.length){
-        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No cases recorded for ${currentYear}</div>`;
+        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);">No outstanding cases recorded.</div>`;
       } else {
-        const maxCount = rows[0].count;
+        const maxCount=rows[0].count;
         tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
           <thead><tr style="border-bottom:1.5px solid var(--border);">
             <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Category</th>
-            <th style="text-align:center;padding:8px 8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Cases</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Cases</th>
             <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Share</th>
           </tr></thead>
           <tbody>${rows.map(r=>{
-            const pct=totalCases>0?(r.count/totalCases*100).toFixed(1):0;
+            const pct=total>0?(r.count/total*100).toFixed(1):0;
             const barW=maxCount>0?(r.count/maxCount*100).toFixed(1):0;
             return `<tr style="border-bottom:1px solid #f0f0ee;">
-              <td style="padding:8px 12px;display:flex;align-items:center;gap:8px;">
-                <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-weight:500;">${r.label}</span>
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
+                  <span style="font-weight:500;color:var(--text);">${r.label}</span>
+                </div>
               </td>
               <td style="padding:8px;text-align:center;font-weight:700;">${r.count}</td>
               <td style="padding:8px 12px;">
@@ -684,8 +652,7 @@ async function buildDisc() {
         </table>`;
       }
     }
-
-  } catch(e){ console.error("Disc:",e); }
+  } catch(e){ console.error("buildDisc:",e); }
 }
 
 
