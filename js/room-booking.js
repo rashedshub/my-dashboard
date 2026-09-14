@@ -1,5 +1,5 @@
 import { app } from "./firebase.js";
-import { getAuth, onAuthStateChanged }
+import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
   getFirestore, collection, getDocs, onSnapshot, addDoc, deleteDoc, doc, getDoc
@@ -57,6 +57,14 @@ onAuthStateChanged(auth, async user => {
     isAdmin = false; isRoomAdmin = false;
     if(roleEl) roleEl.textContent = "";
   }
+});
+
+// ── Logout ───────────────────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
+    await signOut(auth);
+    window.location.reload();
+  });
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
