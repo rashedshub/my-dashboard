@@ -74,6 +74,7 @@ function renderAllEmployees() {
         <select class="role-select" onchange="changeRole('${u.id}',this.value)">
           <option value="user"       ${u.role==="user"       ?"selected":""}>User</option>
           <option value="data_entry" ${u.role==="data_entry" ?"selected":""}>Data Entry</option>
+          <option value="room_admin" ${u.role==="room_admin" ?"selected":""}>Room Admin</option>
           <option value="admin"      ${u.role==="admin"      ?"selected":""}>Admin</option>
         </select>
       </td>
@@ -138,7 +139,8 @@ function patch(uid, changes) {
 function roleBadge(role) {
   const map = {
     admin:      `<span class="badge badge-active">Admin</span>`,
-    data_entry: `<span class="badge badge-data">Data Entry</span>`,
+    data_entry:  `<span class="badge badge-data">Data Entry</span>`,
+    room_admin:  `<span class="badge" style="background:rgba(27,107,107,.12);color:#1B6B6B;border:1px solid rgba(27,107,107,.25);">Room Admin</span>`,
     user:       `<span class="badge badge-pending">User</span>`,
   };
   return map[role] || `<span class="badge badge-pending">${role||"user"}</span>`;
