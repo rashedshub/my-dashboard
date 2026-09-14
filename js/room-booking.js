@@ -24,15 +24,39 @@ let unsubBookings = null;
 let activePopup  = null;
 
 // ── Auth — check if admin ─────────────────────────────────────────────────────
+const ROLE_LABELS = {admin:"Administrator",room_admin:"Room Admin",data_entry:"Data Entry",user:"User"};
+
 onAuthStateChanged(auth, async user => {
-  if (!user) { isAdmin = false; currentUid = null; return; }
+  const dot       = document.getElementById("userDot");
+  const nameEl    = document.getElementById("userStatusName");
+  const roleEl    = document.getElementById("userStatusRole");
+  const loginBtn  = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+
+  if (!user) {
+    isAdmin = false; isRoomAdmin = false; currentUid = null;
+    if(dot)      dot.className = "user-status-dot";
+    if(nameEl)   nameEl.textContent = "Guest";
+    if(roleEl)   roleEl.textContent = "Not logged in";
+    if(loginBtn)  loginBtn.style.display = "";
+    if(logoutBtn) logoutBtn.style.display = "none";
+    return;
+  }
   currentUid = user.uid;
+  if(dot)    dot.className = "user-status-dot online";
+  if(nameEl) nameEl.textContent = user.displayName || user.email || "Logged In";
+  if(loginBtn)  loginBtn.style.display = "none";
+  if(logoutBtn) logoutBtn.style.display = "";
   try {
     const snap = await getDoc(doc(db, "users", user.uid));
     const role = snap.exists() ? snap.data().role : "";
     isAdmin     = role === "admin";
     isRoomAdmin = role === "admin" || role === "room_admin";
-  } catch(e) { isAdmin = false; isRoomAdmin = false; }
+    if(roleEl) roleEl.textContent = ROLE_LABELS[role] || "User";
+  } catch(e) {
+    isAdmin = false; isRoomAdmin = false;
+    if(roleEl) roleEl.textContent = "";
+  }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
