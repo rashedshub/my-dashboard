@@ -21,6 +21,13 @@
     .home-link { font-size:0.8rem; color:rgba(255,255,255,.65); text-decoration:none; margin-left:16px; transition:color 160ms; }
     .home-link:hover { color:#fff; }
     .topbar-right { display:flex; align-items:center; gap:10px; }
+    .user-status { display:flex; align-items:center; gap:8px; }
+    .user-status-dot { width:8px; height:8px; border-radius:50%; background:#94a3b8; flex-shrink:0; }
+    .user-status-dot.online { background:#22c55e; }
+    .user-status-name { font-size:0.75rem; font-weight:600; color:var(--text); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .user-status-role { font-size:0.68rem; color:var(--muted); }
+    .user-login-btn { font-size:0.75rem; font-weight:600; padding:5px 12px; border-radius:7px; border:1px solid var(--border); background:var(--surface); color:var(--navy); text-decoration:none; transition:all 150ms; }
+    .user-login-btn:hover { background:var(--navy); color:#fff; border-color:var(--navy); }
     .live-badge { display:inline-flex; align-items:center; gap:5px; background:rgba(255,255,255,.12); color:#fff; padding:5px 12px; border-radius:99px; font-size:0.72rem; font-weight:700; }
     .live-dot { width:6px; height:6px; border-radius:50%; background:#4ade80; animation:pulse 1.8s ease-in-out infinite; }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -323,6 +330,14 @@
     <a href="training-calendar.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;transition:color 150ms;font-family:inherit;" onmouseover="this.style.color='var(--navy)'" onmouseout="this.style.color='var(--muted)'">📅 Training Calendar</a>
     </div>
     <div class="topbar-right">
+      <div class="user-status" id="userStatus">
+        <span class="user-status-dot" id="userDot"></span>
+        <div>
+          <div class="user-status-name" id="userStatusName">Guest</div>
+          <div class="user-status-role" id="userStatusRole">Not logged in</div>
+        </div>
+      </div>
+      <a href="login.html" class="user-login-btn" id="loginBtn">Log in</a>
       <span class="live-badge"><span class="live-dot"></span>Live</span>
     </div>
   </header>
