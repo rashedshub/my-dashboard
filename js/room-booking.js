@@ -15,6 +15,7 @@ const SLOT_STEP  = 30;
 
 let rooms        = [];
 let isAdmin      = false;
+let isRoomAdmin  = false;
 let currentUid   = null;
 let bookings     = [];
 let weekOffset   = 0;
@@ -28,8 +29,10 @@ onAuthStateChanged(auth, async user => {
   currentUid = user.uid;
   try {
     const snap = await getDoc(doc(db, "users", user.uid));
-    isAdmin = snap.exists() && snap.data().role === "admin";
-  } catch(e) { isAdmin = false; }
+    const role = snap.exists() ? snap.data().role : "";
+    isAdmin     = role === "admin";
+    isRoomAdmin = role === "admin" || role === "room_admin";
+  } catch(e) { isAdmin = false; isRoomAdmin = false; }
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -327,9 +330,9 @@ async function submitBooking() {
     await addDoc(collection(db,"room_bookings"),{
       roomId, title, date, startTime, endTime,
       resourcePerson:resource, targetGroup,
-      bookedBy:"guest_"+Date.now(),
+      bookedBy: currentUid || ("guest_"+Date.now()),
       bookedByName:name,
-      bookedByEmail:"",
+      bookedByEmail: currentUid ? (auth.currentUser?.email||"") : "",
       createdAt:new Date().toISOString()
     });
     closeModal();
@@ -360,7 +363,8 @@ window.openBookingDetail = function(e, bookingId) {
   popup.style.cssText = `position:absolute;top:${top}px;left:${left}px;min-width:240px;`;
 
   const isOwner = currentUid && b.bookedBy === currentUid;
-  const deleteBtn = (isAdmin || isOwner)
+  const canDelete = isRoomAdmin || isOwner;
+  const deleteBtn = canDelete
     ? `<button class="popup-btn" id="deleteBookingBtn"
          style="background:#8B3A2A;margin-top:8px;">
          🗑️ Delete Booking
@@ -386,7 +390,7 @@ window.openBookingDetail = function(e, bookingId) {
 
   el("popupDismiss").addEventListener("click", e => { e.stopPropagation(); removePopup(); });
 
-  if (isAdmin || isOwner) {
+  if (canDelete) {
     el("deleteBookingBtn")?.addEventListener("click", async ev => {
       ev.stopPropagation();
       if (!confirm(`Delete booking "${b.title}" by ${b.bookedByName}?`)) return;
