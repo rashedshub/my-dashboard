@@ -1,103 +1,128 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>EQ Survey — E&amp;C Portal</title>
-  <link rel="stylesheet" href="style.css"/>
-  <style>
-    .page{max-width:780px;margin:0 auto;padding:28px 20px 64px}
-    .page-head{margin-bottom:24px}
-    .page-head h1{font-size:1.2rem;font-weight:700;letter-spacing:-.02em}
-    .page-head p{font-size:0.8rem;color:var(--muted);margin-top:4px}
-    .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
-    .ctrl-label{font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-    .ctrl-select{padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.875rem;font-weight:600;color:var(--text);background:var(--surface);outline:none;cursor:pointer}
-    .ctrl-select:focus{border-color:var(--navy)}
-    .eq-table{width:100%;border-collapse:collapse;font-size:0.875rem}
-    .eq-table thead tr{background:#F0F4FA}
-    .eq-table th{padding:10px 14px;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--border);text-align:center}
-    .eq-table th:first-child{text-align:left}
-    .eq-table td{border:1px solid var(--border);vertical-align:middle}
-    .eq-table tbody tr:hover td{background:#fafbfc}
-    .eq-table tfoot td{background:#EEF3FA;border:1px solid var(--border);font-weight:700;padding:9px 14px;text-align:center}
-    .eq-table tfoot td:first-child{text-align:left;color:var(--navy)}
-    .eq-input{width:80px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.875rem;text-align:center;background:#fff;outline:none;transition:border-color 160ms,box-shadow 160ms}
-    .eq-input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(30,58,95,.09)}
-    .eq-input::-webkit-outer-spin-button,.eq-input::-webkit-inner-spin-button{-webkit-appearance:none}
-    .save-bar{display:flex;align-items:center;gap:14px;padding:18px 0;flex-wrap:wrap}
-    .btn-save{padding:11px 32px;border-radius:9px;background:var(--navy);color:#fff;border:none;font-family:inherit;font-size:0.875rem;font-weight:700;cursor:pointer;transition:background 160ms}
-    .btn-save:hover{background:var(--steel)}
-    .btn-save:disabled{opacity:.5;cursor:not-allowed}
-    .save-msg{font-size:0.875rem}
-    .save-msg.success{color:var(--sage)}
-    .save-msg.error{color:var(--rust)}
-  </style>
-</head>
-<body>
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-icon">
-        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
-          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
-        </svg>
-      </div>
-      <span class="brand-name">E&amp;C Portal</span>
-    </div>
-    <div class="topbar-right">
-      <a href="index.html"     class="topbar-link">← Home</a>
-      <a href="dashboard.html" class="topbar-link">← My Portal</a>
-      <span class="user-badge" id="topbarEmail"></span>
-      <button class="logout-btn" id="logoutBtn">Log out</button>
-    </div>
-  </header>
+import { app } from "./firebase.js";
+import { guardRole } from "./guard.js";
+import { getAuth, signOut }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-  <div class="page">
-    <div class="page-head">
-      <h1>📊 EQ Survey</h1>
-      <p>Enter monthly EQ survey plan and completion data.</p>
-    </div>
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
-    <div class="controls">
-      <span class="ctrl-label">Year</span>
-      <select class="ctrl-select" id="yearSelect"></select>
-    </div>
+const MONTHS     = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL= ["January","February","March","April","May","June",
+                    "July","August","September","October","November","December"];
 
-    <div class="card">
-      <table class="eq-table">
-        <thead>
-          <tr>
-            <th style="min-width:120px;text-align:left;">Month</th>
-            <th style="width:120px;">Plan</th>
-            <th style="width:120px;">Completed</th>
-            <th style="width:90px;">Achievement</th>
-            <th style="min-width:120px;">Progress</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody">
-          <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--muted)">Loading…</td></tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td>YTD Total</td>
-            <td id="totPlan">—</td>
-            <td id="totComplete">—</td>
-            <td id="totPct">—</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+let currentUser = null;
+let currentYear = new Date().getFullYear();
+let data = {}; // { Jan:{plan:0,complete:0}, ... }
 
-    <div class="save-bar">
-      <button class="btn-save" id="saveBtn">💾 Save Data</button>
-      <span class="save-msg" id="saveMsg"></span>
-    </div>
-  </div>
+const el  = id => document.getElementById(id);
+const set = (id, v) => { const e=el(id); if(e) e.textContent=v; };
 
-  <script type="module" src="js/eq.js"></script>
-</body>
-</html>
+guardRole(["admin","data_entry"]).then(({ user }) => {
+  currentUser = user;
+  set("topbarEmail", user.email);
+  buildYearSelector();
+  loadData();
+});
+
+function buildYearSelector(){
+  const sel = el("yearSelect"); if(!sel) return;
+  const y = new Date().getFullYear();
+  for(let i=y; i>=y-4; i--){
+    const o=document.createElement("option");
+    o.value=i; o.textContent=i;
+    if(i===currentYear) o.selected=true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener("change",()=>{ currentYear=Number(sel.value); loadData(); });
+}
+
+async function loadData(){
+  el("tableBody").innerHTML=`<tr><td colspan="5" style="padding:20px;color:var(--muted);text-align:center">Loading…</td></tr>`;
+  try{
+    const snap = await getDoc(doc(db,"eq_data",String(currentYear)));
+    data={};
+    if(snap.exists()){
+      const d=snap.data();
+      MONTHS.forEach(m=>{ data[m]={ plan:Number(d[m]?.plan)||0, complete:Number(d[m]?.complete)||0 }; });
+    } else {
+      MONTHS.forEach(m=>{ data[m]={plan:0,complete:0}; });
+    }
+    renderTable();
+  } catch(e){
+    el("tableBody").innerHTML=`<tr><td colspan="5" style="padding:20px;color:red;text-align:center">Load failed: ${e.message}</td></tr>`;
+  }
+}
+
+function renderTable(){
+  let totPlan=0, totComplete=0;
+  el("tableBody").innerHTML = MONTHS.map((m,i)=>{
+    const p=data[m]?.plan||0, c=data[m]?.complete||0;
+    totPlan+=p; totComplete+=c;
+    const pct = p>0 ? Math.round(c/p*100) : 0;
+    const barColor = pct>=100?"#3A6B4A":pct>=70?"#BA7517":"#8B3A2A";
+    return `<tr>
+      <td style="font-weight:600;color:var(--text);padding:9px 14px;">${MONTHS_FULL[i]}</td>
+      <td style="padding:9px 8px;text-align:center;">
+        <input type="number" min="0" class="eq-input" id="plan_${m}"
+          value="${p||""}" placeholder="0" oninput="onInput('${m}','plan',this.value)"/>
+      </td>
+      <td style="padding:9px 8px;text-align:center;">
+        <input type="number" min="0" class="eq-input" id="complete_${m}"
+          value="${c||""}" placeholder="0" oninput="onInput('${m}','complete',this.value)"/>
+      </td>
+      <td style="padding:9px 14px;text-align:center;font-weight:700;" id="pct_${m}">
+        ${p>0?`<span style="color:${barColor}">${pct}%</span>`:"—"}
+      </td>
+      <td style="padding:9px 14px;">
+        <div style="height:8px;background:#EDF0F4;border-radius:99px;overflow:hidden;min-width:80px;">
+          <div id="bar_${m}" style="height:100%;width:${Math.min(pct,100)}%;background:${barColor};border-radius:99px;transition:width 400ms;"></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+
+  // Update totals
+  const totPct = totPlan>0?Math.round(totComplete/totPlan*100):0;
+  set("totPlan", totPlan||"—");
+  set("totComplete", totComplete||"—");
+  set("totPct", totPlan>0?`${totPct}%`:"—");
+}
+
+window.onInput = function(month, field, val){
+  if(!data[month]) data[month]={plan:0,complete:0};
+  data[month][field] = Number(val)||0;
+  // Update pct + bar for this row
+  const p=data[month].plan, c=data[month].complete;
+  const pct = p>0?Math.round(c/p*100):0;
+  const barColor = pct>=100?"#3A6B4A":pct>=70?"#BA7517":"#8B3A2A";
+  const pctEl=el(`pct_${month}`);
+  const barEl=el(`bar_${month}`);
+  if(pctEl) pctEl.innerHTML = p>0?`<span style="color:${barColor}">${pct}%</span>`:"—";
+  if(barEl){ barEl.style.width=Math.min(pct,100)+"%"; barEl.style.background=barColor; }
+  // Update totals
+  let totPlan=0,totComplete=0;
+  MONTHS.forEach(m=>{ totPlan+=data[m]?.plan||0; totComplete+=data[m]?.complete||0; });
+  const totPct=totPlan>0?Math.round(totComplete/totPlan*100):0;
+  set("totPlan",totPlan||"—"); set("totComplete",totComplete||"—");
+  set("totPct",totPlan>0?`${totPct}%`:"—");
+};
+
+el("saveBtn")?.addEventListener("click", async()=>{
+  const btn=el("saveBtn"), msg=el("saveMsg");
+  btn.disabled=true;
+  if(msg){ msg.textContent="Saving…"; msg.className="save-msg"; }
+  try{
+    const saveObj={ year:currentYear, updatedAt:new Date().toISOString(), updatedBy:currentUser.email };
+    MONTHS.forEach(m=>{ saveObj[m]={ plan:data[m]?.plan||0, complete:data[m]?.complete||0 }; });
+    await setDoc(doc(db,"eq_data",String(currentYear)), saveObj);
+    if(msg){ msg.textContent=`✓ Saved — ${new Date().toLocaleString()}`; msg.className="save-msg success"; }
+  } catch(e){
+    if(msg){ msg.textContent=`Save failed: ${e.message}`; msg.className="save-msg error"; }
+  }
+  btn.disabled=false;
+  setTimeout(()=>{ if(msg) msg.textContent=""; },4000);
+});
+
+el("logoutBtn")?.addEventListener("click",async()=>{ await signOut(auth); window.location.href="login.html"; });
