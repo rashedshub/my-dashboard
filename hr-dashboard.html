@@ -190,6 +190,7 @@
       <button class="filter-pill" data-filter="food">🍽️ Food Quality</button>
       <button class="filter-pill" data-filter="welfare">🤝 Welfare</button>
       <button class="filter-pill" data-filter="disciplinary">⚖️ Disciplinary</button>
+      <button class="filter-pill" data-filter="eq">📊 EQ Survey</button>
     </div>
 
     <div id="loadingState" class="loading-state">
@@ -406,6 +407,47 @@
           <div id="discCategoryTable" style="padding:0 4px 12px;"></div>
         </div>
       </div><!-- /section:disciplinary -->
+
+      <!-- ════════ EQ SURVEY ════════ -->
+      <div data-section="eq">
+      <div class="section-title">EQ Survey</div>
+
+      <!-- Stat cards -->
+      <div class="stat-row" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="sc-label">YTD Plan</div>
+          <div class="sc-value sc-navy" id="eqPlan">—</div>
+          <div class="sc-sub">Surveys planned</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">YTD Completed</div>
+          <div class="sc-value sc-teal" id="eqComplete">—</div>
+          <div class="sc-sub">Surveys completed</div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">Achievement</div>
+          <div class="sc-value sc-sage" id="eqPct">—</div>
+          <div class="sc-sub" id="eqPctSub">of annual plan</div>
+          <div style="margin-top:10px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
+            <div id="eqPctBar" style="height:100%;width:0%;background:#3A6B4A;border-radius:99px;transition:width 600ms;"></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="sc-label">This Month</div>
+          <div class="sc-value sc-navy" id="eqThisMonth">—</div>
+          <div class="sc-sub" id="eqThisMonthSub">completed this month</div>
+        </div>
+      </div>
+
+      <!-- Trend chart -->
+      <div class="chart-card mb-18">
+        <div class="chart-head">
+          <div><h2>EQ Survey — Plan vs Completed</h2><p>Monthly comparison of planned and completed surveys</p></div>
+        </div>
+        <div class="chart-wrap"><canvas id="eqChart"></canvas></div>
+      </div>
+      </div><!-- /section:eq -->
+
     </div><!-- /mainContent -->
   </main>
 
