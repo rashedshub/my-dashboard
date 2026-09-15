@@ -24,13 +24,6 @@
     .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
     .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
     .topbar-right { display:flex; align-items:center; gap:14px; }
-    .user-status { display:flex; align-items:center; gap:8px; }
-    .user-status-dot { width:8px; height:8px; border-radius:50%; background:#94a3b8; flex-shrink:0; }
-    .user-status-dot.online { background:#22c55e; }
-    .user-status-name { font-size:0.75rem; font-weight:600; color:var(--text); max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .user-status-role { font-size:0.68rem; color:var(--muted); }
-    .user-login-btn { font-size:0.75rem; font-weight:600; padding:5px 12px; border-radius:7px; border:1px solid var(--border); background:var(--surface); color:var(--navy); text-decoration:none; transition:all 150ms; }
-    .user-login-btn:hover { background:var(--navy); color:#fff; border-color:var(--navy); }
     .user-badge { font-size:0.8rem; color:var(--muted); }
     .logout-btn { background:none; border:1.5px solid var(--border); border-radius:7px; padding:6px 14px; font-family:inherit; font-size:0.8rem; font-weight:500; cursor:pointer; color:var(--text); transition:all 180ms; }
     .logout-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
@@ -169,15 +162,8 @@
     </div>
     <div class="topbar-right">
       <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
-      <div class="user-status" id="userStatus">
-        <span class="user-status-dot" id="userDot"></span>
-        <div>
-          <div class="user-status-name" id="userStatusName">Guest</div>
-          <div class="user-status-role" id="userStatusRole">Not logged in</div>
-        </div>
-      </div>
-      <a href="login.html?redirect=hr-dashboard.html" class="user-login-btn" id="loginBtn" style="display:none">Log in</a>
-      <button class="logout-btn" id="logoutBtn" style="display:none">Log out</button>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
     </div>
   </header>
 
@@ -419,16 +405,6 @@
           <div class="chart-head"><div><h2>By Category</h2><p>Current outstanding cases by disciplinary reason</p></div></div>
           <div id="discCategoryTable" style="padding:0 4px 12px;"></div>
         </div>
-      </div>
-
-      <!-- Monthly bar chart -->
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>Monthly Outstanding Cases</h2><p>Outstanding disciplinary cases month by month</p></div>
-        </div>
-        <div class="chart-wrap"><canvas id="discBarChart"></canvas></div>
-      </div>
-
       </div><!-- /section:disciplinary -->
     </div><!-- /mainContent -->
   </main>
