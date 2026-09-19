@@ -580,131 +580,67 @@ async function buildWF() {
 // OUTSTANDING DISCIPLINARY
 // ════════════════════════════════════════
 async function buildDisc() {
-  const REASONS = [
-    "Negligence_of_Work","Indecent_behaviour","Disobedance",
-    "Damage_to_any_property","Dishonesty","Theft",
-    "Verbal_abuse","Mental_abuse","Physical_harassment","Sexual_Harassement"
+  const CATEGORIES = [
+    "Negligence of Work","Indecent Behaviour","Disobedience","Damage to Property",
+    "Dishonesty","Theft","Verbal Abuse","Mental Abuse","Physical Harassment","Sexual Harassment",
+    "Habitual Late Attendance","Continuous Absent","Habitual Absent","Giving False Information",
+    "Leaving without Permission","Sleeping while on Duty","Excess Stay",
+    "Improper/Non use of PPE","Fake Certification"
   ];
-  const REASON_LABELS = [
-    "Negligence","Indecent","Disobedance","Damage","Dishonesty",
-    "Theft","Verbal","Mental","Physical","Sexual"
+  const COLORS = [
+    "#2563EB","#1B6B6B","#3A6B4A","#BA7517","#8B3A2A","#7C3AED",
+    "#0891B2","#65A30D","#DC2626","#DB2777","#9333EA","#EA580C",
+    "#16A34A","#0D9488","#6D28D9","#B45309","#1D4ED8","#047857","#BE185D"
   ];
-  const DISC_COLORS = [
-    P.navy, P.steel, P.teal, P.sage, P.gold,
-    P.rust, "#5C1A0F", "#3A1B6B", "#1B5B5B", "#6B3A1B"
-  ];
+  function catKey(cat){ return cat.toLowerCase().replace(/[^a-z0-9]+/g,"_"); }
 
   try {
-    // Monthly outstanding numbers
-    const outSnap = await getDoc(doc(db,"disciplinary_out",String(currentYear)));
-    const outFull  = outSnap.exists() ? outSnap.data() : {};
-    const monthly  = outFull.monthly || {};
-    const weekly   = outFull.weekly  || {};
-    const monthArr = MONTHS.map(m => Number(monthly[m])||0);
-    const total    = monthArr.reduce((a,b)=>a+b,0);
-    const avg      = total>0 ? (total/monthArr.filter(v=>v>0).length).toFixed(1) : "—";
-    const peakIdx  = monthArr.indexOf(Math.max(...monthArr));
-    const peak     = total>0 ? `${MONTHS[peakIdx]} (${monthArr[peakIdx]})` : "—";
-
-
-    // Current month card
-    const curMonthIdx = new Date().getMonth();
-    const curMonthVal = monthArr[curMonthIdx] || 0;
-    const curMonthName = MONTHS_FULL ? MONTHS_FULL[curMonthIdx] : MONTHS[curMonthIdx];
-    set("discCurrentMonth", curMonthVal > 0 ? curMonthVal.toString() : "0");
-    set("discCurrentMonthName", `${curMonthName} outstanding cases`);
-
-    // Populate weekly month selector
-    const sel = el("discWeekMonthSelect");
-    if (sel && sel.options.length === 0) {
-      MONTHS_FULL.forEach((m,i) => {
-        const o = document.createElement("option");
-        o.value = i; o.textContent = m;
-        if (i === new Date().getMonth()) o.selected = true;
-        sel.appendChild(o);
-      });
+    const snap = await getDoc(doc(db,"disciplinary_current","outstanding"));
+    if(!snap.exists()){
+      set("discCurrentMonth","0");
+      set("discCurrentMonthName","No data entered yet");
+      const tableEl=el("discCategoryTable");
+      if(tableEl) tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);">No data entered yet.</div>`;
+      return;
     }
+    const data = snap.data();
+    const catValues = CATEGORIES.map(cat => Number(data[catKey(cat)])||0);
+    const total = catValues.reduce((s,v)=>s+v,0);
 
-    // Store weekly data globally for refresh
-    window._discWeekly = weekly;
-    window._discCurrentYear = currentYear;
-    // renderDiscWeekly called after charts are built below
+    // Stat card — total outstanding + last updated date
+    set("discCurrentMonth", total);
+    const updatedAt = data.updatedAt
+      ? new Date(data.updatedAt).toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"})
+      : "—";
+    set("discCurrentMonthName", `Total outstanding · Updated ${updatedAt}`);
 
-    // Monthly bar chart
-    const barCanvas=el("discBarChart");
-    if(barCanvas) {
-      if(charts.discBar) charts.discBar.destroy();
-      charts.discBar=new Chart(barCanvas.getContext("2d"),{
-        type:"bar",
-        data:{
-          labels:MONTHS,
-          datasets:[{
-            label:"Outstanding Cases",
-            data:[...monthArr],
-            backgroundColor:P.navyFade||"rgba(30,58,95,.15)",
-            borderColor:P.navy||"#1E3A5F",
-            borderWidth:2,
-            borderRadius:6,
-            borderSkipped:false
-          }]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{
-            legend:{display:false},
-            tooltip:{callbacks:{label:c=>` Outstanding: ${c.raw}`}}
-          },
-          scales:{x:xCfg(), y:yCfg({suggestedMax:Math.max(...monthArr)*1.3||10})},
-          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0],P.navy||"#1E3A5F"); }}
-        }
-      });
-    }
-
-    // Cases by reason — pie
-    const caseSnap = await getDoc(doc(db,"disciplinary_cases",String(currentYear)));
-    const caseData = caseSnap.exists() ? (caseSnap.data().reasons||{}) : {};
-    const reasonCounts = REASONS.map(r=>{
-      const rows=caseData[r]||[];
-      return rows.filter(row=>row&&(row.name||row.code)).length;
-    });
-    const totalCases=reasonCounts.reduce((a,b)=>a+b,0);
-
-
-
-    // Category summary table
-    const REASON_FULL_LABELS = [
-      "Negligence of Work","Indecent Behaviour","Disobedience",
-      "Damage to Property","Dishonesty","Theft",
-      "Verbal Abuse","Mental Abuse","Physical Harassment","Sexual Harassment"
-    ];
+    // Category table
     const tableEl = el("discCategoryTable");
     if(tableEl){
-      const rows = REASONS.map((r,i)=>({
-        label: REASON_FULL_LABELS[i],
-        count: reasonCounts[i],
-        color: DISC_COLORS[i]
-      })).filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
-
-      if(rows.length===0){
-        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No cases recorded for ${currentYear}</div>`;
+      const rows = CATEGORIES.map((cat,i)=>({label:cat, count:catValues[i], color:COLORS[i]}))
+        .filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+      if(!rows.length){
+        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No outstanding cases recorded.</div>`;
       } else {
         const maxCount = rows[0].count;
         tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
           <thead><tr style="border-bottom:1.5px solid var(--border);">
             <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Category</th>
-            <th style="text-align:center;padding:8px 8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Cases</th>
-            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Share</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Cases</th>
+            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Share</th>
           </tr></thead>
           <tbody>${rows.map(r=>{
-            const pct = totalCases>0?(r.count/totalCases*100).toFixed(1):0;
+            const pct  = total>0?(r.count/total*100).toFixed(1):0;
             const barW = maxCount>0?(r.count/maxCount*100).toFixed(1):0;
             return `<tr style="border-bottom:1px solid #f0f0ee;">
-              <td style="padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-weight:500;color:var(--text);">${r.label}</span>
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
+                  <span style="font-weight:500;color:var(--text);">${r.label}</span>
+                </div>
               </td>
-              <td style="padding:9px 8px;text-align:center;font-weight:700;color:var(--text);">${r.count}</td>
-              <td style="padding:9px 12px;">
+              <td style="padding:8px;text-align:center;font-weight:700;color:var(--text);">${r.count}</td>
+              <td style="padding:8px 12px;">
                 <div style="display:flex;align-items:center;gap:8px;">
                   <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
                     <div style="height:100%;width:${barW}%;background:${r.color};border-radius:99px;transition:width 600ms;"></div>
@@ -717,99 +653,10 @@ async function buildDisc() {
         </table>`;
       }
     }
-
-    renderDiscWeekly(weekly);
-
-  } catch(e){console.error("Disc:",e);}
+  } catch(e){ console.error("buildDisc:",e); }
 }
 
-// ── Disciplinary weekly chart helpers ────────────────────────────────────────
-function getWeeksInMonth(year, monthIdx) {
-  const weeks = []; const last = new Date(year, monthIdx+1, 0);
-  let d = new Date(year, monthIdx, 1); let n = 1;
-  while (d <= last) {
-    const s = new Date(d), e = new Date(d); e.setDate(e.getDate()+6);
-    if (e > last) e.setDate(last.getDate());
-    weeks.push({
-      label: `Wk${n} (${s.toLocaleDateString("en-US",{month:"short",day:"numeric"})})`,
-      key: `w${n}`
-    });
-    d.setDate(d.getDate()+7); n++;
-  }
-  return weeks;
-}
 
-function renderDiscWeekly(weeklyData) {
-  const sel        = el("discWeekMonthSelect"); if (!sel) return;
-  const rawVal     = sel.value;
-  const monthIdx   = (rawVal === "" || rawVal === null) ? new Date().getMonth() : Number(rawVal);
-  const mKey       = MONTHS[monthIdx];
-  const monthData  = weeklyData?.[mKey] || {};
-  const weeks      = getWeeksInMonth(window._discCurrentYear || new Date().getFullYear(), monthIdx);
-  const values     = weeks.map(w => Number(monthData[w.key]) || 0);
-  const hasData    = values.some(v => v > 0);
-
-  const emptyEl = el("discWeeklyEmpty");
-  const wrapEl  = el("discWeeklyWrap");
-
-  if (!hasData) {
-    if (emptyEl) emptyEl.style.display = "block";
-    if (wrapEl)  wrapEl.style.display  = "none";
-    if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
-    return;
-  }
-
-  if (emptyEl) emptyEl.style.display = "none";
-  if (wrapEl)  wrapEl.style.display  = "block";
-
-  if (charts.discWeekly) { charts.discWeekly.destroy(); charts.discWeekly = null; }
-
-  const canvas = el("discWeeklyChart"); if (!canvas) return;
-  const wData  = [...values];
-  charts.discWeekly = new Chart(canvas.getContext("2d"), {
-    type: "bar",
-    data: {
-      labels: weeks.map(w => w.label),
-      datasets: [{
-        label: "Outstanding Cases",
-        data: wData,
-        backgroundColor: P.steelFade || "rgba(46,91,136,0.18)",
-        borderColor: P.steel,
-        borderWidth: 2,
-        borderRadius: 6,
-        borderSkipped: false
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: c => ` Week ${c.dataIndex+1}: ${c.raw} cases` } }
-      },
-      scales: {
-        x: xCfg(),
-        y: yCfg({ suggestedMax: Math.max(...wData)*1.4 || 5, ticks: { stepSize: 1 } })
-      },
-      animation: {
-        onComplete(evt) {
-          if (evt.initial) return;
-          labelBars(evt.chart, [0], P.steel);
-        }
-      }
-    }
-  });
-}
-
-window.refreshDiscWeekly = function() {
-  renderDiscWeekly(window._discWeekly || {});
-};
-
-// ── Logout ────────────────────────────────────────────────────────────────────
-el("logoutBtn")?.addEventListener("click", async()=>{
-  await signOut(auth); window.location.href="login.html";
-});
-
-// ── EQ Survey ────────────────────────────────────────────────────────────────
 async function buildEQ() {
   try {
     const snap = await getDoc(doc(db,"eq_data",String(currentYear)));
