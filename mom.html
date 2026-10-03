@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Meeting Minutes — E&amp;C Portal</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .page{max-width:900px;margin:0 auto;padding:28px 20px 64px}
+    .page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+    .page-head h1{font-size:1.2rem;font-weight:700;letter-spacing:-.02em}
+    .page-head p{font-size:0.8rem;color:var(--muted);margin-top:4px}
+
+    /* Meeting list */
+    .meeting-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+    .meeting-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;transition:border-color 160ms,box-shadow 160ms}
+    .meeting-item:hover{border-color:var(--navy);box-shadow:0 2px 10px rgba(30,58,95,.08)}
+    .mi-title{font-weight:600;font-size:0.9rem;color:var(--text)}
+    .mi-meta{font-size:0.75rem;color:var(--muted);margin-top:2px}
+    .mi-badge{font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:99px;background:rgba(30,58,95,.09);color:var(--navy);white-space:nowrap}
+    .mi-actions{display:flex;gap:6px;flex-shrink:0}
+    .btn-icon{padding:6px 10px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;font-size:0.8rem;transition:all 140ms}
+    .btn-icon:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+    .btn-icon.danger:hover{background:#DC2626;border-color:#DC2626}
+
+    /* Form modal */
+    .modal-ov{position:fixed;inset:0;background:rgba(15,25,35,.45);backdrop-filter:blur(5px);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;opacity:0;pointer-events:none;transition:opacity 220ms;overflow-y:auto}
+    .modal-ov.open{opacity:1;pointer-events:all}
+    .modal{background:var(--surface);border-radius:16px;width:100%;max-width:780px;box-shadow:0 24px 64px rgba(0,0,0,.16);transform:translateY(20px);transition:transform 260ms cubic-bezier(.65,0,.35,1);margin:auto}
+    .modal-ov.open .modal{transform:none}
+    .modal-head{padding:18px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .modal-head h2{font-size:1rem;font-weight:700}
+    .modal-x{background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:6px}
+    .modal-x:hover{background:#f0f0ee}
+    .modal-body{padding:20px 24px}
+    .modal-foot{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+    /* Form fields */
+    .field{margin-bottom:16px}
+    .field label{display:block;font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+    .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.875rem;color:var(--text);background:#fff;outline:none;transition:border-color 160ms,box-shadow 160ms}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(30,58,95,.09)}
+    .field textarea{resize:vertical;min-height:90px}
+    .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .field-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+    /* Agenda items */
+    .agenda-section{border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px;background:#FAFBFC}
+    .agenda-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .agenda-head h3{font-size:0.875rem;font-weight:700;color:var(--navy)}
+    .agenda-item{background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px}
+    .agenda-item:last-child{margin-bottom:0}
+    .ai-num{font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+
+    .btn-add-agenda{font-size:0.8rem;font-weight:600;padding:7px 14px;border-radius:7px;border:1.5px dashed var(--border);background:none;color:var(--muted);cursor:pointer;transition:all 150ms;width:100%;margin-top:8px}
+    .btn-add-agenda:hover{border-color:var(--navy);color:var(--navy);background:rgba(30,58,95,.04)}
+    .btn-remove-agenda{font-size:0.75rem;padding:4px 8px;border-radius:6px;border:none;background:#fee2e2;color:#991b1b;cursor:pointer}
+    .btn-remove-agenda:hover{background:#DC2626;color:#fff}
+
+    .btn-primary{padding:10px 24px;border-radius:9px;background:var(--navy);color:#fff;border:none;font-family:inherit;font-size:0.875rem;font-weight:700;cursor:pointer;transition:background 160ms}
+    .btn-primary:hover{background:var(--steel)}
+    .btn-primary:disabled{opacity:.5;cursor:not-allowed}
+    .btn-ghost{padding:10px 20px;border-radius:9px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.875rem;cursor:pointer;transition:all 150ms}
+    .btn-ghost:hover{background:#f0f0ee}
+
+    .empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+    .empty-state .ei{font-size:2.5rem;margin-bottom:12px}
+    .empty-state p{font-size:0.875rem}
+
+    @media(max-width:640px){.field-row,.field-row-3{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">E&amp;C Portal</span>
+    </div>
+    <div class="topbar-right">
+      <a href="index.html" class="topbar-link">← Home</a>
+      <a href="dashboard.html" class="topbar-link">← My Portal</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>📋 Meeting Minutes</h1>
+        <p>Record and manage meeting minutes (MOM) with agenda items, responsibilities and timelines.</p>
+      </div>
+      <button class="btn-primary" id="newMeetingBtn">+ New Meeting</button>
+    </div>
+
+    <div id="meetingList"><div class="empty-state"><div class="ei">📋</div><p>Loading meetings…</p></div></div>
+  </div>
+
+  <!-- Meeting Form Modal -->
+  <div class="modal-ov" id="meetingModal">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modalTitle">New Meeting</h2>
+        <button class="modal-x" id="modalClose">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Meeting header info -->
+        <div class="field-row">
+          <div class="field"><label>Meeting Title</label><input type="text" id="fTitle" placeholder="e.g. E&C Monthly Review"/></div>
+          <div class="field"><label>Meeting Date</label><input type="date" id="fDate"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Venue / Platform</label><input type="text" id="fVenue" placeholder="e.g. Board Room, Zoom"/></div>
+          <div class="field"><label>Facilitated By</label><input type="text" id="fFacilitator" placeholder="e.g. Mr. Khairul Azim"/></div>
+        </div>
+        <div class="field"><label>Attendees</label><input type="text" id="fAttendees" placeholder="e.g. HR Team, Department Heads"/></div>
+
+        <!-- Agenda items -->
+        <div class="agenda-section">
+          <div class="agenda-head">
+            <h3>Agenda Items</h3>
+            <span style="font-size:0.72rem;color:var(--muted)" id="agendaCount">0 items</span>
+          </div>
+          <div id="agendaItems"></div>
+          <button class="btn-add-agenda" id="addAgendaBtn">+ Add Agenda Item</button>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn-ghost" id="modalCancel">Cancel</button>
+        <button class="btn-primary" id="modalSave">💾 Save Meeting</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/mom.js"></script>
+</body>
+</html>

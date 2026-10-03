@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>MOM Report — E&amp;C Portal</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    body{background:#f0f2f5}
+    .toolbar{max-width:900px;margin:0 auto 16px;display:flex;align-items:center;gap:10px;padding:14px 0;flex-wrap:wrap}
+    .btn-back{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:#fff;font-family:inherit;font-size:13px;cursor:pointer;text-decoration:none;color:var(--text);display:inline-flex;align-items:center;gap:6px}
+    .btn-print{padding:9px 22px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-left:auto}
+    .btn-print:hover{background:var(--steel)}
+    .page{max-width:900px;margin:0 auto;padding:0 0 60px}
+
+    /* Document */
+    .doc{background:#fff;border:1px solid #ccc;border-radius:2px}
+    .doc-header{background:var(--navy);color:#fff;text-align:center;padding:12px 20px}
+    .doc-header .company{font-size:15px;font-weight:700}
+    .doc-header .doc-type{font-size:12px;opacity:.8;margin-top:3px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+
+    /* Meeting info table */
+    .info-table{width:100%;border-collapse:collapse;font-size:12px}
+    .info-table td{padding:7px 14px;border:1px solid #ccc;vertical-align:top}
+    .info-table .info-label{font-weight:700;width:140px;background:#F5F7FA;color:#444}
+
+    /* Agenda table */
+    .agenda-table{width:100%;border-collapse:collapse;font-size:11.5px}
+    .agenda-table th{padding:8px 10px;border:1px solid #aaa;background:#D6E4F0;font-weight:700;text-align:left;font-size:11px}
+    .agenda-table td{padding:7px 10px;border:1px solid #ccc;vertical-align:top}
+    .agenda-table tbody tr:nth-child(even) td{background:#FAFBFC}
+    .sn-cell{text-align:center;font-weight:700;width:36px}
+    .status-badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
+    .s-pending{background:#FEF3C7;color:#92400E}
+    .s-progress{background:#DBEAFE;color:#1E40AF}
+    .s-continue{background:#E0E7FF;color:#3730A3}
+    .s-completed{background:#D1FAE5;color:#065F46}
+    .s-cancelled{background:#FEE2E2;color:#991B1B}
+
+    /* Signature */
+    .sig-section{padding:20px 20px 16px;display:flex;justify-content:space-between;border-top:1px solid #ccc;margin-top:4px}
+    .sig-block{text-align:center;min-width:160px}
+    .sig-line{border-top:1px solid #000;margin:36px auto 5px;width:140px}
+    .sig-name{font-size:11px;font-weight:700}
+    .sig-title{font-size:10px;color:#555;margin-top:2px}
+
+    .doc-footer-note{text-align:right;font-size:10px;color:#888;padding:5px 14px;border-top:1px solid #eee}
+    .loading{text-align:center;padding:60px;color:var(--muted);font-size:14px}
+
+    @media print{
+      body{background:#fff}
+      .toolbar{display:none}
+      .page{padding:0}
+      .doc{border:none}
+      @page{size:A4;margin:10mm}
+      .agenda-table thead{display:table-header-group}
+      .agenda-table tbody tr{page-break-inside:avoid}
+    }
+  </style>
+</head>
+<body>
+
+<div style="max-width:900px;margin:0 auto;padding:16px 0 0">
+  <div class="toolbar">
+    <a href="mom.html" class="btn-back">← Back to Meetings</a>
+    <button class="btn-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+</div>
+
+<div class="page">
+  <div class="doc" id="docBody">
+    <div class="loading">Loading meeting…</div>
+  </div>
+</div>
+
+<script type="module">
+import { app } from "./js/firebase.js";
+import { getFirestore, doc, getDoc }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const db = getFirestore(app);
+const id = new URLSearchParams(window.location.search).get("id");
+
+function fmtDate(s){
+  if(!s) return "—";
+  return new Date(s+"T00:00:00").toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+function fmtTimeline(s){
+  if(!s) return "—";
+  return new Date(s+"T00:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"});
+}
+function statusBadge(s){
+  const cls={Pending:"s-pending","In Progress":"s-progress",Continue:"s-continue",Completed:"s-completed",Cancelled:"s-cancelled"}[s]||"s-pending";
+  return `<span class="status-badge ${cls}">${s||"Pending"}</span>`;
+}
+
+if(!id){
+  document.getElementById("docBody").innerHTML=`<div class="loading">No meeting ID provided.</div>`;
+} else {
+  try {
+    const snap = await getDoc(doc(db,"mom_meetings",id));
+    if(!snap.exists()){
+      document.getElementById("docBody").innerHTML=`<div class="loading">Meeting not found.</div>`;
+    } else {
+      const m = snap.data();
+      const agenda = m.agenda||[];
+      const rows = agenda.map((a,i)=>`<tr>
+        <td class="sn-cell">${i+1}</td>
+        <td><strong>${a.subject||"—"}</strong></td>
+        <td style="white-space:pre-wrap;min-width:200px">${a.discussion||"—"}</td>
+        <td>${a.responsible||"—"}</td>
+        <td style="white-space:nowrap">${fmtTimeline(a.timeline)}</td>
+        <td>${statusBadge(a.status)}</td>
+        <td>${a.remarks||"—"}</td>
+      </tr>`).join("");
+
+      document.getElementById("docBody").innerHTML = `
+        <div class="doc-header">
+          <div class="company">Youngone Hi-Tech Sportswear Industries Ltd.</div>
+          <div class="doc-type">Meeting Minutes (MOM)</div>
+        </div>
+
+        <table class="info-table">
+          <tr>
+            <td class="info-label">Meeting Title</td>
+            <td colspan="3"><strong>${m.title||"—"}</strong></td>
+          </tr>
+          <tr>
+            <td class="info-label">Date</td>
+            <td>${fmtDate(m.date)}</td>
+            <td class="info-label">Venue / Platform</td>
+            <td>${m.venue||"—"}</td>
+          </tr>
+          <tr>
+            <td class="info-label">Facilitated By</td>
+            <td>${m.facilitator||"—"}</td>
+            <td class="info-label">Attendees</td>
+            <td>${m.attendees||"—"}</td>
+          </tr>
+        </table>
+
+        <table class="agenda-table">
+          <thead>
+            <tr>
+              <th style="width:36px">SN</th>
+              <th style="min-width:120px">Subject</th>
+              <th>Discussion / Agenda</th>
+              <th style="width:110px">Responsible</th>
+              <th style="width:80px">Timeline</th>
+              <th style="width:90px">Current Status</th>
+              <th style="width:120px">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>${rows||`<tr><td colspan="7" style="text-align:center;padding:20px;color:#999">No agenda items</td></tr>`}</tbody>
+        </table>
+
+        <div class="sig-section">
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-name">Prepared By</div>
+            <div class="sig-title">${m.facilitator||"Facilitator"}</div>
+          </div>
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-name">Reviewed By</div>
+            <div class="sig-title">HOD — E&amp;C</div>
+          </div>
+          <div class="sig-block">
+            <div class="sig-line"></div>
+            <div class="sig-name">Approved By</div>
+            <div class="sig-title">Management</div>
+          </div>
+        </div>
+        <div class="doc-footer-note">Generated: ${new Date().toLocaleString()} · E&C Portal — Youngone Hi-Tech Sportswear Industries Ltd.</div>`;
+    }
+  } catch(e){
+    document.getElementById("docBody").innerHTML=`<div class="loading" style="color:red">Error: ${e.message}</div>`;
+  }
+}
+</script>
+</body>
+</html>
