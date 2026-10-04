@@ -36,13 +36,37 @@ function subscribeMeetings(){
 }
 
 // ── Render meeting list ───────────────────────────────────────────────────────
+function getActiveFilter(){
+  return document.querySelector(".filter-pill.active")?.dataset.filter || "all";
+}
+
 function renderList(){
   const wrap = el("meetingList");
-  if(!meetings.length){
-    wrap.innerHTML=`<div class="empty-state"><div class="ei">📋</div><p>No meetings yet. Click <strong>+ New Meeting</strong> to add one.</p></div>`;
+
+  // Build filter bar if not exists
+  if(!el("filterBar")){
+    const bar = document.createElement("div");
+    bar.id = "filterBar";
+    bar.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;";
+    const statuses = ["All","Pending","In Progress","Continue","Completed","Cancelled"];
+    bar.innerHTML = statuses.map((s,i)=>`<button class="filter-pill${i===0?" active":""}"
+      data-filter="${i===0?"all":s}"
+      onclick="setFilter(this)"
+      style="padding:5px 14px;border-radius:99px;border:1.5px solid var(--border);background:${i===0?"var(--navy)":"var(--surface)"};color:${i===0?"#fff":"var(--muted)"};font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:all 150ms;"
+    >${s}</button>`).join("");
+    wrap.before(bar);
+  }
+
+  const filter = getActiveFilter();
+  const filtered = filter==="all" ? meetings : meetings.filter(m=>
+    (m.agenda||[]).some(a=>a.status===filter)
+  );
+
+  if(!filtered.length){
+    wrap.innerHTML=`<div class="empty-state"><div class="ei">📋</div><p>${filter==="all"?"No meetings yet. Click <strong>+ New Meeting</strong> to add one.":"No meetings with status <strong>"+filter+"</strong>."}</p></div>`;
     return;
   }
-  wrap.innerHTML = meetings.map(m=>{
+  wrap.innerHTML = filtered.map(m=>{
     const d    = m.date ? new Date(m.date+"T00:00:00").toLocaleDateString("en-US",{day:"numeric",month:"long",year:"numeric"}) : "—";
     const cnt  = (m.agenda||[]).length;
     const done = (m.agenda||[]).filter(a=>a.status==="Completed").length;
@@ -72,14 +96,17 @@ function agendaTemplate(idx, data={}){
     <div class="field"><label>Discussion / Points</label><textarea id="ag_disc_${idx}" placeholder="Key discussion points, decisions made…" style="min-height:80px">${data.discussion||""}</textarea></div>
     <div class="field-row-3">
       <div class="field"><label>Responsible</label><input type="text" id="ag_resp_${idx}" placeholder="Name / Dept" value="${data.responsible||""}"/></div>
-      <div class="field"><label>Timeline</label><input type="date" id="ag_time_${idx}" value="${data.timeline||""}"/></div>
+      <div class="field"><label>Timeline / Due Date</label><input type="date" id="ag_time_${idx}" value="${data.timeline||""}"/></div>
       <div class="field"><label>Current Status</label>
         <select id="ag_stat_${idx}">
           ${STATUS_OPTIONS.map(s=>`<option value="${s}" ${data.status===s?"selected":""}>${s}</option>`).join("")}
         </select>
       </div>
     </div>
-    <div class="field"><label>Remarks</label><input type="text" id="ag_rmk_${idx}" placeholder="Any remarks or updates" value="${data.remarks||""}"/></div>
+    <div class="field-row">
+      <div class="field"><label>Close Date</label><input type="date" id="ag_close_${idx}" value="${data.closeDate||""}"/></div>
+      <div class="field"><label>Remarks</label><input type="text" id="ag_rmk_${idx}" placeholder="Any remarks or updates" value="${data.remarks||""}"/></div>
+    </div>
   </div>`;
 }
 
@@ -128,6 +155,7 @@ function collectAgenda(){
       responsible:el(`ag_resp_${idx}`)?.value.trim()||"",
       timeline:   el(`ag_time_${idx}`)?.value||"",
       status:     el(`ag_stat_${idx}`)?.value||"Pending",
+      closeDate:  el(`ag_close_${idx}`)?.value||"",
       remarks:    el(`ag_rmk_${idx}`)?.value.trim()||""
     };
   }).filter(a=>a.subject);
@@ -160,6 +188,16 @@ el("modalSave")?.addEventListener("click", async()=>{
 });
 
 // ── Edit / Delete ─────────────────────────────────────────────────────────────
+window.setFilter = function(btn){
+  document.querySelectorAll(".filter-pill").forEach(p=>{
+    p.style.background="var(--surface)"; p.style.color="var(--muted)";
+    p.style.borderColor="var(--border)"; p.classList.remove("active");
+  });
+  btn.style.background="var(--navy)"; btn.style.color="#fff";
+  btn.style.borderColor="var(--navy)"; btn.classList.add("active");
+  renderList();
+};
+
 window.editMeeting = function(id){
   const m = meetings.find(x=>x.id===id);
   if(m) openModal(m);
@@ -172,7 +210,9 @@ window.deleteMeeting = async function(id){
 
 // ── View report ───────────────────────────────────────────────────────────────
 window.viewMeeting = function(id){
-  window.location.href = `mom-report.html#${id}`;
+  // Store ID in sessionStorage as fallback
+  sessionStorage.setItem("mom_report_id", id);
+  window.open(`mom-report.html#${id}`, "_blank");
 };
 
 // ── Buttons ───────────────────────────────────────────────────────────────────
