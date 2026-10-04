@@ -79,9 +79,9 @@ import { getFirestore, doc, getDoc }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
-const params = new URLSearchParams(window.location.search);
-const id = params.get("id") || params.get("Id") || params.get("ID") || null;
-console.log("MOM Report: id =", id, "| full search =", window.location.search);
+// Read ID from hash (#id) — more reliable on GitHub Pages than query params
+const id = window.location.hash?.replace(/^#/,"").trim() || null;
+console.log("MOM Report: id =", id, "| hash =", window.location.hash);
 
 function fmtDate(s){
   if(!s) return "—";
