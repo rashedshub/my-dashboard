@@ -172,7 +172,7 @@ window.deleteMeeting = async function(id){
 
 // ── View report ───────────────────────────────────────────────────────────────
 window.viewMeeting = function(id){
-  window.location.href = `mom-report.html?id=${id}`;
+  window.location.href = `mom-report.html#${id}`;
 };
 
 // ── Buttons ───────────────────────────────────────────────────────────────────
