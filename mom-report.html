@@ -79,8 +79,9 @@ import { getFirestore, doc, getDoc }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
-// Read ID from hash (#id) — more reliable on GitHub Pages than query params
-const id = window.location.hash?.replace(/^#/,"").trim() || null;
+// Read ID from hash, then sessionStorage as fallback
+const hashId = window.location.hash?.replace(/^#/,"").trim() || null;
+const id = hashId || sessionStorage.getItem("mom_report_id") || null;
 console.log("MOM Report: id =", id, "| hash =", window.location.hash);
 
 function fmtDate(s){
@@ -149,6 +150,7 @@ if(!id){
               <th>Discussion / Agenda</th>
               <th style="width:110px">Responsible</th>
               <th style="width:80px">Timeline</th>
+              <th style="width:80px">Close Date</th>
               <th style="width:90px">Current Status</th>
               <th style="width:120px">Remarks</th>
             </tr>
