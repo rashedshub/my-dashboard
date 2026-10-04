@@ -79,7 +79,9 @@ import { getFirestore, doc, getDoc }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const db = getFirestore(app);
-const id = new URLSearchParams(window.location.search).get("id");
+const params = new URLSearchParams(window.location.search);
+const id = params.get("id") || params.get("Id") || params.get("ID") || null;
+console.log("MOM Report: id =", id, "| full search =", window.location.search);
 
 function fmtDate(s){
   if(!s) return "—";
