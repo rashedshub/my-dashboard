@@ -24,7 +24,6 @@ const P = {
   navyFade:  "rgba(30,58,95,0.12)",
   navySoft:  "rgba(30,58,95,0.55)",
   steel:     "#2E5B88",
-  steelFade: "rgba(46,91,136,0.18)",
   steelFade: "rgba(46,91,136,0.12)",
   teal:      "#1B6B6B",
   tealFade:  "rgba(27,107,107,0.15)",
@@ -121,7 +120,7 @@ function labelLine(chart, dsIdx, dataArr, color="#334155") {
   ctx.restore();
 }
 
-/** Draw % label inside each doughnut slice (skips slices < 4% to avoid clutter). */
+/** Draw % label inside each doughnut slice (skips slices < 5% to avoid clutter). */
 const PIE_LABEL_PLUGIN = {
   id: "pieLabels",
   afterDatasetsDraw(chart) {
@@ -289,6 +288,7 @@ async function loadAll() {
     await buildWF();
     await buildDisc();
     await buildEQ();
+    await buildCVT();
 
   } catch(e){
     console.error(e);
@@ -390,8 +390,6 @@ async function buildYEEP() {
     fillCard("yeepESTargetCard",   "yeepESRemCard",   "yeepESBarCard",   "yeepESPct",      tES,  totES,  "#1E3A5F");
     fillCard("yeepERTargetCard",   "yeepERRemCard",   "yeepERBarCard",   "yeepERPct",      tER,  totER,  "#1B6B6B");
     fillCard("yeepCombTargetCard", "yeepCombRemCard", "yeepCombBarCard", "yeepCombPctCard",tAll, total,  "#1E3A5F");
-
-
 
     const pie=el("yeepPieChart");
     if(pie){
@@ -656,7 +654,9 @@ async function buildDisc() {
   } catch(e){ console.error("buildDisc:",e); }
 }
 
-
+// ════════════════════════════════════════
+// EQ
+// ════════════════════════════════════════
 async function buildEQ() {
   try {
     const snap = await getDoc(doc(db,"eq_data",String(currentYear)));
@@ -713,4 +713,107 @@ async function buildEQ() {
       });
     }
   } catch(e){ console.error("buildEQ:",e); }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+el("logoutBtn")?.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "login.html";
+});
+
+// ════════════════════════════════════════
+// CORE VALUE TRAINING
+// ════════════════════════════════════════
+async function buildCVT() {
+  try {
+    const snap = await getDoc(doc(db, "cvt_data", "current"));
+    if (!snap.exists()) {
+      set("cvtTotal","—"); set("cvtDone","—"); set("cvtNotDone","—"); set("cvtPct","—");
+      return;
+    }
+    const data   = snap.data();
+    const active = data.Active   || { total:0, done:0 };
+    const inact  = data.Inactive || { total:0, done:0 };
+
+    const total   = (Number(active.total)||0) + (Number(inact.total)||0);
+    const done    = (Number(active.done)||0)  + (Number(inact.done)||0);
+    const notDone = Math.max(0, total - done);
+    const pct     = total > 0 ? Math.round(done/total*100) : 0;
+    const barColor = pct>=70 ? "#3A6B4A" : pct>=50 ? "#BA7517" : "#8B3A2A";
+
+    set("cvtTotal",   total.toLocaleString());
+    set("cvtDone",    done.toLocaleString());
+    set("cvtNotDone", notDone.toLocaleString());
+    set("cvtPct",     total > 0 ? pct+"%" : "—");
+    const pb = el("cvtPctBar");
+    if (pb) { pb.style.width = pct+"%"; pb.style.background = barColor; }
+
+    // Breakdown table
+    const tableEl = el("cvtTable");
+    if (tableEl) {
+      const rows = [
+        { label:"Active",   t:Number(active.total)||0, d:Number(active.done)||0 },
+        { label:"Inactive", t:Number(inact.total)||0,  d:Number(inact.done)||0  },
+        { label:"Total",    t:total,                   d:done, isTot:true }
+      ].map(r => {
+        const nd  = Math.max(0, r.t - r.d);
+        const p   = r.t > 0 ? Math.round(r.d/r.t*100) : 0;
+        const bc  = p>=70 ? "#3A6B4A" : p>=50 ? "#BA7517" : "#8B3A2A";
+        return `<tr style="border-bottom:1px solid #f0f0ee;${r.isTot?"background:#EEF3FA;font-weight:700;":""}">
+          <td style="padding:9px 12px;font-weight:${r.isTot?"700":"500"};color:var(--text);">${r.label}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;">${r.t.toLocaleString()}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#3A6B4A;">${r.d.toLocaleString()}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#8B3A2A;">${nd.toLocaleString()}</td>
+          <td style="padding:9px 12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
+                <div style="height:100%;width:${p}%;background:${bc};border-radius:99px;"></div>
+              </div>
+              <span style="font-size:0.72rem;font-weight:700;color:${bc};min-width:34px;">${p}%</span>
+            </div>
+          </td>
+        </tr>`;
+      }).join("");
+
+      tableEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+        <thead><tr style="border-bottom:1.5px solid var(--border);">
+          <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Job Status</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Total</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:#3A6B4A;text-transform:uppercase;">Done</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:#8B3A2A;text-transform:uppercase;">Not Done</th>
+          <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Achievement</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    // Donut chart
+    const canvas = el("cvtChart");
+    if (canvas) {
+      if (charts.cvt) charts.cvt.destroy();
+      charts.cvt = new Chart(canvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["Training Done", "Not Done"],
+          datasets: [{
+            data: [done, notDone],
+            backgroundColor: ["#3A6B4A", "#EDF0F4"],
+            borderColor: ["#2D5A3D", "#DDE1E7"],
+            borderWidth: 2,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: "65%",
+          plugins: {
+            legend: { position:"bottom", labels:{ usePointStyle:true, pointStyle:"circle", padding:14, font:{size:11} } },
+            tooltip: { callbacks: { label: c => {
+              const p = total > 0 ? (c.raw/total*100).toFixed(1) : 0;
+              return ` ${c.label}: ${c.raw.toLocaleString()} (${p}%)`;
+            }}}
+          }
+        }
+      });
+    }
+  } catch (e) { console.error("buildCVT:", e); }
 }
