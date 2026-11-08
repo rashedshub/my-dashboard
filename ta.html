@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Talent Acquisition — E&amp;C Portal</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    .page{max-width:960px;margin:0 auto;padding:28px 20px 64px}
+    .page-head{margin-bottom:24px}
+    .page-head h1{font-size:1.2rem;font-weight:700;letter-spacing:-.02em}
+    .page-head p{font-size:0.8rem;color:var(--muted);margin-top:4px}
+    .card-pad{padding:20px 22px}
+    .card-title{font-size:0.95rem;font-weight:700;margin-bottom:2px}
+    .card-sub{font-size:0.78rem;color:var(--muted);margin-bottom:16px}
+    .mb{margin-bottom:22px}
+
+    .ta-table{width:100%;border-collapse:collapse;font-size:0.875rem}
+    .ta-table thead tr{background:#F0F4FA}
+    .ta-table th{padding:10px 12px;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--border);text-align:center}
+    .ta-table th:first-child{text-align:left}
+    .ta-table td{padding:8px 12px;border:1px solid var(--border);vertical-align:middle;text-align:center}
+    .ta-table td:first-child{text-align:left;font-weight:600}
+    .ta-table tbody tr:hover td{background:#fafbfc}
+
+    .num-input{width:100px;padding:6px 8px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:0.875rem;text-align:center;background:#fff;outline:none;transition:border-color 160ms,box-shadow 160ms}
+    .num-input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(30,58,95,.09)}
+    .num-input::-webkit-outer-spin-button,.num-input::-webkit-inner-spin-button{-webkit-appearance:none}
+    .gap{font-weight:700;font-size:0.85rem}
+
+    .form-grid{display:grid;grid-template-columns:2fr 90px 1fr 1fr;gap:12px;margin-bottom:12px}
+    .form-grid-2{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+    .field label{display:block;font-size:0.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px}
+    .field input{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:0.875rem;background:#fff;outline:none;transition:border-color 160ms,box-shadow 160ms}
+    .field input:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(30,58,95,.09)}
+    .hint{font-size:0.7rem;color:var(--muted);margin-top:4px}
+
+    .btn-save{padding:10px 26px;border-radius:9px;background:var(--navy);color:#fff;border:none;font-family:inherit;font-size:0.85rem;font-weight:700;cursor:pointer;transition:background 160ms}
+    .btn-save:hover{background:var(--steel)}
+    .btn-save:disabled{opacity:.5;cursor:not-allowed}
+    .btn-ghost{padding:10px 18px;border-radius:9px;border:1px solid var(--border);background:none;font-family:inherit;font-size:0.85rem;cursor:pointer}
+    .btn-ghost:hover{background:#f0f0ee}
+    .save-bar{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+    .save-msg{font-size:0.85rem}
+    .save-msg.success{color:var(--sage)}
+    .save-msg.error{color:var(--rust)}
+    .muted-note{font-size:0.75rem;color:var(--muted)}
+
+    .badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:0.7rem;font-weight:700}
+    .badge-open{background:#FEF3C7;color:#92400E}
+    .badge-filled{background:#D1FAE5;color:#065F46}
+    .row-btn{padding:5px 10px;border-radius:7px;border:1px solid var(--border);background:none;cursor:pointer;font-size:0.78rem;font-family:inherit}
+    .row-btn:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+    .row-btn.danger:hover{background:#DC2626;border-color:#DC2626}
+    .remarks{font-size:0.72rem;color:var(--muted);font-weight:400;margin-top:2px}
+    .table-wrap{overflow-x:auto}
+
+    @media(max-width:720px){
+      .form-grid{grid-template-columns:1fr 1fr}
+      .form-grid-2{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
+        </svg>
+      </div>
+      <span class="brand-name">E&amp;C Portal</span>
+    </div>
+    <div class="topbar-right">
+      <a href="index.html"     class="topbar-link">← Home</a>
+      <a href="dashboard.html" class="topbar-link">← My Portal</a>
+      <span class="user-badge" id="topbarEmail"></span>
+      <button class="logout-btn" id="logoutBtn">Log out</button>
+    </div>
+  </header>
+
+  <div class="page">
+    <div class="page-head">
+      <h1>👥 Talent Acquisition</h1>
+      <p>Maintain standard vs current manpower and track manpower requisitions.</p>
+    </div>
+
+    <!-- Standard vs Current -->
+    <div class="card mb">
+      <div class="card-pad">
+        <div class="card-title">Standard vs Current Manpower</div>
+        <div class="card-sub">Update the current numbers any time — the dashboard always shows the latest values.</div>
+        <table class="ta-table">
+          <thead><tr>
+            <th style="min-width:120px;">Category</th>
+            <th>Standard</th>
+            <th>Current</th>
+            <th>Gap</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td>Operator</td>
+              <td><input type="number" min="0" class="num-input" id="hcStdOp" placeholder="0"/></td>
+              <td><input type="number" min="0" class="num-input" id="hcCurOp" placeholder="0"/></td>
+              <td class="gap" id="gapOp">—</td>
+            </tr>
+            <tr>
+              <td>Helper</td>
+              <td><input type="number" min="0" class="num-input" id="hcStdHp" placeholder="0"/></td>
+              <td><input type="number" min="0" class="num-input" id="hcCurHp" placeholder="0"/></td>
+              <td class="gap" id="gapHp">—</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="save-bar">
+          <button class="btn-save" id="hcSaveBtn">💾 Save Manpower</button>
+          <span class="save-msg" id="hcMsg"></span>
+          <span class="muted-note" id="hcUpdated"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Requisitions -->
+    <div class="card">
+      <div class="card-pad">
+        <div class="card-title" id="rqFormTitle">Manpower Requisitions</div>
+        <div class="card-sub">Add a requisition when it is raised. Fill in the ECM date once the position is filled — leave it empty while the requisition is still open.</div>
+
+        <div class="form-grid">
+          <div class="field"><label>Position</label><input type="text" id="rqPos" placeholder="e.g. Sewing Operator"/></div>
+          <div class="field"><label>Vacancies</label><input type="number" min="1" id="rqQty" value="1"/></div>
+          <div class="field"><label>Requisition Date</label><input type="date" id="rqDate"/></div>
+          <div class="field"><label>ECM Date</label><input type="date" id="rqEcm"/><div class="hint">Empty = still open</div></div>
+        </div>
+        <div class="form-grid-2">
+          <div class="field"><label>Remarks (optional)</label><input type="text" id="rqRemarks" placeholder="Any note"/></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-save" id="rqSaveBtn">+ Add Requisition</button>
+            <button class="btn-ghost" id="rqCancelBtn" style="display:none;">Cancel edit</button>
+          </div>
+        </div>
+        <div class="save-bar" style="margin-top:8px;"><span class="save-msg" id="rqMsg"></span></div>
+
+        <div style="margin:18px 0 8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin:0;font-size:0.85rem;">All Requisitions</div>
+          <div class="muted-note" id="rqSummary"></div>
+        </div>
+        <div class="table-wrap">
+          <table class="ta-table">
+            <thead><tr>
+              <th style="min-width:160px;">Position</th>
+              <th>Vacancies</th>
+              <th>Requisition Date</th>
+              <th>ECM Date</th>
+              <th>Status</th>
+              <th>Time</th>
+              <th style="width:130px;">Actions</th>
+            </tr></thead>
+            <tbody id="rqBody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/ta.js"></script>
+</body>
+</html>

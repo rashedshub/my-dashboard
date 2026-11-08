@@ -1,7 +1,7 @@
 import { app } from "./firebase.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
-import { getFirestore, doc, getDoc }
+import { getFirestore, doc, getDoc, collection, getDocs }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 const auth = getAuth(app);
@@ -289,6 +289,7 @@ async function loadAll() {
     await buildDisc();
     await buildEQ();
     await buildCVT();
+    await buildTA();
 
   } catch(e){
     console.error(e);
@@ -816,4 +817,138 @@ async function buildCVT() {
       });
     }
   } catch (e) { console.error("buildCVT:", e); }
+}
+
+// ── Talent Acquisition ────────────────────────────────────────────────────────
+// Pure summary of requisitions (kept separate so it can be tested on its own).
+// Open = no ECM date. Avg time to fill = mean(ECM date − requisition date) for
+// requisitions whose ECM date falls in `year`.
+function taSummary(reqs, year, today) {
+  const pd   = s => new Date(s + "T00:00:00");
+  const days = (a, b) => Math.round((b - a) / 86400000);
+  const open = [], filled = [];
+  reqs.forEach(r => {
+    if (!r.reqDate) return;
+    if (!r.ecmDate) {
+      open.push({
+        position: r.position || "—",
+        vacancies: Math.max(1, Number(r.vacancies) || 1),
+        reqDate: r.reqDate,
+        days: Math.max(0, days(pd(r.reqDate), today))
+      });
+    } else {
+      const d = days(pd(r.reqDate), pd(r.ecmDate));
+      if (d >= 0 && pd(r.ecmDate).getFullYear() === year) filled.push(d);
+    }
+  });
+  open.sort((a, b) => b.days - a.days);
+  return {
+    open,
+    openVacancies: open.reduce((s, o) => s + o.vacancies, 0),
+    filledCount: filled.length,
+    avgFill: filled.length ? filled.reduce((s, d) => s + d, 0) / filled.length : null
+  };
+}
+
+async function buildTA() {
+  const escT = s => String(s ?? "").replace(/[&<>"']/g, ch =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+  try {
+    // ── Standard vs current ──
+    const hcSnap = await getDoc(doc(db, "ta_data", "headcount"));
+    const hc = hcSnap.exists() ? hcSnap.data() : {};
+    const stdOp = Number(hc.stdOperator) || 0, curOp = Number(hc.curOperator) || 0;
+    const stdHp = Number(hc.stdHelper)   || 0, curHp = Number(hc.curHelper)   || 0;
+
+    function paintCard(curId, stdId, gapId, barId, pctId, cur, std, color) {
+      set(curId, hcSnap.exists() ? cur.toLocaleString() : "—");
+      set(stdId, hcSnap.exists() ? std.toLocaleString() : "—");
+      const gapEl = el(gapId), pctEl = el(pctId), barEl = el(barId);
+      if (!hcSnap.exists() || (!std && !cur)) {
+        if (gapEl) gapEl.textContent = "No data entered";
+        if (pctEl) pctEl.textContent = "—";
+        if (barEl) barEl.style.width = "0%";
+        return;
+      }
+      const g = cur - std;
+      if (gapEl) gapEl.textContent = g < 0 ? `Vacant ${(-g).toLocaleString()}` : g > 0 ? `Surplus ${g.toLocaleString()}` : "At standard";
+      const pct = std > 0 ? Math.round(cur / std * 100) : null;
+      if (pctEl) pctEl.textContent = pct !== null ? pct + "% of standard" : "No standard set";
+      if (barEl) { barEl.style.width = Math.min(pct || 0, 100) + "%"; barEl.style.background = color; }
+    }
+    paintCard("taCurOp", "taStdOp", "taOpGap", "taOpBar", "taOpPct", curOp, stdOp, "#1E3A5F");
+    paintCard("taCurHp", "taStdHp", "taHpGap", "taHpBar", "taHpPct", curHp, stdHp, "#1B6B6B");
+
+    const hcCanvas = el("taHcChart");
+    if (hcCanvas) {
+      if (charts.taHc) charts.taHc.destroy();
+      charts.taHc = new Chart(hcCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: ["Operator", "Helper"],
+          datasets: [
+            { label: "Standard", data: [stdOp, stdHp], backgroundColor: "rgba(30,58,95,.15)",  borderColor: "#1E3A5F", borderWidth: 2, borderRadius: 5, borderSkipped: false },
+            { label: "Current",  data: [curOp, curHp], backgroundColor: "rgba(27,107,107,.2)", borderColor: "#1B6B6B", borderWidth: 2, borderRadius: 5, borderSkipped: false }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: "top", labels: { usePointStyle: true, pointStyle: "circle", padding: 16, font: { size: 11 } } },
+            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString()}` } }
+          },
+          scales: { x: xCfg(), y: yCfg({ suggestedMax: Math.max(stdOp, curOp, stdHp, curHp) * 1.2 || 10 }) }
+        }
+      });
+    }
+
+    // ── Requisitions ──
+    const reqSnap = await getDocs(collection(db, "ta_requisitions"));
+    const reqs = reqSnap.docs.map(d => d.data());
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const s = taSummary(reqs, currentYear, today);
+
+    set("taOpenReqs", s.open.length.toLocaleString());
+    set("taOpenSub", s.open.length
+      ? `${s.openVacancies.toLocaleString()} vacanc${s.openVacancies === 1 ? "y" : "ies"} awaiting fill`
+      : "No open requisitions");
+    set("taAvgFill", s.avgFill !== null ? `${Number(s.avgFill.toFixed(1))} days` : "—");
+    set("taAvgSub", s.avgFill !== null
+      ? `across ${s.filledCount} filled in ${currentYear} (requisition → ECM)`
+      : `no requisitions filled in ${currentYear}`);
+
+    const tbl = el("taOpenTable");
+    if (tbl) {
+      if (!s.open.length) {
+        tbl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No open requisitions.</div>`;
+      } else {
+        const maxD = Math.max(...s.open.map(o => o.days), 1);
+        tbl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+          <thead><tr style="border-bottom:1.5px solid var(--border);">
+            <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Position</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Vacancies</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Requisition Date</th>
+            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Time Passed</th>
+          </tr></thead>
+          <tbody>${s.open.map(o => {
+            const dt = new Date(o.reqDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const w = (o.days / maxD * 100).toFixed(1);
+            return `<tr style="border-bottom:1px solid #f0f0ee;">
+              <td style="padding:8px 12px;font-weight:600;color:var(--text);">${escT(o.position)}</td>
+              <td style="padding:8px;text-align:center;font-weight:700;">${o.vacancies}</td>
+              <td style="padding:8px;text-align:center;color:var(--muted);">${dt}</td>
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;min-width:50px;">
+                    <div style="height:100%;width:${w}%;background:#8B3A2A;border-radius:99px;"></div>
+                  </div>
+                  <span style="font-size:0.72rem;font-weight:700;color:var(--text);min-width:56px;">${o.days} day${o.days === 1 ? "" : "s"}</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>`;
+      }
+    }
+  } catch (e) { console.error("buildTA:", e); }
 }
