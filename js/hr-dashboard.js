@@ -821,12 +821,13 @@ async function buildCVT() {
 
 // ── Talent Acquisition ────────────────────────────────────────────────────────
 // Pure summary of requisitions (kept separate so it can be tested on its own).
-// Open = no ECM date. Avg time to fill = mean(ECM date − requisition date) for
-// requisitions whose ECM date falls in `year`.
+// Open = no ECM date. Time to fill = ECM date − requisition date, counted in the
+// year/month of the ECM date.
 function taSummary(reqs, year, today) {
   const pd   = s => new Date(s + "T00:00:00");
   const days = (a, b) => Math.round((b - a) / 86400000);
   const open = [], filled = [];
+  const byMonth = Array.from({ length: 12 }, () => ({ sum: 0, count: 0 }));
   reqs.forEach(r => {
     if (!r.reqDate) return;
     if (!r.ecmDate) {
@@ -837,8 +838,13 @@ function taSummary(reqs, year, today) {
         days: Math.max(0, days(pd(r.reqDate), today))
       });
     } else {
-      const d = days(pd(r.reqDate), pd(r.ecmDate));
-      if (d >= 0 && pd(r.ecmDate).getFullYear() === year) filled.push(d);
+      const ecm = pd(r.ecmDate);
+      const d = days(pd(r.reqDate), ecm);
+      if (d >= 0 && ecm.getFullYear() === year) {
+        filled.push(d);
+        byMonth[ecm.getMonth()].sum += d;
+        byMonth[ecm.getMonth()].count += 1;
+      }
     }
   });
   open.sort((a, b) => b.days - a.days);
@@ -846,7 +852,8 @@ function taSummary(reqs, year, today) {
     open,
     openVacancies: open.reduce((s, o) => s + o.vacancies, 0),
     filledCount: filled.length,
-    avgFill: filled.length ? filled.reduce((s, d) => s + d, 0) / filled.length : null
+    avgFill: filled.length ? filled.reduce((s, d) => s + d, 0) / filled.length : null,
+    byMonth
   };
 }
 
@@ -854,53 +861,34 @@ async function buildTA() {
   const escT = s => String(s ?? "").replace(/[&<>"']/g, ch =>
     ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
   try {
-    // ── Standard vs current ──
+    // ── Shortage / excess (current vs standard) ──
     const hcSnap = await getDoc(doc(db, "ta_data", "headcount"));
     const hc = hcSnap.exists() ? hcSnap.data() : {};
-    const stdOp = Number(hc.stdOperator) || 0, curOp = Number(hc.curOperator) || 0;
-    const stdHp = Number(hc.stdHelper)   || 0, curHp = Number(hc.curHelper)   || 0;
 
-    function paintCard(curId, stdId, gapId, barId, pctId, cur, std, color) {
-      set(curId, hcSnap.exists() ? cur.toLocaleString() : "—");
-      set(stdId, hcSnap.exists() ? std.toLocaleString() : "—");
-      const gapEl = el(gapId), pctEl = el(pctId), barEl = el(barId);
+    function paintGap(valId, labelId, detailId, cur, std) {
+      const valEl = el(valId), labelEl = el(labelId), detailEl = el(detailId);
+      if (!valEl || !labelEl) return;
       if (!hcSnap.exists() || (!std && !cur)) {
-        if (gapEl) gapEl.textContent = "No data entered";
-        if (pctEl) pctEl.textContent = "—";
-        if (barEl) barEl.style.width = "0%";
+        valEl.textContent = "—"; valEl.style.color = "";
+        labelEl.textContent = "No data entered"; labelEl.style.color = "";
+        if (detailEl) detailEl.textContent = "";
         return;
       }
       const g = cur - std;
-      if (gapEl) gapEl.textContent = g < 0 ? `Vacant ${(-g).toLocaleString()}` : g > 0 ? `Surplus ${g.toLocaleString()}` : "At standard";
-      const pct = std > 0 ? Math.round(cur / std * 100) : null;
-      if (pctEl) pctEl.textContent = pct !== null ? pct + "% of standard" : "No standard set";
-      if (barEl) { barEl.style.width = Math.min(pct || 0, 100) + "%"; barEl.style.background = color; }
+      let color, label;
+      if (g < 0)      { color = "#8B3A2A"; label = "Shortage"; }
+      else if (g > 0) { color = "#BA7517"; label = "Excess"; }
+      else            { color = "#3A6B4A"; label = "At standard"; }
+      valEl.textContent = g === 0 ? "0" : Math.abs(g).toLocaleString();
+      valEl.style.color = color;
+      labelEl.textContent = label; labelEl.style.color = color;
+      if (detailEl) {
+        const pct = std > 0 ? ` (${Math.round(cur / std * 100)}%)` : "";
+        detailEl.textContent = `Current ${cur.toLocaleString()} · Standard ${std.toLocaleString()}${pct}`;
+      }
     }
-    paintCard("taCurOp", "taStdOp", "taOpGap", "taOpBar", "taOpPct", curOp, stdOp, "#1E3A5F");
-    paintCard("taCurHp", "taStdHp", "taHpGap", "taHpBar", "taHpPct", curHp, stdHp, "#1B6B6B");
-
-    const hcCanvas = el("taHcChart");
-    if (hcCanvas) {
-      if (charts.taHc) charts.taHc.destroy();
-      charts.taHc = new Chart(hcCanvas.getContext("2d"), {
-        type: "bar",
-        data: {
-          labels: ["Operator", "Helper"],
-          datasets: [
-            { label: "Standard", data: [stdOp, stdHp], backgroundColor: "rgba(30,58,95,.15)",  borderColor: "#1E3A5F", borderWidth: 2, borderRadius: 5, borderSkipped: false },
-            { label: "Current",  data: [curOp, curHp], backgroundColor: "rgba(27,107,107,.2)", borderColor: "#1B6B6B", borderWidth: 2, borderRadius: 5, borderSkipped: false }
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: "top", labels: { usePointStyle: true, pointStyle: "circle", padding: 16, font: { size: 11 } } },
-            tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw.toLocaleString()}` } }
-          },
-          scales: { x: xCfg(), y: yCfg({ suggestedMax: Math.max(stdOp, curOp, stdHp, curHp) * 1.2 || 10 }) }
-        }
-      });
-    }
+    paintGap("taOpVal", "taOpLabel", "taOpDetail", Number(hc.curOperator) || 0, Number(hc.stdOperator) || 0);
+    paintGap("taHpVal", "taHpLabel", "taHpDetail", Number(hc.curHelper)   || 0, Number(hc.stdHelper)   || 0);
 
     // ── Requisitions ──
     const reqSnap = await getDocs(collection(db, "ta_requisitions"));
@@ -916,6 +904,34 @@ async function buildTA() {
     set("taAvgSub", s.avgFill !== null
       ? `across ${s.filledCount} filled in ${currentYear} (requisition → ECM)`
       : `no requisitions filled in ${currentYear}`);
+
+    // Time-to-fill chart: average days by month the position was filled
+    const monthAvg = s.byMonth.map(m => m.count ? Number((m.sum / m.count).toFixed(1)) : null);
+    const monthCnt = s.byMonth.map(m => m.count);
+    const fillCanvas = el("taFillChart");
+    if (fillCanvas) {
+      if (charts.taFill) charts.taFill.destroy();
+      const top = Math.max(0, ...monthAvg.filter(v => v !== null));
+      charts.taFill = new Chart(fillCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: MONTHS,
+          datasets: [{
+            label: "Avg days to fill", data: monthAvg,
+            backgroundColor: "rgba(27,107,107,.2)", borderColor: "#1B6B6B",
+            borderWidth: 2, borderRadius: 5, borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${c.raw} days on average · ${monthCnt[c.dataIndex]} filled` } }
+          },
+          scales: { x: xCfg(), y: yCfg({ suggestedMax: top * 1.3 || 10 }) }
+        }
+      });
+    }
 
     const tbl = el("taOpenTable");
     if (tbl) {
