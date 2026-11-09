@@ -1,4 +1,5 @@
 import { app } from "./firebase.js";
+import { setDataEntryMenu } from "./data-entry-menu.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import { getFirestore, collection, getDocs,
@@ -17,6 +18,7 @@ onAuthStateChanged(auth, async (user) => {
     window.location.href = "dashboard.html"; return;
   }
   document.getElementById("topbarEmail").textContent = user.email;
+  setDataEntryMenu("admin");
   loadUsers();
 });
 

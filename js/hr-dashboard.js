@@ -1,4 +1,5 @@
 import { app } from "./firebase.js";
+import { setDataEntryMenu } from "./data-entry-menu.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, collection, getDocs }
@@ -176,6 +177,10 @@ function showContent() {
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href="login.html"; return; }
   set("topbarEmail", user.email);
+  // Data Entry shortcut for Data Entry / Admin users (runs alongside, never delays the dashboard)
+  getDoc(doc(db, "users", user.uid))
+    .then(s => setDataEntryMenu(s.exists() ? s.data().role : "user"))
+    .catch(() => {});
   buildYearPicker();
   loadAll();
 });

@@ -52,7 +52,7 @@
     .nav-item.open .nav-arrow { transform: rotate(90deg); }
 
     .nav-sub { overflow: hidden; max-height: 0; transition: max-height 350ms var(--ease); }
-    .nav-sub.open { max-height: 300px; }
+    .nav-sub.open { max-height: 460px; }
     .nav-sub-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 32px; border-radius: 8px; font-size: 0.82rem; font-weight: 500; color: var(--muted); cursor: pointer; border: none; background: none; font-family: inherit; width: 100%; text-align: left; text-decoration: none; transition: background 150ms, color 150ms; }
     .nav-sub-item:hover { background: #f0f0ee; color: var(--text); }
     .nav-sub-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: .5; }
@@ -205,8 +205,14 @@
           <a class="nav-sub-item" href="eq.html">
             <span class="nav-sub-dot"></span> EQ Survey
           </a>
+          <a class="nav-sub-item" href="cvt.html">
+            <span class="nav-sub-dot"></span> Core Value Training
+          </a>
           <a class="nav-sub-item" href="ta.html">
             <span class="nav-sub-dot"></span> Talent Acquisition
+          </a>
+          <a class="nav-sub-item" href="mom.html">
+            <span class="nav-sub-dot"></span> Meeting Minutes
           </a>
         </div>
 
@@ -299,10 +305,20 @@
             <div class="qb-title">EQ Survey</div>
             <div class="qb-desc">Plan vs completion tracking</div>
           </a>
+          <a href="cvt.html" class="quick-btn">
+            <div class="qb-icon">🎯</div>
+            <div class="qb-title">Core Value Training</div>
+            <div class="qb-desc">Training done vs not done</div>
+          </a>
           <a href="ta.html" class="quick-btn">
             <div class="qb-icon">👥</div>
             <div class="qb-title">Talent Acquisition</div>
             <div class="qb-desc">Manpower &amp; requisitions</div>
+          </a>
+          <a href="mom.html" class="quick-btn">
+            <div class="qb-icon">📝</div>
+            <div class="qb-title">Meeting Minutes</div>
+            <div class="qb-desc">Record &amp; print MOM reports</div>
           </a>
           <a href="room-booking.html" class="quick-btn">
             <div class="qb-icon">🏢</div>

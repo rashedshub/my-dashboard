@@ -1,4 +1,5 @@
 import { app } from "./firebase.js";
+import { setDataEntryMenu } from "./data-entry-menu.js";
 import { getAuth, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
 import {
@@ -35,6 +36,7 @@ onAuthStateChanged(auth, async user => {
 
   if (!user) {
     isAdmin = false; isRoomAdmin = false; currentUid = null;
+    setDataEntryMenu(null);
     if(dot)      dot.className = "user-status-dot";
     if(nameEl)   nameEl.textContent = "Guest";
     if(roleEl)   roleEl.textContent = "Not logged in";
@@ -52,9 +54,11 @@ onAuthStateChanged(auth, async user => {
     const role = snap.exists() ? snap.data().role : "";
     isAdmin     = role === "admin";
     isRoomAdmin = role === "admin" || role === "room_admin";
+    setDataEntryMenu(role);
     if(roleEl) roleEl.textContent = ROLE_LABELS[role] || "User";
   } catch(e) {
     isAdmin = false; isRoomAdmin = false;
+    setDataEntryMenu(null);
     if(roleEl) roleEl.textContent = "";
   }
 });
