@@ -500,22 +500,16 @@
 
       <div class="stat-row" style="margin-bottom:20px;">
         <div class="stat-card">
-          <div class="sc-label">Operators — Current vs Standard</div>
-          <div class="sc-value sc-navy"><span id="taCurOp">—</span><span style="font-size:1rem;color:var(--muted);font-weight:600;"> / <span id="taStdOp">—</span></span></div>
-          <div class="sc-sub" id="taOpGap">—</div>
-          <div style="margin-top:10px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="taOpBar" style="height:100%;width:0%;background:#1E3A5F;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-          <div style="font-size:0.7rem;font-weight:700;color:var(--muted);margin-top:4px;" id="taOpPct">—</div>
+          <div class="sc-label">Operators</div>
+          <div class="sc-value" id="taOpVal">—</div>
+          <div class="sc-sub" id="taOpLabel" style="font-weight:700;">shortage / excess</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;" id="taOpDetail"></div>
         </div>
         <div class="stat-card">
-          <div class="sc-label">Helpers — Current vs Standard</div>
-          <div class="sc-value sc-teal"><span id="taCurHp">—</span><span style="font-size:1rem;color:var(--muted);font-weight:600;"> / <span id="taStdHp">—</span></span></div>
-          <div class="sc-sub" id="taHpGap">—</div>
-          <div style="margin-top:10px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="taHpBar" style="height:100%;width:0%;background:#1B6B6B;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-          <div style="font-size:0.7rem;font-weight:700;color:var(--muted);margin-top:4px;" id="taHpPct">—</div>
+          <div class="sc-label">Helpers</div>
+          <div class="sc-value" id="taHpVal">—</div>
+          <div class="sc-sub" id="taHpLabel" style="font-weight:700;">shortage / excess</div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;" id="taHpDetail"></div>
         </div>
         <div class="stat-card">
           <div class="sc-label">Open Requisitions</div>
@@ -531,8 +525,8 @@
 
       <div class="grid-2">
         <div class="chart-card">
-          <div class="chart-head"><div><h2>Standard vs Current</h2><p>Manpower against standard, by category</p></div></div>
-          <div class="chart-wrap"><canvas id="taHcChart"></canvas></div>
+          <div class="chart-head"><div><h2>Time to Fill</h2><p>Average days from requisition date to ECM date, by month filled</p></div></div>
+          <div class="chart-wrap"><canvas id="taFillChart"></canvas></div>
         </div>
         <div class="chart-card">
           <div class="chart-head"><div><h2>Current Manpower Requisitions</h2><p>Open requisitions and time passed since requisition date</p></div></div>
