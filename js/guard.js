@@ -10,7 +10,12 @@ const db   = getFirestore(app);
 export function guardRole(allowedRoles = [], redirectTo = "dashboard.html") {
   return new Promise((resolve) => {
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = "login.html"; return; }
+      if (!user) {
+        // Remember the page they were trying to open so login can send them back to it
+        const here = location.pathname.split("/").pop() || "index.html";
+        window.location.href = "login.html?redirect=" + encodeURIComponent(here + location.search + location.hash);
+        return;
+      }
       try {
         const snap    = await getDoc(doc(db, "users", user.uid));
         const profile = snap.exists() ? snap.data() : {};
