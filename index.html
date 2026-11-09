@@ -94,6 +94,44 @@
     /* ── Dept badge ── */
     .dept-tag { display:inline-block; margin-top:16px; padding:5px 14px; background:rgba(30,58,95,.08); color:var(--navy); border-radius:99px; font-size:0.72rem; font-weight:700; letter-spacing:0.04em; }
 
+
+    /* ── Data Entry picker ── */
+    .de-overlay {
+      position:fixed; inset:0; z-index:300; padding:20px;
+      background:rgba(15,25,35,.45); backdrop-filter:blur(5px);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; visibility:hidden; pointer-events:none;
+      transition:opacity 200ms, visibility 200ms;
+    }
+    .de-overlay.open { opacity:1; visibility:visible; pointer-events:auto; }
+    .de-modal {
+      background:var(--surface); border-radius:16px; width:100%; max-width:720px;
+      max-height:calc(100vh - 40px); overflow-y:auto;
+      box-shadow:0 24px 64px rgba(0,0,0,.18);
+      transform:translateY(14px) scale(.98); transition:transform 240ms var(--ease);
+    }
+    .de-overlay.open .de-modal { transform:none; }
+    .de-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 24px 14px; border-bottom:1px solid var(--border); }
+    .de-head h2 { font-size:1.05rem; font-weight:800; letter-spacing:-.02em; }
+    .de-head p  { font-size:0.78rem; color:var(--muted); margin-top:4px; line-height:1.5; }
+    .de-close { background:none; border:none; font-size:1.1rem; color:var(--muted); cursor:pointer; padding:4px 8px; border-radius:6px; flex-shrink:0; }
+    .de-close:hover { background:#f0f0ee; }
+    .de-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; padding:18px 24px 24px; }
+    .de-tile {
+      display:flex; align-items:center; gap:12px; padding:13px 14px; text-decoration:none; color:var(--text);
+      border:1px solid var(--border); border-left:4px solid var(--tile-color,var(--navy)); border-radius:10px;
+      background:var(--surface); transition:transform 150ms, box-shadow 150ms, border-color 150ms;
+    }
+    .de-tile:hover, .de-tile:focus-visible { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.08); border-color:var(--tile-color,var(--navy)); outline:none; }
+    .de-icon { font-size:1.4rem; line-height:1; flex-shrink:0; }
+    .de-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .de-name { font-size:0.85rem; font-weight:700; }
+    .de-desc { font-size:0.72rem; color:var(--muted); line-height:1.4; }
+    @media(max-width:600px){
+      .de-grid { grid-template-columns:1fr; padding:14px 16px 20px; }
+      .de-head { padding:16px 16px 12px; }
+    }
+
     @media(max-width:768px){
       .topbar{ padding:0 14px; }
       .hero{ padding-top:70px; padding-left:14px; padding-right:14px; }
@@ -155,6 +193,13 @@
         <div class="card-arrow">Open My Portal →</div>
       </a>
 
+      <a href="login.html?redirect=dashboard.html" class="matrix-card" id="dataEntryCard" aria-haspopup="dialog" style="--card-color:#3A6B4A">
+        <div class="card-icon">📝</div>
+        <div class="card-title">Data Entry</div>
+        <div class="card-desc">Enter and update leave, YEEP, welfare, disciplinary, EQ survey, core value training, talent acquisition and meeting minutes.</div>
+        <div class="card-arrow">Choose a category →</div>
+      </a>
+
       <a href="room-booking.html" class="matrix-card" style="--card-color:#1B6B6B">
         <div class="card-icon">🏢</div>
         <div class="card-title">Room Booking <span class="card-badge">Public</span></div>
@@ -184,6 +229,93 @@
     </p>
     <div class="dept-tag">Employee &amp; Culture Department</div>
   </main>
+
+  <!-- Data Entry picker -->
+  <div class="de-overlay" id="deOverlay" aria-hidden="true">
+    <div class="de-modal" role="dialog" aria-modal="true" aria-labelledby="deTitle">
+      <div class="de-head">
+        <div>
+          <h2 id="deTitle">Data Entry</h2>
+          <p>Choose a category. Requires a Data Entry or Admin account — you will be asked to log in if you aren't already.</p>
+        </div>
+        <button type="button" class="de-close" id="deClose" aria-label="Close">✕</button>
+      </div>
+      <div class="de-grid">
+      <a class="de-tile" href="leave.html" style="--tile-color:#1E3A5F">
+        <span class="de-icon">📋</span>
+        <span class="de-text"><span class="de-name">Leave Plan</span><span class="de-desc">Plan vs consumed hours</span></span>
+      </a>
+      <a class="de-tile" href="yeep.html" style="--tile-color:#2E5B88">
+        <span class="de-icon">🔧</span>
+        <span class="de-text"><span class="de-name">YEEP</span><span class="de-desc">Installation counts &amp; targets</span></span>
+      </a>
+      <a class="de-tile" href="welfare.html" style="--tile-color:#BA7517">
+        <span class="de-icon">🤝</span>
+        <span class="de-text"><span class="de-name">Welfare</span><span class="de-desc">Health, food quality &amp; issues</span></span>
+      </a>
+      <a class="de-tile" href="disciplinary.html" style="--tile-color:#8B3A2A">
+        <span class="de-icon">⚖️</span>
+        <span class="de-text"><span class="de-name">Disciplinary</span><span class="de-desc">Outstanding case counts by category</span></span>
+      </a>
+      <a class="de-tile" href="eq.html" style="--tile-color:#1B6B6B">
+        <span class="de-icon">📊</span>
+        <span class="de-text"><span class="de-name">EQ Survey</span><span class="de-desc">Monthly plan vs completed</span></span>
+      </a>
+      <a class="de-tile" href="cvt.html" style="--tile-color:#3A6B4A">
+        <span class="de-icon">🎯</span>
+        <span class="de-text"><span class="de-name">Core Value Training</span><span class="de-desc">Training done vs not done</span></span>
+      </a>
+      <a class="de-tile" href="ta.html" style="--tile-color:#7C3AED">
+        <span class="de-icon">👥</span>
+        <span class="de-text"><span class="de-name">Talent Acquisition</span><span class="de-desc">Manpower shortage &amp; requisitions</span></span>
+      </a>
+      <a class="de-tile" href="mom.html" style="--tile-color:#0891B2">
+        <span class="de-icon">📋</span>
+        <span class="de-text"><span class="de-name">Meeting Minutes</span><span class="de-desc">Record and print MOM reports</span></span>
+      </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var card = document.getElementById('dataEntryCard');
+      var overlay = document.getElementById('deOverlay');
+      var closeBtn = document.getElementById('deClose');
+      if (!card || !overlay || !closeBtn) return;
+      var lastFocus = null;
+
+      function open() {
+        lastFocus = document.activeElement;
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+        var first = overlay.querySelector('.de-tile');
+        if (first) first.focus();
+      }
+      function close() {
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        if (lastFocus && lastFocus.focus) lastFocus.focus();
+      }
+
+      card.addEventListener('click', function (e) { e.preventDefault(); open(); });
+      closeBtn.addEventListener('click', close);
+      overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+      document.addEventListener('keydown', function (e) {
+        if (!overlay.classList.contains('open')) return;
+        if (e.key === 'Escape') { close(); return; }
+        if (e.key === 'Tab') {            // keep keyboard focus inside the dialog
+          var f = overlay.querySelectorAll('a[href], button');
+          if (!f.length) return;
+          var first = f[0], last = f[f.length - 1];
+          if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      });
+    })();
+  </script>
 
 </body>
 </html>
