@@ -500,8 +500,11 @@ async function buildFQ() {
     });
     const grand=Object.values(totals).reduce((a,b)=>a+b,0);
     set("fqTotal",    grand.toLocaleString());
-    set("fqPositive", (totals.vg+totals.g).toLocaleString());
+    set("fqPositive", (totals.vg+totals.g+totals.s).toLocaleString());   // Very Good + Good + Satisfactory
     set("fqNegative", (totals.b+totals.vb).toLocaleString());
+    const fqPct = n => grand > 0 ? `${Number((n / grand * 100).toFixed(1))}% of total surveys` : "";
+    set("fqPositivePct", fqPct(totals.vg+totals.g+totals.s));
+    set("fqNegativePct", fqPct(totals.b+totals.vb));
 
     const pie=el("fqPieChart");
     if(pie){
