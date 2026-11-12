@@ -1,542 +1,1006 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>HR Dashboard — EMS</title>
-  <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    /* ── Base ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #F0F2F5; --surface: #ffffff; --border: #DDE1E7;
-      --text: #0F1923; --muted: #64748B; --radius: 12px;
-      --navy: #1E3A5F; --steel: #2E5B88; --teal: #1B6B6B;
-      --sage: #3A6B4A; --gold: #8B6914; --rust: #8B3A2A;
-      --ease: cubic-bezier(0.65,0,0.35,1);
+import { app } from "./firebase.js";
+import { setDataEntryMenu } from "./data-entry-menu.js";
+import { getAuth, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+import { getFirestore, doc, getDoc, collection, getDocs }
+  from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const MONTHS      = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONTHS_FULL = ["January","February","March","April","May","June",
+                     "July","August","September","October","November","December"];
+
+let currentYear = new Date().getFullYear();
+let charts = {};
+
+// disciplinary chart refs tracked inside charts object
+
+// ════════════════════════════════════════
+// COLOR SYSTEM — Muted, sophisticated
+// ════════════════════════════════════════
+const P = {
+  navy:      "#1E3A5F",
+  navyFade:  "rgba(30,58,95,0.12)",
+  navySoft:  "rgba(30,58,95,0.55)",
+  steel:     "#2E5B88",
+  steelFade: "rgba(46,91,136,0.12)",
+  teal:      "#1B6B6B",
+  tealFade:  "rgba(27,107,107,0.15)",
+  sage:      "#3A6B4A",
+  sageFade:  "rgba(58,107,74,0.15)",
+  gold:      "#8B6914",
+  goldFade:  "rgba(139,105,20,0.15)",
+  rust:      "#8B3A2A",
+  rustFade:  "rgba(139,58,42,0.15)",
+  slate:     "#64748B",
+  slateFade: "rgba(100,116,139,0.12)",
+  // Chart specific
+  plan:      "rgba(30,58,95,0.13)",
+  planBorder:"rgba(30,58,95,0.4)",
+  consumed:  "#2E5B88",
+  ytdLine:   "#1E3A5F",
+  pace:      "rgba(139,105,20,0.18)",
+  paceBorder:"#8B6914",
+  completed: "#3A6B4A",
+  esTeam:    "#1E3A5F",
+  erTeam:    "#1B6B6B",
+  vGood:     "#2E5B88",
+  good:      "#1B6B6B",
+  satisf:    "#8B6914",
+  bad:       "#8B3A2A",
+  vBad:      "#5C1A0F",
+  solved:    "#3A6B4A",
+  followup:  "#8B6914",
+};
+
+// ════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════
+const el  = id  => document.getElementById(id);
+const set = (id, v) => { const n=el(id); if(n) n.textContent=v; };
+
+function fmt(n) {
+  if (n===null||n===undefined||isNaN(n)) return "—";
+  return Number.isInteger(n) ? n.toLocaleString()
+    : parseFloat(n).toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1});
+}
+
+function fmtK(n) {
+  if (!n && n!==0) return "";
+  if (Math.abs(n)>=1000) return (n/1000).toFixed(1)+"k";
+  return String(n);
+}
+
+Chart.defaults.font.family = "'Inter', system-ui, -apple-system, sans-serif";
+Chart.defaults.color       = "#64748b";
+
+// ── Label drawing utilities ───────────────────────────────────────────────────
+
+/**
+ * Draw value labels on top of bars.
+ * @param {Chart} chart
+ * @param {number[]} [dsIndices] — which dataset indices to label (default: all)
+ * @param {string}   [color]
+ */
+function labelBars(chart, dsIndices, color="#334155") {
+  const ctx = chart.ctx;
+  ctx.save();
+  ctx.font         = "600 10.5px Inter,system-ui,sans-serif";
+  ctx.textAlign    = "center";
+  ctx.textBaseline = "bottom";
+  chart.data.datasets.forEach((ds, di) => {
+    if (dsIndices && !dsIndices.includes(di)) return;
+    chart.getDatasetMeta(di).data.forEach((bar, idx) => {
+      const v = ds.data[idx];
+      if (!v || v===0) return;
+      ctx.fillStyle = color;
+      ctx.fillText(fmtK(v), bar.x, bar.y - 4);
+    });
+  });
+  ctx.restore();
+}
+
+/**
+ * Draw value labels above each point on a specific line dataset.
+ */
+function labelLine(chart, dsIdx, dataArr, color="#334155") {
+  const ctx  = chart.ctx;
+  const meta = chart.getDatasetMeta(dsIdx);
+  ctx.save();
+  ctx.font         = "600 10px Inter,system-ui,sans-serif";
+  ctx.textAlign    = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle    = color;
+  meta.data.forEach((pt, i) => {
+    const v = dataArr[i];
+    if (!v && v!==0) return;
+    ctx.fillText(fmtK(v), pt.x, pt.y - 8);
+  });
+  ctx.restore();
+}
+
+/** Draw % label inside each doughnut slice (skips slices < 5% to avoid clutter). */
+const PIE_LABEL_PLUGIN = {
+  id: "pieLabels",
+  afterDatasetsDraw(chart) {
+    const { ctx, data } = chart;
+    const total = data.datasets[0].data.reduce((a,b)=>a+b,0);
+    if (!total) return;
+    ctx.save();
+    ctx.font         = "700 11px Inter,system-ui,sans-serif";
+    ctx.textAlign    = "center";
+    ctx.textBaseline = "middle";
+    chart.getDatasetMeta(0).data.forEach((arc, i) => {
+      const v = data.datasets[0].data[i];
+      if (!v || v/total < 0.05) return;
+      const mid    = (arc.startAngle + arc.endAngle) / 2;
+      const radius = (arc.innerRadius + arc.outerRadius) / 2;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText((v/total*100).toFixed(1)+"%",
+        arc.x + Math.cos(mid)*radius,
+        arc.y + Math.sin(mid)*radius);
+    });
+    ctx.restore();
+  }
+};
+
+// Shared axis configs
+const xCfg = (extra={}) => ({ grid:{display:false}, ticks:{font:{size:11}}, ...extra });
+const yCfg = (extra={}) => ({
+  beginAtZero:true,
+  grid:{ color:"rgba(148,163,184,0.15)", drawBorder:false },
+  ticks:{ font:{size:11}, callback: v => fmtK(v) },
+  ...extra
+});
+
+function killCharts() {
+  Object.values(charts).forEach(c => { try{c.destroy();}catch(e){} });
+  charts = {};
+}
+
+// ── "Last updated" line under each section title ──────────────────────────────
+function fmtUpdated(v) {
+  if (!v) return null;
+  const d = v.toDate ? v.toDate() : new Date(v);          // Firestore Timestamp or ISO string
+  if (isNaN(d)) return null;
+  return d.toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"numeric", minute:"2-digit" });
+}
+function setLastUpdated(section, value) {
+  const title = document.querySelector(`[data-section="${section}"] .section-title`);
+  if (!title) return;
+  let n = title.nextElementSibling;
+  if (!n || !n.classList.contains("section-updated")) {
+    n = document.createElement("div");
+    n.className = "section-updated";
+    title.after(n);
+  }
+  const t = fmtUpdated(value);
+  n.textContent = t ? `Last updated: ${t}` : "Last updated: not recorded";
+}
+function clearLastUpdated() {
+  document.querySelectorAll(".section-updated").forEach(n => { n.textContent = ""; });
+}
+
+function showLoading(html) {
+  const ls=el("loadingState"), mc=el("mainContent");
+  if(ls){ls.style.display="block"; ls.innerHTML=html;}
+  if(mc) mc.style.display="none";
+}
+function showContent() {
+  const ls=el("loadingState"), mc=el("mainContent");
+  if(ls) ls.style.display="none";
+  if(mc) mc.style.display="block";
+}
+
+// ════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href="login.html"; return; }
+  set("topbarEmail", user.email);
+  // Data Entry shortcut for Data Entry / Admin users (runs alongside, never delays the dashboard)
+  getDoc(doc(db, "users", user.uid))
+    .then(s => setDataEntryMenu(s.exists() ? s.data().role : "user"))
+    .catch(() => {});
+  buildYearPicker();
+  loadAll();
+});
+
+
+// ── Section filter ────────────────────────────────────────────────────────────
+function initFilters() {
+  const pills = document.querySelectorAll(".filter-pill");
+  pills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      const filter = pill.dataset.filter;
+      // Update active pill
+      pills.forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      // Show/hide sections
+      document.querySelectorAll("[data-section]").forEach(sec => {
+        if(filter === "all") {
+          sec.style.display = "";
+        } else {
+          sec.style.display = sec.dataset.section === filter ? "" : "none";
+        }
+      });
+    });
+  });
+}
+
+function buildYearPicker() {
+  const sel=el("yearSelect"); if(!sel) return;
+  const base=new Date().getFullYear();
+  for(let y=base-2; y<=base+5; y++){
+    const o=document.createElement("option");
+    o.value=y; o.textContent=y;
+    if(y===base) o.selected=true;
+    sel.appendChild(o);
+  }
+  sel.addEventListener("change", ()=>{ currentYear=Number(sel.value); loadAll(); });
+}
+
+// ════════════════════════════════════════
+// LOAD ALL
+// ════════════════════════════════════════
+async function loadAll() {
+  showLoading(`<div class="icon">📊</div>Loading ${currentYear}…`);
+  killCharts();
+  clearLastUpdated();
+  try {
+    const snap = await getDoc(doc(db,"leave_data",String(currentYear)));
+    if(!snap.exists()){
+      showLoading(`<div class="icon">📭</div>No leave data for ${currentYear}. <a href="leave.html" style="color:#2E5B88;font-weight:600;">Enter data →</a>`);
+      return;
     }
-    body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; -webkit-font-smoothing:antialiased; }
+    const data   = snap.data();
+    // Support both top-level keys (new) and nested months field (old)
+    const months = data.months || data;
+    const planArr     = MONTHS.map(m=>Number(months[m]?.plan)||0);
+    const consumedArr = MONTHS.map(m=>Number(months[m]?.consumed)||0);
 
-    /* ── Topbar ── */
-    .topbar { position:sticky; top:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 28px; height:58px; }
-    .topbar-brand { display:flex; align-items:center; gap:10px; }
-    .brand-icon { width:32px; height:32px; background:var(--navy); border-radius:8px; display:flex; align-items:center; justify-content:center; }
-    .brand-name { font-size:0.8rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:var(--text); }
-    .topbar-right { display:flex; align-items:center; gap:14px; }
-    .user-badge { font-size:0.8rem; color:var(--muted); }
-    .logout-btn { background:none; border:1.5px solid var(--border); border-radius:7px; padding:6px 14px; font-family:inherit; font-size:0.8rem; font-weight:500; cursor:pointer; color:var(--text); transition:all 180ms; }
-    .logout-btn:hover { border-color:var(--navy); background:var(--navy); color:#fff; }
+    const today=new Date();
+    const curMo = currentYear===today.getFullYear() ? today.getMonth() : 11;
 
-    /* ── Layout ── */
-    .hr-main { max-width:1060px; margin:0 auto; padding:36px 24px 72px; animation:fadeUp 400ms var(--ease) both; }
-    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
-
-    /* ── Page header ── */
-    .page-top { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
-    .page-top h1 { font-size:1.5rem; font-weight:700; letter-spacing:-0.02em; }
-    .page-top p  { font-size:0.875rem; color:var(--muted); margin-top:4px; }
-    .year-pick { display:flex; align-items:center; gap:10px; }
-    .year-pick label { font-size:0.8rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em; }
-    .year-pick select { padding:8px 14px; border:1.5px solid var(--border); border-radius:8px; font-family:inherit; font-size:0.9rem; font-weight:600; color:var(--text); background:var(--surface); outline:none; cursor:pointer; transition:border-color 200ms, box-shadow 200ms; }
-    .year-pick select:focus { border-color:var(--navy); box-shadow:0 0 0 3px rgba(30,58,95,.1); }
-
-    /* ── Loading ── */
-    .loading-state { text-align:center; padding:80px; color:var(--muted); font-size:0.9rem; }
-    .loading-state .icon { font-size:2.5rem; margin-bottom:14px; }
-
-    /* ── Section divider ── */
-    .section-title {
-      display:flex; align-items:center; gap:10px;
-      font-size:0.95rem; font-weight:700; letter-spacing:-0.01em;
-      color:var(--text); margin:36px 0 18px;
+    const ytdPlan=[], ytdConsumed=[];
+    let cumP=0, cumC=0;
+    for(let i=0;i<12;i++){
+      cumP+=planArr[i]; cumC+=consumedArr[i];
+      ytdPlan.push(cumP);
+      ytdConsumed.push(i<=curMo ? cumC : null);
     }
-    .section-title::before { content:''; flex:none; width:4px; height:18px; background:var(--navy); border-radius:2px; }
-    .section-title::after  { content:''; flex:1; height:1px; background:var(--border); }
-    .section-updated { font-size:0.7rem; color:var(--muted); margin:-12px 0 16px 14px; }
-    .section-updated:empty { display:none; }
 
-    /* ── Stat row ── */
-    .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
-    .stat-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:20px; }
-    .stat-card .sc-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:10px; }
-    .stat-card .sc-value { font-size:1.6rem; font-weight:700; letter-spacing:-0.03em; line-height:1; }
-    .stat-card .sc-sub   { font-size:0.75rem; color:var(--muted); margin-top:6px; }
-    .sc-navy { color:var(--navy); }
-    .sc-teal { color:var(--teal); }
-    .sc-sage { color:var(--sage); }
-    .sc-gold { color:var(--gold); }
-    .sc-rust { color:var(--rust); }
+    const totPlan     = planArr.reduce((a,b)=>a+b,0);
+    const totConsumed = consumedArr.reduce((a,b)=>a+b,0);
+    const totDiff     = totConsumed-totPlan;
+    const pct         = totPlan>0 ? totConsumed/totPlan*100 : 0;
+    const pctCls      = pct>100?"over":pct<100?"under":"exact";
+    const ytdPV       = ytdPlan[curMo]||0;
+    const ytdCV       = ytdConsumed[curMo]||0;
+    const ytdDiff     = ytdCV-ytdPV;
 
-    /* ── Pct card ── */
-    .pct-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:24px 28px; display:flex; align-items:center; gap:36px; flex-wrap:wrap; margin-bottom:20px; }
-    .pct-left { flex:0 0 auto; }
-    .pct-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px; }
-    .pct-value { font-size:3.2rem; font-weight:800; letter-spacing:-0.06em; line-height:1; }
-    .pct-value.over  { color:var(--rust); }
-    .pct-value.under { color:var(--steel); }
-    .pct-value.exact { color:var(--sage); }
-    .pct-right { flex:1; min-width:220px; }
-    .pct-bar-track { height:8px; background:#EDF0F4; border-radius:99px; overflow:hidden; margin-bottom:16px; }
-    .pct-bar-fill  { height:100%; border-radius:99px; transition:width 800ms var(--ease); }
-    .pct-bar-fill.over  { background:var(--rust); }
-    .pct-bar-fill.under { background:var(--steel); }
-    .pct-bar-fill.exact { background:var(--sage); }
-    .pct-stats { display:flex; gap:28px; flex-wrap:wrap; }
-    .pct-stat .ps-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px; }
-    .pct-stat .ps-val   { font-size:1.1rem; font-weight:700; letter-spacing:-0.02em; }
-    .ps-val.pos { color:var(--rust); }
-    .ps-val.neg { color:var(--steel); }
+    showContent();
+    await new Promise(r=>setTimeout(r,60));
 
-    /* ── Chart cards ── */
-    .chart-card { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); padding:24px; }
-    .chart-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
-    .chart-head h2 { font-size:0.95rem; font-weight:700; }
-    .chart-head p  { font-size:0.78rem; color:var(--muted); margin-top:3px; }
-    .chart-wrap     { position:relative; height:300px; }
-    .chart-wrap-md  { position:relative; height:260px; }
-    .chart-wrap-pie { position:relative; height:270px; }
+    // Pct card
+    const pctEl=el("pctValue");
+    if(pctEl){pctEl.textContent=pct.toFixed(1)+"%"; pctEl.className="pct-value "+pctCls;}
+    const barEl=el("pctBar");
+    if(barEl){barEl.style.width=Math.min(pct,100)+"%"; barEl.className="pct-bar-fill "+pctCls;}
+    set("pctPlan",     fmt(totPlan));
+    set("pctConsumed", fmt(totConsumed));
+    const dEl=el("pctDiff");
+    if(dEl){dEl.textContent=(totDiff>=0?"+":"")+fmt(totDiff); dEl.className="s-val "+(totDiff>0?"pos":totDiff<0?"neg":"");}
 
-    /* Grid layouts */
-    .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
-    @media(max-width:640px){ .grid-2{grid-template-columns:1fr;} }
-    .mb-18 { margin-bottom:18px; }
+    setLastUpdated("leave", data.updatedAt);
 
-    /* YTD chip row */
-    .ytd-chips { display:flex; gap:24px; flex-wrap:wrap; }
-    .ytd-chip .yc-label { font-size:0.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:4px; }
-    .ytd-chip .yc-val   { font-size:1.05rem; font-weight:700; letter-spacing:-0.02em; }
-    .yc-val.pos { color:var(--rust); }
-    .yc-val.neg { color:var(--steel); }
+    // ② Leave bar
+    charts.bar = buildLeaveBar(planArr, consumedArr);
 
+    // ③ YTD line
+    set("ytdPlanVal",     fmt(ytdPV));
+    set("ytdConsumedVal", fmt(ytdCV));
+    const ydEl=el("ytdDiffVal");
+    if(ydEl){ydEl.textContent=(ytdDiff>=0?"+":"")+fmt(ytdDiff); ydEl.className="ys-val "+(ytdDiff>0?"pos":ytdDiff<0?"neg":"");}
+    charts.ytd = buildYTD(ytdPlan, ytdConsumed);
 
-    /* Diff */
-    .diff-p { color:var(--rust);  font-weight:600; }
-    .diff-n { color:var(--steel); font-weight:600; }
-    .diff-z { color:var(--muted); }
+    await buildYEEP();
+    await buildHC();
+    await buildFQ();
+    await buildWF();
+    await buildDisc();
+    await buildEQ();
+    await buildCVT();
+    await buildTA();
 
-    /* ── Section filter bar ── */
-    .filter-bar {
-      display:flex; align-items:center; gap:8px; flex-wrap:wrap;
-      margin-bottom:24px; padding:14px 18px;
-      background:var(--surface); border:1px solid var(--border);
-      border-radius:var(--radius); box-shadow:0 1px 6px rgba(30,58,95,.06);
+  } catch(e){
+    console.error(e);
+    showLoading(`<div class="icon">⚠️</div>Error: ${e.message}`);
+  }
+}
+
+// ════════════════════════════════════════
+// ② LEAVE BAR
+// ════════════════════════════════════════
+function buildLeaveBar(plan, consumed) {
+  const c=el("barChart"); if(!c) return;
+  return new Chart(c.getContext("2d"),{
+    type:"bar",
+    data:{
+      labels:MONTHS,
+      datasets:[
+        {label:"Plan",     data:plan,     backgroundColor:P.plan,    borderColor:P.planBorder, borderWidth:1.5, borderRadius:5, borderSkipped:false},
+        {label:"Consumed", data:consumed, backgroundColor:P.consumed,borderWidth:0,            borderRadius:5, borderSkipped:false}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:20,font:{size:12}}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}`}}
+      },
+      scales:{x:xCfg(), y:yCfg()},
+      animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart); }}
     }
-    .filter-bar-label {
-      font-size:0.7rem; font-weight:700; color:var(--muted);
-      text-transform:uppercase; letter-spacing:.07em; margin-right:4px; white-space:nowrap;
+  });
+}
+
+// ════════════════════════════════════════
+// ③ YTD LINE
+// ════════════════════════════════════════
+function buildYTD(ytdPlan, ytdConsumed) {
+  const c=el("ytdChart"); if(!c) return;
+  const cData=[...ytdConsumed];
+  return new Chart(c.getContext("2d"),{
+    type:"line",
+    data:{
+      labels:MONTHS,
+      datasets:[
+        {label:"YTD Plan",     data:ytdPlan, borderColor:P.slateFade.replace("0.12","0.6"), backgroundColor:"transparent", borderWidth:2, borderDash:[7,4], pointRadius:3, pointBackgroundColor:P.slate, tension:0.35, fill:false},
+        {label:"YTD Consumed", data:cData,   borderColor:P.ytdLine, backgroundColor:"rgba(30,58,95,0.07)", borderWidth:2.5, pointRadius:5, pointBackgroundColor:P.ytdLine, tension:0.35, fill:true}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:20,font:{size:12}}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}`}}
+      },
+      scales:{x:xCfg(), y:yCfg()},
+      animation:{onComplete(evt){ if(evt.initial) return; labelLine(evt.chart,1,cData); }}
     }
-    .filter-pill {
-      display:inline-flex; align-items:center; gap:5px;
-      padding:6px 14px; border-radius:99px; border:1.5px solid var(--border);
-      background:var(--surface); font-size:0.78rem; font-weight:600;
-      cursor:pointer; color:var(--muted); transition:all 150ms; white-space:nowrap;
-      font-family:inherit;
+  });
+}
+
+// ════════════════════════════════════════
+// ⑤ YEEP
+// ════════════════════════════════════════
+async function buildYEEP() {
+  try {
+    const snap=await getDoc(doc(db,"yeep_data",String(currentYear)));
+    if(!snap.exists()){set("yeepTotal","No data");return;}
+    setLastUpdated("yeep", snap.data().updatedAt);
+    const teams=snap.data().teams||{};
+    const MK=MONTHS.map((_,i)=>`m${i}`);
+    const esArr=MK.map(k=>Number(teams.ES?.[k])||0);
+    const erArr=MK.map(k=>Number(teams.ER?.[k])||0);
+    const totES=esArr.reduce((a,b)=>a+b,0);
+    const totER=erArr.reduce((a,b)=>a+b,0);
+    const total=totES+totER;
+
+    set("yeepTotal", total.toLocaleString());
+    set("yeepES",    totES.toLocaleString());
+    set("yeepER",    totER.toLocaleString());
+
+    // Populate stat cards with target vs achievement
+    const targets = snap.data().targets || {};
+    const tES  = Number(targets.ES)  || 0;
+    const tER  = Number(targets.ER)  || 0;
+    const tAll = tES + tER;
+
+    // Fill stat card: target, achieved, remaining, mini bar + pct text
+    function fillCard(targetElId, remElId, barElId, pctElId, target, achieved, color) {
+      const pct = target > 0 ? (achieved / target * 100) : null;
+      const rem = target > 0 ? Math.max(0, target - achieved) : null;
+      set(targetElId, target > 0 ? target.toLocaleString() : "No target");
+      set(remElId,    rem !== null ? rem.toLocaleString() : "—");
+      const barEl = el(barElId);
+      if(barEl){ barEl.style.width=(pct!==null?Math.min(pct,100).toFixed(1):0)+"%"; barEl.style.background=color; }
+      const pctEl = el(pctElId);
+      if(pctEl){ pctEl.textContent = pct!==null ? pct.toFixed(1)+"% of target" : "No target set";
+                 pctEl.style.color = pct!==null&&pct>=100 ? "#3A6B4A" : color; }
     }
-    .filter-pill:hover { border-color:var(--navy); color:var(--navy); }
-    .filter-pill.active { background:var(--navy); color:#fff; border-color:var(--navy); }
-    .filter-pill.all-pill.active { background:var(--steel); border-color:var(--steel); }
 
-    /* ── Disc side-by-side equal height ── */
-    .disc-top-grid {
-      display:grid; grid-template-columns:200px 1fr;
-      gap:16px; margin-bottom:20px; align-items:stretch;
+    fillCard("yeepESTargetCard",   "yeepESRemCard",   "yeepESBarCard",   "yeepESPct",      tES,  totES,  "#1E3A5F");
+    fillCard("yeepERTargetCard",   "yeepERRemCard",   "yeepERBarCard",   "yeepERPct",      tER,  totER,  "#1B6B6B");
+    fillCard("yeepCombTargetCard", "yeepCombRemCard", "yeepCombBarCard", "yeepCombPctCard",tAll, total,  "#1E3A5F");
+
+    const pie=el("yeepPieChart");
+    if(pie){
+      charts.yeepPie=new Chart(pie.getContext("2d"),{
+        type:"doughnut", plugins:[PIE_LABEL_PLUGIN],
+        data:{labels:["ES Team","ER Team"],datasets:[{data:[totES,totER],backgroundColor:[P.esTeam,P.erTeam],borderColor:"#fff",borderWidth:3,hoverOffset:8}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
+          plugins:{legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:16,font:{size:12}}},
+          tooltip:{callbacks:{label:c=>{const p=total>0?(c.raw/total*100).toFixed(1):0;return ` ${c.label}: ${c.raw.toLocaleString()} (${p}%)`;}}}}}
+      });
     }
-    .disc-top-grid .stat-card { display:flex; flex-direction:column; justify-content:center; }
-    @media(max-width:640px){ .disc-top-grid{ grid-template-columns:1fr; } }
-  </style>
-</head>
-<body>
+    const bar=el("yeepBarChart");
+    if(bar){
+      charts.yeepBar=new Chart(bar.getContext("2d"),{
+        type:"bar",
+        data:{labels:MONTHS,datasets:[
+          {label:"ES Team",data:esArr,backgroundColor:P.esTeam,borderRadius:5,borderWidth:0},
+          {label:"ER Team",data:erArr,backgroundColor:P.erTeam,borderRadius:5,borderWidth:0}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:16,font:{size:12}}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw.toLocaleString()}`}}},
+          scales:{x:xCfg(),y:yCfg()},
+          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart);}}}
+      });
+    }
+  } catch(e){console.error("YEEP:",e);}
+}
 
-  <header class="topbar">
-    <div class="topbar-brand">
-      <div class="brand-icon">
-        <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-          <rect x="2" y="2" width="6" height="6" rx="1.5" fill="white"/>
-          <rect x="10" y="2" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="2" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
-          <rect x="10" y="10" width="6" height="6" rx="1.5" fill="white" opacity=".3"/>
-        </svg>
-      </div>
-      <span class="brand-name">EMS</span>
-    </div>
-    <div class="topbar-right">
-      <a href="dashboard.html" style="font-size:0.8rem;color:var(--muted);text-decoration:none;">← Dashboard</a>
-      <span class="user-badge" id="topbarEmail"></span>
-      <button class="logout-btn" id="logoutBtn">Log out</button>
-    </div>
-  </header>
+// ════════════════════════════════════════
+// ⑥ HEALTH CHECKUP
+// ════════════════════════════════════════
+async function buildHC() {
+  try {
+    const snap=await getDoc(doc(db,"health_data",String(currentYear)));
+    if(!snap.exists()){set("hcTarget","No data");return;}
+    setLastUpdated("health", snap.data().updatedAt);
+    const data=snap.data();
+    const months=data.months||data;
+    const target=Number(data.target)||0;
+    const completed=MONTHS.map(m=>Number(months[m]?.completed)||0);
+    const ytd=completed.reduce((a,b)=>a+b,0);
+    const pct=target>0?(ytd/target*100).toFixed(1):"—";
+    const monthlyPace=target>0 ? parseFloat((target/12).toFixed(1)) : 0;
+    const paceArr=MONTHS.map(()=>monthlyPace);
 
-  <main class="hr-main">
+    set("hcTarget",    target>0?target.toLocaleString():"—");
+    set("hcCompleted", ytd.toLocaleString());
+    const pEl=el("hcPct");
+    if(pEl){
+      pEl.textContent=pct!=="—"?pct+"%":"—";
+      pEl.style.color=pct!=="—"&&Number(pct)>=100?"#3A6B4A":"#8B3A2A";
+    }
+    set("hcPctSub",pct!=="—"?(Number(pct)>=100?"On track ✓":`${(target-ytd).toLocaleString()} remaining`):"");
 
-    <div class="page-top">
-      <div>
-        <h1>HR Dashboard</h1>
-        <p>Consolidated view — Leave, YEEP, Health, Food Quality & Welfare.</p>
-      </div>
-      <div class="year-pick">
-        <label for="yearSelect">Year</label>
-        <select id="yearSelect"></select>
-      </div>
-    </div>
+    const c=el("hcBarChart"); if(!c) return;
+    const compData=[...completed];
+    const paceData=[...paceArr];
+    charts.hcBar=new Chart(c.getContext("2d"),{
+      type:"bar",
+      data:{
+        labels:MONTHS,
+        datasets:[
+          {label:"Monthly Pace",  data:paceData, backgroundColor:P.pace,     borderColor:P.paceBorder, borderWidth:2, borderRadius:5, borderSkipped:false},
+          {label:"Completed",     data:compData, backgroundColor:P.completed, borderWidth:0,            borderRadius:5, borderSkipped:false}
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:20,font:{size:12}}},
+          tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.raw)}`}}
+        },
+        scales:{x:xCfg(), y:yCfg()},
+        animation:{
+          onComplete(evt){
+            if(evt.initial) return;
+            labelBars(evt.chart, [0,1]);
+          }
+        }
+      }
+    });
+  } catch(e){console.error("HC:",e);}
+}
 
-    <!-- Section filter bar -->
-    <div class="filter-bar" id="filterBar" style="display:none;">
-      <span class="filter-bar-label">Show:</span>
-      <button class="filter-pill all-pill active" data-filter="all">All Sections</button>
-      <button class="filter-pill" data-filter="leave">📋 Leave</button>
-      <button class="filter-pill" data-filter="yeep">⚡ YEEP</button>
-      <button class="filter-pill" data-filter="health">🏥 Health</button>
-      <button class="filter-pill" data-filter="food">🍽️ Food Quality</button>
-      <button class="filter-pill" data-filter="welfare">🤝 Welfare</button>
-      <button class="filter-pill" data-filter="disciplinary">⚖️ Disciplinary</button>
-      <button class="filter-pill" data-filter="eq">📊 EQ Survey</button>
-      <button class="filter-pill" data-filter="cvt">🎯 Core Value Training</button>
-      <button class="filter-pill" data-filter="ta">👥 Talent Acquisition</button>
-    </div>
+// ════════════════════════════════════════
+// ⑦ FOOD QUALITY
+// ════════════════════════════════════════
+async function buildFQ() {
+  const FF=["vg","g","s","b","vb"];
+  const FL=["Very Good","Good","Satisfactory","Bad","Very Bad"];
+  const FC=[P.vGood,P.good,P.satisf,P.bad,P.vBad];
+  try {
+    const snap=await getDoc(doc(db,"food_data",String(currentYear)));
+    if(!snap.exists()){set("fqTotal","No data");return;}
+    setLastUpdated("food", snap.data().updatedAt);
+    const _fd=snap.data(); const months=_fd.months||_fd;
+    const totals={vg:0,g:0,s:0,b:0,vb:0};
+    const byMonth={vg:[],g:[],s:[],b:[],vb:[]};
+    MONTHS.forEach(m=>{
+      FF.forEach(f=>{
+        const v=Number(months[m]?.[f])||0;
+        totals[f]+=v; byMonth[f].push(v);
+      });
+    });
+    const grand=Object.values(totals).reduce((a,b)=>a+b,0);
+    set("fqTotal",    grand.toLocaleString());
+    set("fqPositive", (totals.vg+totals.g+totals.s).toLocaleString());   // Very Good + Good + Satisfactory
+    set("fqNegative", (totals.b+totals.vb).toLocaleString());
+    const fqPct = n => grand > 0 ? `${Number((n / grand * 100).toFixed(1))}% of total surveys` : "";
+    set("fqPositivePct", fqPct(totals.vg+totals.g+totals.s));
+    set("fqNegativePct", fqPct(totals.b+totals.vb));
 
-    <div id="loadingState" class="loading-state">
-      <div class="icon">📊</div>Loading data…
-    </div>
+    const pie=el("fqPieChart");
+    if(pie){
+      charts.fqPie=new Chart(pie.getContext("2d"),{
+        type:"doughnut", plugins:[PIE_LABEL_PLUGIN],
+        data:{labels:FL,datasets:[{data:FF.map(f=>totals[f]),backgroundColor:FC,borderColor:"#fff",borderWidth:3,hoverOffset:8}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"55%",
+          plugins:{legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:10,font:{size:11}}},
+          tooltip:{callbacks:{label:c=>{const p=grand>0?(c.raw/grand*100).toFixed(1):0;return ` ${c.label}: ${c.raw} (${p}%)`;}}}}}
+      });
+    }
+    const bar=el("fqBarChart");
+    if(bar){
+      charts.fqBar=new Chart(bar.getContext("2d"),{
+        type:"bar",
+        data:{labels:MONTHS,datasets:FF.map((f,i)=>({label:FL[i],data:byMonth[f],backgroundColor:FC[i],borderWidth:0,borderRadius:0}))},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:10,font:{size:11}}},
+          tooltip:{mode:"index",intersect:false}},
+          scales:{x:{...xCfg(),stacked:true},y:{...yCfg(),stacked:true}},
+          animation:{onComplete(evt){
+            if(evt.initial) return;
+            labelBars(evt.chart,[FF.length-1]);
+          }}}
+      });
+    }
+  } catch(e){console.error("FQ:",e);}
+}
 
-    <div id="mainContent" style="display:none;">
+// ════════════════════════════════════════
+// ⑧ WELFARE
+// ════════════════════════════════════════
+async function buildWF() {
+  try {
+    const snap=await getDoc(doc(db,"welfare_data",String(currentYear)));
+    if(!snap.exists()){set("wfTotal","No data");return;}
+    setLastUpdated("welfare", snap.data().updatedAt);
+    const _fd=snap.data(); const months=_fd.months||_fd;
+    const totArr=MONTHS.map(m=>Number(months[m]?.total)||0);
+    const solArr=MONTHS.map(m=>Number(months[m]?.solved)||0);
+    const folArr=MONTHS.map(m=>Number(months[m]?.followup)||0);
+    const gTot=totArr.reduce((a,b)=>a+b,0);
+    const gSol=solArr.reduce((a,b)=>a+b,0);
+    const gFol=folArr.reduce((a,b)=>a+b,0);
+    const pct=gTot>0?(gSol/gTot*100).toFixed(1):"—";
 
-      <!-- ════════ LEAVE ════════ -->
-      <div data-section="leave">
-      <div class="section-title">Leave Plan vs Consumed</div>
+    set("wfTotal",    gTot.toLocaleString());
+    set("wfSolved",   gSol.toLocaleString());
+    set("wfFollowup", gFol.toLocaleString());
+    set("wfPct",      pct!=="—"?`${pct}% resolved`:"—");
 
-      <!-- Pct card -->
-      <div class="pct-card">
-        <div class="pct-left">
-          <div class="pct-label">% Consumed of Plan</div>
-          <div class="pct-value" id="pctValue">—</div>
-        </div>
-        <div class="pct-right">
-          <div class="pct-bar-track"><div class="pct-bar-fill" id="pctBar" style="width:0%"></div></div>
-          <div class="pct-stats">
-            <div class="pct-stat">
-              <div class="ps-label">Total Plan</div>
-              <div class="ps-val" id="pctPlan">—</div>
+    const pie=el("wfPieChart");
+    if(pie){
+      charts.wfPie=new Chart(pie.getContext("2d"),{
+        type:"doughnut", plugins:[PIE_LABEL_PLUGIN],
+        data:{labels:["Solved","Follow-up"],datasets:[{data:[gSol,gFol],backgroundColor:[P.solved,P.followup],borderColor:"#fff",borderWidth:3,hoverOffset:8}]},
+        options:{responsive:true,maintainAspectRatio:false,cutout:"62%",
+          plugins:{legend:{position:"bottom",labels:{usePointStyle:true,pointStyle:"circle",padding:20,font:{size:12}}},
+          tooltip:{callbacks:{label:c=>{const p=gTot>0?(c.raw/gTot*100).toFixed(1):0;return ` ${c.label}: ${c.raw} (${p}%)`;}}}}}
+      });
+    }
+    const bar=el("wfBarChart");
+    if(bar){
+      charts.wfBar=new Chart(bar.getContext("2d"),{
+        type:"bar",
+        data:{labels:MONTHS,datasets:[
+          {label:"Total",     data:totArr, backgroundColor:P.slateFade, borderColor:P.slate, borderWidth:1.5, borderRadius:5, borderSkipped:false},
+          {label:"Solved",    data:solArr, backgroundColor:P.solved,    borderWidth:0, borderRadius:5, borderSkipped:false},
+          {label:"Follow-up", data:folArr, backgroundColor:P.followup,  borderWidth:0, borderRadius:5, borderSkipped:false}
+        ]},
+        options:{responsive:true,maintainAspectRatio:false,
+          plugins:{legend:{position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:14,font:{size:12}}},tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}`}}},
+          scales:{x:xCfg(),y:yCfg()},
+          animation:{onComplete(evt){ if(evt.initial) return; labelBars(evt.chart,[0,1,2]);}}}
+      });
+    }
+  } catch(e){console.error("WF:",e);}
+}
+
+// ════════════════════════════════════════
+// OUTSTANDING DISCIPLINARY
+// ════════════════════════════════════════
+async function buildDisc() {
+  const CATEGORIES = [
+    "Negligence of Work","Indecent Behaviour","Disobedience","Damage to Property",
+    "Dishonesty","Theft","Verbal Abuse","Mental Abuse","Physical Harassment","Sexual Harassment",
+    "Habitual Late Attendance","Continuous Absent","Habitual Absent","Giving False Information",
+    "Leaving without Permission","Sleeping while on Duty","Excess Stay",
+    "Improper/Non use of PPE","Fake Certification"
+  ];
+  const COLORS = [
+    "#2563EB","#1B6B6B","#3A6B4A","#BA7517","#8B3A2A","#7C3AED",
+    "#0891B2","#65A30D","#DC2626","#DB2777","#9333EA","#EA580C",
+    "#16A34A","#0D9488","#6D28D9","#B45309","#1D4ED8","#047857","#BE185D"
+  ];
+  function catKey(cat){ return cat.toLowerCase().replace(/[^a-z0-9]+/g,"_"); }
+
+  try {
+    const snap = await getDoc(doc(db,"disciplinary_current","outstanding"));
+    if(!snap.exists()){
+      set("discCurrentMonth","0");
+      set("discCurrentMonthName","No data entered yet");
+      const tableEl=el("discCategoryTable");
+      if(tableEl) tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);">No data entered yet.</div>`;
+      return;
+    }
+    const data = snap.data();
+    const catValues = CATEGORIES.map(cat => Number(data[catKey(cat)])||0);
+    const total = catValues.reduce((s,v)=>s+v,0);
+
+    // Stat card — total outstanding + last updated date
+    set("discCurrentMonth", total);
+    setLastUpdated("disciplinary", data.updatedAt);
+    set("discCurrentMonthName", "Total outstanding");
+
+    // Category table
+    const tableEl = el("discCategoryTable");
+    if(tableEl){
+      const rows = CATEGORIES.map((cat,i)=>({label:cat, count:catValues[i], color:COLORS[i]}))
+        .filter(r=>r.count>0).sort((a,b)=>b.count-a.count);
+      if(!rows.length){
+        tableEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No outstanding cases recorded.</div>`;
+      } else {
+        const maxCount = rows[0].count;
+        tableEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+          <thead><tr style="border-bottom:1.5px solid var(--border);">
+            <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Category</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Cases</th>
+            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Share</th>
+          </tr></thead>
+          <tbody>${rows.map(r=>{
+            const pct  = total>0?(r.count/total*100).toFixed(1):0;
+            const barW = maxCount>0?(r.count/maxCount*100).toFixed(1):0;
+            return `<tr style="border-bottom:1px solid #f0f0ee;">
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span style="width:9px;height:9px;border-radius:50%;background:${r.color};flex-shrink:0;display:inline-block;"></span>
+                  <span style="font-weight:500;color:var(--text);">${r.label}</span>
+                </div>
+              </td>
+              <td style="padding:8px;text-align:center;font-weight:700;color:var(--text);">${r.count}</td>
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
+                    <div style="height:100%;width:${barW}%;background:${r.color};border-radius:99px;transition:width 600ms;"></div>
+                  </div>
+                  <span style="font-size:0.7rem;font-weight:600;color:var(--muted);min-width:36px;">${pct}%</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>`;
+      }
+    }
+  } catch(e){ console.error("buildDisc:",e); }
+}
+
+// ════════════════════════════════════════
+// EQ
+// ════════════════════════════════════════
+async function buildEQ() {
+  try {
+    const snap = await getDoc(doc(db,"eq_data",String(currentYear)));
+    if(!snap.exists()){
+      set("eqPlan","—"); set("eqComplete","—"); set("eqPct","—");
+      return;
+    }
+    const data = snap.data();
+    setLastUpdated("eq", data.updatedAt);
+    let totPlan=0, totComplete=0;
+    const planArr     = MONTHS.map(m=>Number(data[m]?.plan)||0);
+    const completeArr = MONTHS.map(m=>Number(data[m]?.complete)||0);
+    planArr.forEach(v=>totPlan+=v);
+    completeArr.forEach(v=>totComplete+=v);
+    const pct = totPlan>0 ? Math.round(totComplete/totPlan*100) : 0;
+
+    set("eqPlan",     totPlan.toLocaleString());
+    set("eqComplete", totComplete.toLocaleString());
+    set("eqPct",      totPlan>0 ? pct+"%" : "—");
+
+    const barEl = el("eqPctBar");
+    if(barEl){ barEl.style.width=Math.min(pct,100)+"%"; barEl.style.background=pct>=100?"#3A6B4A":pct>=70?"#BA7517":"#8B3A2A"; }
+
+    // This month
+    const curMo = MONTHS[new Date().getMonth()];
+    const thisMoComplete = Number(data[curMo]?.complete)||0;
+    const thisMoPlan     = Number(data[curMo]?.plan)||0;
+    set("eqThisMonth", thisMoComplete);
+    set("eqThisMonthSub", `of ${thisMoPlan} planned this month`);
+
+    // Chart
+    const canvas = el("eqChart");
+    if(canvas){
+      if(charts.eq) charts.eq.destroy();
+      charts.eq = new Chart(canvas.getContext("2d"),{
+        type:"bar",
+        data:{
+          labels:MONTHS,
+          datasets:[
+            { label:"Plan",      data:planArr,     backgroundColor:"rgba(30,58,95,.15)", borderColor:P.navy||"#1E3A5F", borderWidth:2, borderRadius:5, borderSkipped:false },
+            { label:"Completed", data:completeArr, backgroundColor:"rgba(27,107,107,.2)", borderColor:"#1B6B6B", borderWidth:2, borderRadius:5, borderSkipped:false }
+          ]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{
+            legend:{display:true,position:"top",labels:{usePointStyle:true,pointStyle:"circle",padding:16,font:{size:11}}},
+            tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.raw}`}}
+          },
+          scales:{
+            x:xCfg(),
+            y:yCfg({suggestedMax:Math.max(...planArr,...completeArr)*1.3||10})
+          }
+        }
+      });
+    }
+  } catch(e){ console.error("buildEQ:",e); }
+}
+
+// ── Logout ────────────────────────────────────────────────────────────────────
+el("logoutBtn")?.addEventListener("click", async () => {
+  await signOut(auth);
+  window.location.href = "login.html";
+});
+
+// ════════════════════════════════════════
+// CORE VALUE TRAINING
+// ════════════════════════════════════════
+async function buildCVT() {
+  try {
+    const snap = await getDoc(doc(db, "cvt_data", "current"));
+    if (!snap.exists()) {
+      set("cvtTotal","—"); set("cvtDone","—"); set("cvtNotDone","—"); set("cvtPct","—");
+      return;
+    }
+    const data   = snap.data();
+    setLastUpdated("cvt", data.updatedAt);
+    const active = data.Active   || { total:0, done:0 };
+    const inact  = data.Inactive || { total:0, done:0 };
+
+    const total   = (Number(active.total)||0) + (Number(inact.total)||0);
+    const done    = (Number(active.done)||0)  + (Number(inact.done)||0);
+    const notDone = Math.max(0, total - done);
+    const pct     = total > 0 ? Math.round(done/total*100) : 0;
+    const barColor = pct>=70 ? "#3A6B4A" : pct>=50 ? "#BA7517" : "#8B3A2A";
+
+    set("cvtTotal",   total.toLocaleString());
+    set("cvtDone",    done.toLocaleString());
+    set("cvtNotDone", notDone.toLocaleString());
+    set("cvtPct",     total > 0 ? pct+"%" : "—");
+    const pb = el("cvtPctBar");
+    if (pb) { pb.style.width = pct+"%"; pb.style.background = barColor; }
+
+    // Breakdown table
+    const tableEl = el("cvtTable");
+    if (tableEl) {
+      const rows = [
+        { label:"Active",   t:Number(active.total)||0, d:Number(active.done)||0 },
+        { label:"Inactive", t:Number(inact.total)||0,  d:Number(inact.done)||0  },
+        { label:"Total",    t:total,                   d:done, isTot:true }
+      ].map(r => {
+        const nd  = Math.max(0, r.t - r.d);
+        const p   = r.t > 0 ? Math.round(r.d/r.t*100) : 0;
+        const bc  = p>=70 ? "#3A6B4A" : p>=50 ? "#BA7517" : "#8B3A2A";
+        return `<tr style="border-bottom:1px solid #f0f0ee;${r.isTot?"background:#EEF3FA;font-weight:700;":""}">
+          <td style="padding:9px 12px;font-weight:${r.isTot?"700":"500"};color:var(--text);">${r.label}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;">${r.t.toLocaleString()}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#3A6B4A;">${r.d.toLocaleString()}</td>
+          <td style="padding:9px 8px;text-align:center;font-weight:700;color:#8B3A2A;">${nd.toLocaleString()}</td>
+          <td style="padding:9px 12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
+                <div style="height:100%;width:${p}%;background:${bc};border-radius:99px;"></div>
+              </div>
+              <span style="font-size:0.72rem;font-weight:700;color:${bc};min-width:34px;">${p}%</span>
             </div>
-            <div class="pct-stat">
-              <div class="ps-label">Total Consumed</div>
-              <div class="ps-val" id="pctConsumed">—</div>
-            </div>
-            <div class="pct-stat">
-              <div class="ps-label">Difference</div>
-              <div class="ps-val" id="pctDiff">—</div>
-            </div>
-          </div>
-        </div>
-      </div>
+          </td>
+        </tr>`;
+      }).join("");
 
-      <!-- Leave bar chart -->
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>Monthly Plan vs Consumed</h2><p>Leave hours per month</p></div>
-        </div>
-        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
-      </div>
+      tableEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+        <thead><tr style="border-bottom:1.5px solid var(--border);">
+          <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Job Status</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Total</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:#3A6B4A;text-transform:uppercase;">Done</th>
+          <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:#8B3A2A;text-transform:uppercase;">Not Done</th>
+          <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Achievement</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
 
-      <!-- YTD line chart -->
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>YTD Cumulative</h2><p>Running total through the year</p></div>
-          <div class="ytd-chips">
-            <div class="ytd-chip"><div class="yc-label">YTD Plan</div><div class="yc-val" id="ytdPlanVal">—</div></div>
-            <div class="ytd-chip"><div class="yc-label">YTD Consumed</div><div class="yc-val" id="ytdConsumedVal">—</div></div>
-            <div class="ytd-chip"><div class="yc-label">YTD Diff</div><div class="yc-val" id="ytdDiffVal">—</div></div>
-          </div>
-        </div>
-        <div class="chart-wrap-md"><canvas id="ytdChart"></canvas></div>
-      </div>
+    // Donut chart
+    const canvas = el("cvtChart");
+    if (canvas) {
+      if (charts.cvt) charts.cvt.destroy();
+      charts.cvt = new Chart(canvas.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["Training Done", "Not Done"],
+          datasets: [{
+            data: [done, notDone],
+            backgroundColor: ["#3A6B4A", "#EDF0F4"],
+            borderColor: ["#2D5A3D", "#DDE1E7"],
+            borderWidth: 2,
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: "65%",
+          plugins: {
+            legend: { position:"bottom", labels:{ usePointStyle:true, pointStyle:"circle", padding:14, font:{size:11} } },
+            tooltip: { callbacks: { label: c => {
+              const p = total > 0 ? (c.raw/total*100).toFixed(1) : 0;
+              return ` ${c.label}: ${c.raw.toLocaleString()} (${p}%)`;
+            }}}
+          }
+        }
+      });
+    }
+  } catch (e) { console.error("buildCVT:", e); }
+}
 
-      </div><!-- /section:leave -->
+// ── Talent Acquisition ────────────────────────────────────────────────────────
+// Pure summary of requisitions (kept separate so it can be tested on its own).
+// Open = no ECM date. Time to fill = ECM date − requisition date, counted in the
+// year/month of the ECM date.
+function taSummary(reqs, year, today) {
+  const pd   = s => new Date(s + "T00:00:00");
+  const days = (a, b) => Math.round((b - a) / 86400000);
+  const open = [], filled = [];
+  const byMonth = Array.from({ length: 12 }, () => ({ sum: 0, count: 0 }));
+  reqs.forEach(r => {
+    if (!r.reqDate) return;
+    if (!r.ecmDate) {
+      open.push({
+        position: r.position || "—",
+        vacancies: Math.max(1, Number(r.vacancies) || 1),
+        reqDate: r.reqDate,
+        days: Math.max(0, days(pd(r.reqDate), today))
+      });
+    } else {
+      const ecm = pd(r.ecmDate);
+      const d = days(pd(r.reqDate), ecm);
+      if (d >= 0 && ecm.getFullYear() === year) {
+        filled.push(d);
+        byMonth[ecm.getMonth()].sum += d;
+        byMonth[ecm.getMonth()].count += 1;
+      }
+    }
+  });
+  open.sort((a, b) => b.days - a.days);
+  return {
+    open,
+    openVacancies: open.reduce((s, o) => s + o.vacancies, 0),
+    filledCount: filled.length,
+    avgFill: filled.length ? filled.reduce((s, d) => s + d, 0) / filled.length : null,
+    byMonth
+  };
+}
 
-      <div data-section="yeep">
-      <!-- ════════ YEEP ════════ -->
-      <div class="section-title">YEEP Installation</div>
+async function buildTA() {
+  const escT = s => String(s ?? "").replace(/[&<>"']/g, ch =>
+    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+  try {
+    // ── Shortage / excess (current vs standard) ──
+    const hcSnap = await getDoc(doc(db, "ta_data", "headcount"));
+    const hc = hcSnap.exists() ? hcSnap.data() : {};
 
-      <div class="stat-row" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));">
+    function paintGap(valId, labelId, detailId, cur, std) {
+      const valEl = el(valId), labelEl = el(labelId), detailEl = el(detailId);
+      if (!valEl || !labelEl) return;
+      if (!hcSnap.exists() || (!std && !cur)) {
+        valEl.textContent = "—"; valEl.style.color = "";
+        labelEl.textContent = "No data entered"; labelEl.style.color = "";
+        if (detailEl) detailEl.textContent = "";
+        return;
+      }
+      const g = cur - std;
+      let color, label;
+      if (g < 0)      { color = "#8B3A2A"; label = "Shortage"; }
+      else if (g > 0) { color = "#BA7517"; label = "Excess"; }
+      else            { color = "#3A6B4A"; label = "At standard"; }
+      valEl.textContent = g === 0 ? "0" : Math.abs(g).toLocaleString();
+      valEl.style.color = color;
+      labelEl.textContent = label; labelEl.style.color = color;
+      if (detailEl) {
+        const pct = std > 0 ? ` (${Math.round(cur / std * 100)}%)` : "";
+        detailEl.textContent = `Current ${cur.toLocaleString()} · Standard ${std.toLocaleString()}${pct}`;
+      }
+    }
+    paintGap("taOpVal", "taOpLabel", "taOpDetail", Number(hc.curOperator) || 0, Number(hc.stdOperator) || 0);
+    paintGap("taHpVal", "taHpLabel", "taHpDetail", Number(hc.curHelper)   || 0, Number(hc.stdHelper)   || 0);
 
-        <!-- Total card -->
-        <div class="stat-card">
-          <div class="sc-label">Total Installations</div>
-          <div class="sc-value sc-navy" id="yeepTotal">—</div>
-          <div class="sc-sub">ES + ER combined</div>
-          <div style="height:1px;background:var(--border);margin:10px 0;"></div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);">
-            <span>Combined Target</span><span style="font-weight:700;color:var(--text);" id="yeepCombTargetCard">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-top:4px;">
-            <span>Remaining</span><span style="font-weight:700;color:var(--text);" id="yeepCombRemCard">—</span>
-          </div>
-          <div style="margin-top:8px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="yeepCombBarCard" style="height:100%;width:0%;background:#1E3A5F;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-          <div style="font-size:0.7rem;font-weight:700;color:var(--muted);margin-top:4px;" id="yeepCombPctCard">—</div>
-        </div>
+    // ── Requisitions ──
+    const reqSnap = await getDocs(collection(db, "ta_requisitions"));
+    const reqs = reqSnap.docs.map(d => d.data());
+    if (hcSnap.exists() || reqs.length) {
+      const stamps = [hc.updatedAt, ...reqs.map(r => r.updatedAt || r.createdAt)]
+        .map(v => v ? new Date(v).getTime() : NaN).filter(t => !isNaN(t));
+      setLastUpdated("ta", stamps.length ? new Date(Math.max(...stamps)).toISOString() : null);
+    }
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const s = taSummary(reqs, currentYear, today);
 
-        <!-- ES Team card -->
-        <div class="stat-card">
-          <div class="sc-label" style="color:#1E3A5F;">ES Team</div>
-          <div class="sc-value" style="color:#1E3A5F" id="yeepES">—</div>
-          <div class="sc-sub">YTD Achieved</div>
-          <div style="height:1px;background:var(--border);margin:10px 0;"></div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);">
-            <span>Annual Target</span><span style="font-weight:700;color:var(--text);" id="yeepESTargetCard">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-top:4px;">
-            <span>Remaining</span><span style="font-weight:700;color:var(--text);" id="yeepESRemCard">—</span>
-          </div>
-          <div style="margin-top:8px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="yeepESBarCard" style="height:100%;width:0%;background:#1E3A5F;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-          <div style="font-size:0.7rem;font-weight:700;color:#1E3A5F;margin-top:4px;" id="yeepESPct">—</div>
-        </div>
+    set("taOpenReqs", s.open.length.toLocaleString());
+    set("taOpenSub", s.open.length
+      ? `${s.openVacancies.toLocaleString()} vacanc${s.openVacancies === 1 ? "y" : "ies"} awaiting fill`
+      : "No open requisitions");
+    set("taAvgFill", s.avgFill !== null ? `${Number(s.avgFill.toFixed(1))} days` : "—");
+    set("taAvgSub", s.avgFill !== null
+      ? `across ${s.filledCount} filled in ${currentYear} (requisition → ECM)`
+      : `no requisitions filled in ${currentYear}`);
 
-        <!-- ER Team card -->
-        <div class="stat-card">
-          <div class="sc-label" style="color:#1B6B6B;">ER Team</div>
-          <div class="sc-value" style="color:#1B6B6B" id="yeepER">—</div>
-          <div class="sc-sub">YTD Achieved</div>
-          <div style="height:1px;background:var(--border);margin:10px 0;"></div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);">
-            <span>Annual Target</span><span style="font-weight:700;color:var(--text);" id="yeepERTargetCard">—</span>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--muted);margin-top:4px;">
-            <span>Remaining</span><span style="font-weight:700;color:var(--text);" id="yeepERRemCard">—</span>
-          </div>
-          <div style="margin-top:8px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="yeepERBarCard" style="height:100%;width:0%;background:#1B6B6B;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-          <div style="font-size:0.7rem;font-weight:700;color:#1B6B6B;margin-top:4px;" id="yeepERPct">—</div>
-        </div>
+    // Time-to-fill chart: average days by month the position was filled
+    const monthAvg = s.byMonth.map(m => m.count ? Number((m.sum / m.count).toFixed(1)) : null);
+    const monthCnt = s.byMonth.map(m => m.count);
+    const fillCanvas = el("taFillChart");
+    if (fillCanvas) {
+      if (charts.taFill) charts.taFill.destroy();
+      const top = Math.max(0, ...monthAvg.filter(v => v !== null));
+      charts.taFill = new Chart(fillCanvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels: MONTHS,
+          datasets: [{
+            label: "Avg days to fill", data: monthAvg,
+            backgroundColor: "rgba(27,107,107,.2)", borderColor: "#1B6B6B",
+            borderWidth: 2, borderRadius: 5, borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: c => ` ${c.raw} days on average · ${monthCnt[c.dataIndex]} filled` } }
+          },
+          scales: { x: xCfg(), y: yCfg({ suggestedMax: top * 1.3 || 10 }) }
+        }
+      });
+    }
 
-      </div>
-
-
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>ES vs ER Split</h2><p>Total by team</p></div></div>
-          <div class="chart-wrap-pie"><canvas id="yeepPieChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Monthly ES vs ER</h2><p>Installations per month</p></div></div>
-          <div class="chart-wrap-md"><canvas id="yeepBarChart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ════════ HEALTH CHECKUP ════════ -->
-      </div><!-- /section:yeep -->
-
-      <div data-section="health">
-      <div class="section-title">Health Checkup (YTD)</div>
-
-      <div class="stat-row">
-        <div class="stat-card"><div class="sc-label">Annual Target</div><div class="sc-value sc-navy" id="hcTarget">—</div></div>
-        <div class="stat-card"><div class="sc-label">YTD Completed</div><div class="sc-value sc-sage" id="hcCompleted">—</div></div>
-        <div class="stat-card"><div class="sc-label">Achievement</div><div class="sc-value" id="hcPct">—</div><div class="sc-sub" id="hcPctSub"></div></div>
-      </div>
-      <div class="chart-card mb-18">
-        <div class="chart-head"><div><h2>Monthly Completed vs Target Pace</h2><p>Checkups completed vs equal-monthly pace</p></div></div>
-        <div class="chart-wrap"><canvas id="hcBarChart"></canvas></div>
-      </div>
-
-      <!-- ════════ FOOD QUALITY ════════ -->
-      </div><!-- /section:health -->
-
-      <div data-section="food">
-      <div class="section-title">Monthly Food Quality Survey</div>
-
-      <div class="stat-row">
-        <div class="stat-card"><div class="sc-label">Total Surveys</div><div class="sc-value sc-navy" id="fqTotal">—</div></div>
-        <div class="stat-card"><div class="sc-label">Positive (VG + Good + Satisfactory)</div><div class="sc-value sc-sage" id="fqPositive">—</div><div class="sc-sub" id="fqPositivePct"></div></div>
-        <div class="stat-card"><div class="sc-label">Negative (Bad + VB)</div><div class="sc-value sc-rust" id="fqNegative">—</div><div class="sc-sub" id="fqNegativePct"></div></div>
-      </div>
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Rating Distribution</h2><p>All months combined</p></div></div>
-          <div class="chart-wrap-pie"><canvas id="fqPieChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Monthly by Rating</h2><p>Stacked count per month</p></div></div>
-          <div class="chart-wrap-md"><canvas id="fqBarChart"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ════════ WELFARE ════════ -->
-      </div><!-- /section:food -->
-
-      <div data-section="welfare">
-      <div class="section-title">Welfare / Workplace Issue Resolution</div>
-
-      <div class="stat-row">
-        <div class="stat-card"><div class="sc-label">Total Issues</div><div class="sc-value sc-navy" id="wfTotal">—</div></div>
-        <div class="stat-card"><div class="sc-label">Solved</div><div class="sc-value sc-sage" id="wfSolved">—</div></div>
-        <div class="stat-card"><div class="sc-label">Follow-up</div><div class="sc-value sc-gold" id="wfFollowup">—</div><div class="sc-sub" id="wfPct"></div></div>
-      </div>
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Resolution Split</h2><p>Solved vs follow-up total</p></div></div>
-          <div class="chart-wrap-pie"><canvas id="wfPieChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Monthly Issues</h2><p>Total, solved and follow-up by month</p></div></div>
-          <div class="chart-wrap-md"><canvas id="wfBarChart"></canvas></div>
-        </div>
-      </div>
-
-
-      <!-- ════════ OUTSTANDING DISCIPLINARY ════════ -->
-      </div><!-- /section:welfare -->
-
-      <div data-section="disciplinary">
-      <div class="section-title">Outstanding Disciplinary</div>
-
-      <!-- This Month + Category side by side -->
-      <div class="disc-top-grid">
-        <div class="stat-card">
-          <div class="sc-label">This Month Outstanding</div>
-          <div class="sc-value sc-rust" id="discCurrentMonth">—</div>
-          <div class="sc-sub" id="discCurrentMonthName">Outstanding cases</div>
-        </div>
-        <div class="chart-card" style="margin:0;height:100%;">
-          <div class="chart-head"><div><h2>By Category</h2><p>Current outstanding cases by disciplinary reason</p></div></div>
-          <div id="discCategoryTable" style="padding:0 4px 12px;"></div>
-        </div>
-      </div>
-
-      </div><!-- /section:disciplinary -->
-
-      <!-- ════════ EQ SURVEY ════════ -->
-      <div data-section="eq">
-      <div class="section-title">EQ Survey</div>
-
-      <div class="stat-row" style="margin-bottom:20px;">
-        <div class="stat-card">
-          <div class="sc-label">YTD Plan</div>
-          <div class="sc-value sc-navy" id="eqPlan">—</div>
-          <div class="sc-sub">Surveys planned</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">YTD Completed</div>
-          <div class="sc-value sc-teal" id="eqComplete">—</div>
-          <div class="sc-sub">Surveys completed</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Achievement</div>
-          <div class="sc-value sc-sage" id="eqPct">—</div>
-          <div class="sc-sub">of annual plan</div>
-          <div style="margin-top:10px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="eqPctBar" style="height:100%;width:0%;background:#3A6B4A;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">This Month</div>
-          <div class="sc-value sc-navy" id="eqThisMonth">—</div>
-          <div class="sc-sub" id="eqThisMonthSub">completed this month</div>
-        </div>
-      </div>
-
-      <div class="chart-card mb-18">
-        <div class="chart-head">
-          <div><h2>EQ Survey — Plan vs Completed</h2><p>Monthly comparison of planned and completed surveys</p></div>
-        </div>
-        <div class="chart-wrap"><canvas id="eqChart"></canvas></div>
-      </div>
-      </div><!-- /section:eq -->
-
-      <!-- ════════ CORE VALUE TRAINING ════════ -->
-      <div data-section="cvt">
-      <div class="section-title">Core Value Training Status</div>
-
-      <!-- Summary stat cards -->
-      <div class="stat-row" style="margin-bottom:20px;">
-        <div class="stat-card">
-          <div class="sc-label">Total Employees</div>
-          <div class="sc-value sc-navy" id="cvtTotal">—</div>
-          <div class="sc-sub">Active + Inactive</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Training Done</div>
-          <div class="sc-value sc-teal" id="cvtDone">—</div>
-          <div class="sc-sub">Completed training</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Not Done</div>
-          <div class="sc-value sc-rust" id="cvtNotDone">—</div>
-          <div class="sc-sub">Pending training</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Overall Achievement</div>
-          <div class="sc-value sc-sage" id="cvtPct">—</div>
-          <div class="sc-sub">of total employees</div>
-          <div style="margin-top:10px;height:5px;background:#EDF0F4;border-radius:99px;overflow:hidden;">
-            <div id="cvtPctBar" style="height:100%;width:0%;background:#3A6B4A;border-radius:99px;transition:width 600ms;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Status breakdown table + donut chart -->
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>By Job Status</h2><p>Training completion breakdown by employment status</p></div></div>
-          <div id="cvtTable" style="padding:0 4px 12px;"></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Training Distribution</h2><p>Done vs Not Done across all employees</p></div></div>
-          <div class="chart-wrap-pie"><canvas id="cvtChart"></canvas></div>
-        </div>
-      </div>
-      </div><!-- /section:cvt -->
-
-      <!-- ════════ TALENT ACQUISITION ════════ -->
-      <div data-section="ta">
-      <div class="section-title">Talent Acquisition</div>
-
-      <div class="stat-row" style="margin-bottom:20px;">
-        <div class="stat-card">
-          <div class="sc-label">Operators</div>
-          <div class="sc-value" id="taOpVal">—</div>
-          <div class="sc-sub" id="taOpLabel" style="font-weight:700;">shortage / excess</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;" id="taOpDetail"></div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Helpers</div>
-          <div class="sc-value" id="taHpVal">—</div>
-          <div class="sc-sub" id="taHpLabel" style="font-weight:700;">shortage / excess</div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;" id="taHpDetail"></div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Open Requisitions</div>
-          <div class="sc-value sc-rust" id="taOpenReqs">—</div>
-          <div class="sc-sub" id="taOpenSub">awaiting fill</div>
-        </div>
-        <div class="stat-card">
-          <div class="sc-label">Avg Time to Fill</div>
-          <div class="sc-value sc-sage" id="taAvgFill">—</div>
-          <div class="sc-sub" id="taAvgSub">requisition → ECM date</div>
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Time to Fill</h2><p>Average days from requisition date to ECM date, by month filled</p></div></div>
-          <div class="chart-wrap"><canvas id="taFillChart"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-head"><div><h2>Current Manpower Requisitions</h2><p>Open requisitions and time passed since requisition date</p></div></div>
-          <div id="taOpenTable" style="padding:0 4px 12px;"></div>
-        </div>
-      </div>
-      </div><!-- /section:ta -->
-
-
-    </div><!-- /mainContent -->
-  </main>
-
-  <div class="toast" id="toast"></div>
-  <script type="module" src="js/hr-dashboard.js"></script>
-</body>
-</html>
+    const tbl = el("taOpenTable");
+    if (tbl) {
+      if (!s.open.length) {
+        tbl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:0.875rem;">No open requisitions.</div>`;
+      } else {
+        const maxD = Math.max(...s.open.map(o => o.days), 1);
+        tbl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
+          <thead><tr style="border-bottom:1.5px solid var(--border);">
+            <th style="text-align:left;padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">Position</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Vacancies</th>
+            <th style="text-align:center;padding:8px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Requisition Date</th>
+            <th style="padding:8px 12px;font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Time Passed</th>
+          </tr></thead>
+          <tbody>${s.open.map(o => {
+            const dt = new Date(o.reqDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const w = (o.days / maxD * 100).toFixed(1);
+            return `<tr style="border-bottom:1px solid #f0f0ee;">
+              <td style="padding:8px 12px;font-weight:600;color:var(--text);">${escT(o.position)}</td>
+              <td style="padding:8px;text-align:center;font-weight:700;">${o.vacancies}</td>
+              <td style="padding:8px;text-align:center;color:var(--muted);">${dt}</td>
+              <td style="padding:8px 12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div style="flex:1;height:6px;background:#EDF0F4;border-radius:99px;overflow:hidden;min-width:50px;">
+                    <div style="height:100%;width:${w}%;background:#8B3A2A;border-radius:99px;"></div>
+                  </div>
+                  <span style="font-size:0.72rem;font-weight:700;color:var(--text);min-width:56px;">${o.days} day${o.days === 1 ? "" : "s"}</span>
+                </div>
+              </td>
+            </tr>`;
+          }).join("")}</tbody>
+        </table>`;
+      }
+    }
+  } catch (e) { console.error("buildTA:", e); }
+}
