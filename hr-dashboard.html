@@ -53,6 +53,8 @@
     }
     .section-title::before { content:''; flex:none; width:4px; height:18px; background:var(--navy); border-radius:2px; }
     .section-title::after  { content:''; flex:1; height:1px; background:var(--border); }
+    .section-updated { font-size:0.7rem; color:var(--muted); margin:-12px 0 16px 14px; }
+    .section-updated:empty { display:none; }
 
     /* ── Stat row ── */
     .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
@@ -107,8 +109,6 @@
     .yc-val.pos { color:var(--rust); }
     .yc-val.neg { color:var(--steel); }
 
-    /* Last updated */
-    .last-updated { font-size:0.73rem; color:var(--muted); margin-bottom:20px; display:none; }
 
     /* Diff */
     .diff-p { color:var(--rust);  font-weight:600; }
@@ -200,9 +200,6 @@
     </div>
 
     <div id="mainContent" style="display:none;">
-
-      <!-- Last updated -->
-      <div class="last-updated" id="lastUpdated"></div>
 
       <!-- ════════ LEAVE ════════ -->
       <div data-section="leave">
