@@ -189,9 +189,11 @@ function showLoading(html) {
   if(mc) mc.style.display="none";
 }
 function showContent() {
-  const ls=el("loadingState"), mc=el("mainContent");
+  const ls=el("loadingState"), mc=el("mainContent"), fb=el("filterBar");
   if(ls) ls.style.display="none";
   if(mc) mc.style.display="block";
+  if(fb) fb.style.display="flex";      // the category filter + full screen button appear with the data
+  initFilters();
 }
 
 // ════════════════════════════════════════
@@ -210,25 +212,64 @@ onAuthStateChanged(auth, async user => {
 
 
 // ── Section filter ────────────────────────────────────────────────────────────
+let filtersBound = false;
+function applyFilter(filter) {
+  document.querySelectorAll(".filter-pill").forEach(p => {
+    const on = p.dataset.filter === filter;
+    p.classList.toggle("active", on);
+    p.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  document.querySelectorAll("[data-section]").forEach(sec => {
+    sec.style.display = (filter === "all" || sec.dataset.section === filter) ? "" : "none";
+  });
+  // charts that were drawn while their section was hidden need a nudge to size themselves
+  requestAnimationFrame(() => Object.values(charts).forEach(c => { try { c.resize(); } catch (e) {} }));
+}
 function initFilters() {
-  const pills = document.querySelectorAll(".filter-pill");
-  pills.forEach(pill => {
-    pill.addEventListener("click", () => {
-      const filter = pill.dataset.filter;
-      // Update active pill
-      pills.forEach(p => p.classList.remove("active"));
-      pill.classList.add("active");
-      // Show/hide sections
-      document.querySelectorAll("[data-section]").forEach(sec => {
-        if(filter === "all") {
-          sec.style.display = "";
-        } else {
-          sec.style.display = sec.dataset.section === filter ? "" : "none";
-        }
-      });
-    });
+  if (filtersBound) return;                       // safe to call after every (re)load
+  const bar = el("filterBar"); if (!bar) return;
+  filtersBound = true;
+  bar.addEventListener("click", e => {
+    const pill = e.target.closest(".filter-pill");
+    if (pill) applyFilter(pill.dataset.filter);
   });
 }
+
+// ── Full screen ───────────────────────────────────────────────────────────────
+// Uses the browser's real full screen where available; on browsers that don't allow it
+// (e.g. iPhone Safari) it falls back to a "page only" full screen that hides the top bar.
+function initFullscreen() {
+  const btn = el("fsBtn"); if (!btn) return;
+  const root = document.documentElement;
+  const canNative = !!(root.requestFullscreen || root.webkitRequestFullscreen);
+  const isNative  = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const isOn      = () => document.body.classList.contains("dash-fs");
+
+  function paint(on) {
+    document.body.classList.toggle("dash-fs", on);
+    btn.textContent = on ? "✕ Exit full screen" : "⛶ Full screen";
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+    window.dispatchEvent(new Event("resize"));    // let the charts re-fit the new size
+  }
+  const enterNative = () => root.requestFullscreen ? root.requestFullscreen() : root.webkitRequestFullscreen();
+  const exitNative  = () => document.exitFullscreen ? document.exitFullscreen() : document.webkitExitFullscreen();
+
+  btn.addEventListener("click", async () => {
+    if (isOn()) {
+      if (isNative()) { try { await exitNative(); } catch (e) { paint(false); } }
+      else paint(false);
+    } else if (canNative) {
+      try { await enterNative(); } catch (e) { paint(true); }
+    } else paint(true);
+  });
+  // keeps the page in step when the browser itself leaves full screen (e.g. the Esc key)
+  const onChange = () => paint(isNative());
+  document.addEventListener("fullscreenchange", onChange);
+  document.addEventListener("webkitfullscreenchange", onChange);
+  // Esc also leaves the "page only" mode
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && isOn() && !isNative()) paint(false); });
+}
+initFullscreen();
 
 function buildYearPicker() {
   const sel=el("yearSelect"); if(!sel) return;
